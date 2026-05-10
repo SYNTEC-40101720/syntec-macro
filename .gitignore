@@ -1,0 +1,13 @@
+# Build / packaging
+*.vsix.orig
+node_modules/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+*.swp

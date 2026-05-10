@@ -1,16 +1,16 @@
-# Development files — excluded from VSIX
-data/
-build/
-dist/
-macro-samples/
-G0915
-MACRO*.md
-*.vsix
-*.vsix.orig
-*.md
+# Files excluded from VSIX package
+.md
 !CHANGELOG.md
 !README.md
-LICENSE.txt
-*.ps1
+dist/
+.vscodeignore
+.gitignore
+.git/
+*.vsix
 *.py
+*.ps1
 test_*
+src/validator.test.js
+node_modules/
+__pycache__/
+.DS_Store

@@ -1,8 +1,0 @@
-%@MACRO 
-#1 := GETARG(X);
-
-DBOPEN("AutoReturnResource");
-DBLOAD(0);
-@75032 := #1;
-DBSAVE(0);
-M99;
