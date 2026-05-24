@@ -1,4 +1,5 @@
 # Build / packaging
+*.vsix
 *.vsix.orig
 node_modules/
 __pycache__/
