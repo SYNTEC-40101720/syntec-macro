@@ -46,7 +46,18 @@ function stripCommentsAndStrings(line) {
     }
     // 字符串（双引号）
     if (line[i] === '"') {
-      inString = !inString;
+      // 检查是否被转义（前面有奇数个反斜杠）
+      let bs = 0;
+      let j = i - 1;
+      while (j >= 0 && line[j] === '\\') { bs++; j--; }
+      if (bs % 2 === 0) {
+        // 未被转义，正常切换 inString
+        inString = !inString;
+      } else {
+        // 被转义，" 是字符串内容，不切换 inString
+        // 在结果中保留一个空格占位
+        if (inString) result += ' ';
+      }
     } else {
       result += inString ? ' ' : line[i];
     }
