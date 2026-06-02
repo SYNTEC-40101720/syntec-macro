@@ -1,4 +1,4 @@
-// syntec-macro v1.4.1 - validator.js
+// syntec-macro v2.0.1 - validator.js
 // 语法诊断：括号匹配、IF/END_IF配对、控制流检查、中文字符检测
 // v1.3.6: 修复 GOTO 语法（GOTO 100 而非 GOTO N100），移除 INT 函数，修正 N 标签格式
 // v1.3.6: 修复所有中文乱码

@@ -1,18 +1,21 @@
-// syntec-macro v1.4.1 - extension.js
+// syntec-macro v2.0.1 - extension.js
 // VSCode 扩展主入口：提供 IntelliSense / Hover / 诊断
 
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const { functions } = require('./functions');
-const { keywords } = require('./keywords');
+const { keywords, getAllKeywords, getMCodeDesc } = require('./keywords');
 const { validateDocument } = require('./validator');
 const packageJson = require('../package.json');
 
 const LANG_ID = 'syntec-macro';
+const RECURSIVE_SEARCH_DEPTH = 5;
+const VARIABLE_COMPLETION_COUNT = 20;
+const DIAGNOSTIC_DEBOUNCE_MS = 300;
 
 function getConfig(resource) {
-  return vscode.workspacee.getConfiguration('syntecMacro', resource);
+  return vscode.workspace.getConfiguration('syntecMacro', resource);
 }
 
 function isFeatureEnabled(resource, key) {
@@ -41,40 +44,8 @@ function getRegexRangeAtPosition(document, position, regex) {
 // =====================
 // 1. Completion Provider
 // =====================
-function provideCompletionItems(document, position) {
-  if (!isFeatureEnabled(document.uri, 'enableCompletions')) return [];
 
-  const line = document.lineAt(position).text;
-  const textBefore = line.substring(0, position.character);
-
-  const items = [];
-
-  // 变量片段�?�?  if (textBefore.endsWith('#')) {
-    // 常用局部变�?#1~#20
-    for (let i = 1; i <= 20; i++) {
-      const item = new vscode.CompletionItem('#' + i, vscode.CompletionItemKind.Variable);
-      item.detail = '局部变�?#' + i;
-      item.insertText = String(i);
-      items.push(item);
-    }
-    // 常用大号变量
-    const bigVars = [100, 500, 1000, 2000, 9901, 9902, 9903, 9904, 9905, 9906];
-    for (const v of bigVars) {
-      const item = new vscode.CompletionItem('#' + v, vscode.CompletionItemKind.Variable);
-      item.detail = '局部变�?#' + v;
-      item.insertText = String(v);
-      items.push(item);
-    }
-    return items;
-  }
-
-  // 正在输入函数名（光标前有字母，可能是函数/关键字）
-  const wordMatch = textBefore.match(/[A-Za-z_][A-Za-z0-9_]*$/);
-  if (!wordMatch) return items;
-
-  const prefix = wordMatch[0].toUpperCase();
-
-  // 补全内置函数
+function provideFunctionCompletions(prefix, items) {
   for (const fn of functions) {
     if (fn.name.startsWith(prefix)) {
       const item = new vscode.CompletionItem(fn.name, vscode.CompletionItemKind.Function);
@@ -84,41 +55,72 @@ function provideCompletionItems(document, position) {
       items.push(item);
     }
   }
+}
 
-  // 补全关键字（控制流）
-  const allKeywords = [...new Set([
-    ...keywords.conditional, ...keywords.repeat, ...keywords.while,
-    ...keywords.for, ...keywords.case, ...keywords.flow,
-    ...keywords.operators,
-  ])];
+function provideKeywordCompletions(prefix, items) {
+  const allKeywords = getAllKeywords();
   for (const kw of allKeywords) {
     if (kw.startsWith(prefix) && kw !== 'GOTO') {
       const item = new vscode.CompletionItem(kw, vscode.CompletionItemKind.Keyword);
       items.push(item);
     }
   }
+}
 
-  // 补全 G 代码
-  if (prefix.startsWith('G')) {
-    for (const g of keywords.gcodes) {
-      if (!g.startsWith(prefix)) continue;
-      const item = new vscode.CompletionItem(g, vscode.CompletionItemKind.EnumMember);
-      item.detail = 'G代码';
+function provideGCodeCompletions(prefix, items) {
+  if (!prefix.startsWith('G')) return;
+  for (const g of keywords.gcodes) {
+    if (!g.startsWith(prefix)) continue;
+    const item = new vscode.CompletionItem(g, vscode.CompletionItemKind.EnumMember);
+    item.detail = 'G代码';
+    items.push(item);
+  }
+}
+
+function provideMCodeCompletions(prefix, items) {
+  if (!prefix.startsWith('M')) return;
+  for (const m of keywords.mcodes) {
+    if (!m.startsWith(prefix)) continue;
+    const item = new vscode.CompletionItem(m, vscode.CompletionItemKind.EnumMember);
+    item.detail = getMCodeDesc(m);
+    items.push(item);
+  }
+}
+
+function provideCompletionItems(document, position) {
+  if (!isFeatureEnabled(document.uri, 'enableCompletions')) return [];
+
+  const line = document.lineAt(position).text;
+  const textBefore = line.substring(0, position.character);
+
+  const items = [];
+
+  if (textBefore.endsWith('#')) {
+    for (let i = 1; i <= VARIABLE_COMPLETION_COUNT; i++) {
+      const item = new vscode.CompletionItem('#' + i, vscode.CompletionItemKind.Variable);
+      item.detail = '局部变量 #' + i;
+      item.insertText = String(i);
       items.push(item);
     }
-  }
-
-  // 补全 M 代码
-  if (prefix.startsWith('M')) {
-    for (const m of keywords.mcodes) {
-      if (!m.startsWith(prefix)) continue;
-      const item = new vscode.CompletionItem(m, vscode.CompletionItemKind.EnumMember);
-      item.detail = 'M代码 / 程序结束';
-      if (m === 'M99') item.documentation = '子程序返�?/ 主程序结�?;
-      if (m === 'M30') item.documentation = '程序结束并复�?;
+    const bigVars = [100, 500, 1000, 2000, 9901, 9902, 9903, 9904, 9905, 9906];
+    for (const v of bigVars) {
+      const item = new vscode.CompletionItem('#' + v, vscode.CompletionItemKind.Variable);
+      item.detail = '局部变量 #' + v;
+      item.insertText = String(v);
       items.push(item);
     }
+    return items;
   }
+
+  const wordMatch = textBefore.match(/[A-Za-z_][A-Za-z0-9_]*$/);
+  if (!wordMatch) return items;
+
+  const prefix = wordMatch[0].toUpperCase();
+
+  provideFunctionCompletions(prefix, items);
+  provideKeywordCompletions(prefix, items);
+  provideGCodeCompletions(prefix, items);
+  provideMCodeCompletions(prefix, items);
 
   return items;
 }
@@ -141,9 +143,7 @@ function provideHover(document, position) {
     if (code.startsWith('G')) {
       return new vscode.Hover(new vscode.MarkdownString('**G代码**: ' + code), codeRange);
     }
-    const desc = code === 'M99' ? '子程序返�?/ 宏程序结�? :
-                 code === 'M30' ? '程序结束并复�? :
-                 code === 'M65' ? '宏程序调�? : 'M代码';
+    const desc = getMCodeDesc(code);
     return new vscode.Hover(new vscode.MarkdownString('**M代码**: ' + code + '\n' + desc), codeRange);
   }
 
@@ -161,12 +161,10 @@ function provideHover(document, position) {
     return new vscode.Hover(md, range);
   }
 
-  // 查找关键�?  const allKw = [
-    ...keywords.conditional, ...keywords.repeat, ...keywords.while,
-    ...keywords.for, ...keywords.case, ...keywords.flow, ...keywords.operators,
-  ];
+  // 查找关键字
+  const allKw = getAllKeywords();
   if (allKw.includes(word)) {
-    const md = new vscode.MarkdownString('**关键�?*: ' + word);
+    const md = new vscode.MarkdownString('**关键字**: ' + word);
     return new vscode.Hover(md, range);
   }
 
@@ -183,7 +181,8 @@ function provideDefinition(document, position) {
 
   const word = document.getText(range).toUpperCase();
 
-  // GOTO 数字 �?跳转�?N 标签�?  // 实测语法：GOTO 100; （不带N），目标�?N100;
+  // GOTO 数字 → 跳转到 N 标签
+  // 实测语法：GOTO 100;（不带N），目标为 N100;
   const gotoMatch = line.match(/\bGOTO\s+(\d+)/i);
   if (gotoMatch) {
     const targetLabel = 'N' + gotoMatch[1];
@@ -201,10 +200,12 @@ function provideDefinition(document, position) {
     return targets;
   }
 
-  // G65 Pxxx �?跳转到宏程序（文件名约定 G0xxx�?  const g65Match = line.match(/G65\s+P(\w+)/i);
+  // G65 Pxxx → 跳转到宏程序（文件名约定 G0xxx）
+  const g65Match = line.match(/G65\s+P(\w+)/i);
   if (g65Match) {
     const progNo = g65Match[1].toUpperCase();
-    // 尝试在当前工作区找同名文�?    const targetFile = findMacroFile(document, progNo);
+    // 尝试在当前工作区找同名文件
+    const targetFile = findMacroFile(document, progNo);
     if (targetFile) {
       return [new vscode.Location(vscode.Uri.file(targetFile), new vscode.Position(0, 0))];
     }
@@ -213,25 +214,34 @@ function provideDefinition(document, position) {
   return [];
 }
 
-// 在工作区查找宏程序文�?function findMacroFile(document, progNo) {
-  const folder = vscode.workspacee.getWorkspaceFolder(document.uri);
-  if (!folder) return null;
-
-  const dir = folder.uri.fsPath;
-
-  // 规范化程序号（补足到4位，�?100 �?G0100�?  let fileName = progNo;
+function normalizeProgramName(progNo) {
+  let fileName = progNo;
   if (/^\d+$/.test(fileName)) {
     fileName = 'G' + fileName.padStart(4, '0');
   } else if (/^G?\d+$/i.test(fileName)) {
     fileName = 'G' + fileName.replace(/^G/i, '').padStart(4, '0');
   }
+  return fileName;
+}
 
-  const candidates = [
+function buildFileCandidates(dir, fileName) {
+  return [
     path.join(dir, fileName),
     path.join(dir, fileName + '.macro'),
     path.join(dir, fileName + '.G'),
     path.join(dir, fileName + '.scp'),
   ];
+}
+
+// 在工作区查找宏程序文件
+function findMacroFile(document, progNo) {
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  if (!folder) return null;
+
+  const dir = folder.uri.fsPath;
+  const fileName = normalizeProgramName(progNo);
+
+  const candidates = buildFileCandidates(dir, fileName);
 
   for (const c of candidates) {
     try { if (fs.existsSync(c)) return c; } catch {}
@@ -244,7 +254,7 @@ function provideDefinition(document, position) {
     fileName + '.scp',
   ].map(name => name.toUpperCase());
 
-  let found = findFileRecursive(dir, new Set(recursiveCandidates), 5);
+  let found = findFileRecursive(dir, new Set(recursiveCandidates), RECURSIVE_SEARCH_DEPTH);
   if (found) return found;
 
   // includePath 配置支持
@@ -256,16 +266,11 @@ function provideDefinition(document, position) {
       let stat;
       try { stat = fs.statSync(p); } catch { continue; }
       if (!stat.isDirectory()) continue;
-      const cands = [
-        path.join(p, fileName),
-        path.join(p, fileName + '.macro'),
-        path.join(p, fileName + '.G'),
-        path.join(p, fileName + '.scp'),
-      ];
+      const cands = buildFileCandidates(p, fileName);
       for (const c of cands) {
         try { if (fs.existsSync(c)) return c; } catch {}
       }
-      found = findFileRecursive(p, new Set(recursiveCandidates), 5);
+      found = findFileRecursive(p, new Set(recursiveCandidates), RECURSIVE_SEARCH_DEPTH);
       if (found) return found;
     }
   }
@@ -304,7 +309,7 @@ let diagTimer = null;
 
 function scheduleDiagnostics(document) {
   clearTimeout(diagTimer);
-  diagTimer = setTimeout(() => refreshDiagnostics(document), 300);
+  diagTimer = setTimeout(() => refreshDiagnostics(document), DIAGNOSTIC_DEBOUNCE_MS);
 }
 
 function refreshDiagnostics(document) {
@@ -339,7 +344,8 @@ function provideDocumentSymbol(document) {
   for (let i = 0; i < document.lineCount; i++) {
     const line = document.lineAt(i);
     const text = line.text.trim();
-    // N标签行（�?N100;�?    const labelMatch = text.match(createNLabelRegex());
+    // N标签行（如 N100;）
+    const labelMatch = text.match(createNLabelRegex());
     if (labelMatch) {
       const sym = new vscode.DocumentSymbol(
         'N' + labelMatch[1],
@@ -351,12 +357,12 @@ function provideDocumentSymbol(document) {
       );
       symbols.push(sym);
     }
-    // 宏程序入�?%@MACRO
+    // 宏程序入口 %@MACRO
     const macroMatch = text.match(/^%@MACRO/);
     if (macroMatch) {
       const sym = new vscode.DocumentSymbol(
         '%@MACRO',
-        '宏程序入�?,
+        '宏程序入口',
         vscode.SymbolKind.Namespace,
         line.range,
         line.range,
@@ -369,7 +375,8 @@ function provideDocumentSymbol(document) {
 }
 
 // =====================
-// 扩展激�?// =====================
+// 扩展激活
+// =====================
 function activate(context) {
   // 注册语言服务
   const selector = { language: LANG_ID };
@@ -401,23 +408,23 @@ function activate(context) {
   context.subscriptions.push(diagnosticCollection);
 
   // 初始扫描 + 实时更新
-  for (const doc of vscode.workspacee.textDocuments) {
+  for (const doc of vscode.workspace.textDocuments) {
     scheduleDiagnostics(doc);
   }
 
-  const changeWatcher = vscode.workspacee.onDidChangeTextDocument(e => {
+  const changeWatcher = vscode.workspace.onDidChangeTextDocument(e => {
     scheduleDiagnostics(e.document);
   });
   context.subscriptions.push(changeWatcher);
 
-  const openWatcher = vscode.workspacee.onDidOpenTextDocument(doc => {
+  const openWatcher = vscode.workspace.onDidOpenTextDocument(doc => {
     scheduleDiagnostics(doc);
   });
   context.subscriptions.push(openWatcher);
 
-  const configWatcher = vscode.workspacee.onDidChangeConfiguration(e => {
+  const configWatcher = vscode.workspace.onDidChangeConfiguration(e => {
     if (!e.affectsConfiguration('syntecMacro')) return;
-    for (const doc of vscode.workspacee.textDocuments) {
+    for (const doc of vscode.workspace.textDocuments) {
       scheduleDiagnostics(doc);
     }
   });
@@ -428,11 +435,11 @@ function activate(context) {
     vscode.StatusBarAlignment.right, 100
   );
   statusBar.text = ' Syntec Macro v' + packageJson.version;
-  statusBar.tooltip = '新代宏程序扩展已激�?;
+  statusBar.tooltip = '新代宏程序扩展已激活';
   statusBar.show();
   context.subscriptions.push(statusBar);
 
-  console.log('[syntec-macro] 扩展已激�?v' + packageJson.version);
+  console.log('[syntec-macro] 扩展已激活 v' + packageJson.version);
 }
 
 function deactivate() {}

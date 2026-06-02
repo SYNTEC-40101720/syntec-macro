@@ -1,3 +1,22 @@
+## [2.0.1] - 2026-06-02
+
+### 🔧 代码精简与 Bug 修复
+
+**Bug 修复**
+- 修复 `vscode.workspacee` → `vscode.workspace` 拼写错误（影响所有配置读取和事件监听）
+- 修复 `#` 变量补全逻辑（曾被注释导致不生效）
+- 修复 extension.js 中文注释乱码（24 处恢复为正确 UTF-8 编码）
+
+**代码精简**
+- 提取 `getAllKeywords()` 统一关键字聚合，消除 Completion/Hover 中重复代码
+- 提取 `getMCodeDesc()` 统一 M 代码描述，消除三元表达式重复
+- 拆分 `provideCompletionItems` 为 4 个聚焦子函数
+- 拆分 `findMacroFile` 为 `normalizeProgramName` + `buildFileCandidates`
+- 移除 `keywords.js` 中未使用的 `varPatterns`、`endCodes`、`labelPattern` 导出
+- 魔法数字常量化：`RECURSIVE_SEARCH_DEPTH`、`VARIABLE_COMPLETION_COUNT`、`DIAGNOSTIC_DEBOUNCE_MS`
+
+---
+
 ## [2.0.0] - 2026-05-24
 
 ### 🚀 重大更新：性能优化 + 功能增强

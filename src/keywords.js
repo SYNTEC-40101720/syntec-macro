@@ -1,4 +1,4 @@
-// syntec-macro v1.4.1 - keywords.js
+// syntec-macro v2.0.1 - keywords.js
 // 关键字、常量、控制流、变量格式定义
 
 exports.keywords = {
@@ -9,7 +9,6 @@ exports.keywords = {
   case:        ['CASE', 'OF', 'END_CASE', 'ENDCASE'],
   flow:        ['GOTO', 'EXIT'],
   operators:   ['AND', 'OR', 'XOR', 'NOT', 'MOD', 'DIV'],
-  endCodes:    ['M99', 'M30', 'M02'],
   gcodes: [
     'G00','G01','G02','G03','G04','G05','G10','G11','G15','G16','G17','G18','G19',
     'G20','G21','G28','G29','G30','G31','G40','G41','G42','G43','G44','G49',
@@ -32,13 +31,23 @@ exports.keywords = {
   ],
 };
 
-exports.varPatterns = [
-  { label: '局部变量 #N',     regex: /#\d+/,                          kind: 'Variable' },
-  { label: '全局变量 @N/@name', regex: /@[A-Za-z_][A-Za-z0-9_]*|@\d+|@\[[^\]]+\]/, kind: 'Variable' },
-  { label: '应用变量 ARN',    regex: /AR\d+/,                          kind: 'Constant' },
-  { label: '机床变量 MARN',   regex: /MAR\d+/,                         kind: 'Constant' },
-  { label: '系统变量 SYS[]',  regex: /SYS\[[^\]]+\]/,                  kind: 'Variable' },
-  { label: '宏变量名 #name',  regex: /#[A-Za-z_][A-Za-z0-9_]*/,       kind: 'Variable' },
-];
+exports.getAllKeywords = function() {
+  return [...new Set([
+    ...exports.keywords.conditional,
+    ...exports.keywords.repeat,
+    ...exports.keywords.while,
+    ...exports.keywords.for,
+    ...exports.keywords.case,
+    ...exports.keywords.flow,
+    ...exports.keywords.operators,
+  ])];
+};
 
-exports.labelPattern = /\bN\d+\b/g;
+exports.getMCodeDesc = function(code) {
+  var descs = {
+    'M99': '子程序返回 / 宏程序结束',
+    'M30': '程序结束并复位',
+    'M65': '宏程序调用',
+  };
+  return descs[code] || 'M代码';
+};
