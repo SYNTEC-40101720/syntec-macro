@@ -18,7 +18,6 @@
 - [已知限制](#已知限制)
 - [控制器语法规则](#控制器语法规则)
 - [故障排除](#故障排除)
-- [更新日志](#更新日志)
 - [贡献](#贡献)
 - [许可证](#许可证)
 
@@ -416,37 +415,6 @@ N100；  (* 错误：中文分号 *)
 1. 检查是否是中文标点符号（如 `；` 应为 `;`）
 2. 检查是否是控制器不支持的语法（如 `ELSIF`）
 3. 提交 Issue 到 GitHub，附上代码示例
-
----
-
-## 📁 更新日志
-
-### [2.0.0] - 2026-05-24
-
-#### 🚀 重大更新：性能优化 + 功能增强
-
-**性能优化**
-- 新增诊断防抖机制（300ms），打字时不再卡顿
-- `findFileRecursive` 深度配置化，支持从 `package.json` 读取
-
-**功能增强**
-- ✨ 补全项自动添加括号 snippet（`STR` → `STR(${1})`）
-- ✨ 新增 `includePath` 配置，支持 G65 跳转搜索额外路径
-- 🔧 Hover 文档使用代码块渲染，可读性提升
-- 🔧 修复 `stripCommentsAndStrings` 转义引号处理（`\"` 不再误判）
-
-**Bug 修复**
-- 修复 `getRegexRangeAtPosition` 正则 `lastIndex` 未重置导致的匹配异常
-- 修复 `vscode.workspace` 拼写错误（影响诊断刷新）
-- 修复中文字符检测在块注释后的边界判断
-
-**项目配置**
-- 新增 `.vscode/launch.json`（F5 调试支持）
-- 新增 `.vscode/tasks.json`（Ctrl+Shift+B 构建支持）
-- 新增 `.eslintrc.js`（代码质量检查）
-- 安装 `eslint` 开发依赖
-
-详见 [CHANGELOG.md](https://github.com/SYNTEC-40101720/syntec-macro-vscode/blob/main/CHANGELOG.md)
 
 ---
 
