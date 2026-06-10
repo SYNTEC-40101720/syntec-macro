@@ -211,6 +211,59 @@ function validateDocument(content) {
     // 按字符位置排序（同行中按从左到右顺序处理关键字）
     positions.sort((a, b) => a.col - b.col);
 
+    // --- 中文字符检查 ---
+    (() => {
+      const CJK_PUNCT = /[；：，。！？【】《》（）""''、]/;
+      const CJK_CHAR  = /[\u4e00-\u9fff\u3400-\u4dbf]/;
+      let inStr = false, inBC = false;
+      let hasCJK = false, firstCJK = -1;
+      const puncts = [];
+
+      for (let ci = 0; ci < raw.length; ci++) {
+        if (!inStr && !inBC && raw.substring(ci, ci + 2) === '//') break;
+        if (!inStr && raw.substring(ci, ci + 2) === '(*') {
+          inBC = true; ci++; continue;
+        }
+        if (inBC) {
+          if (raw.substring(ci, ci + 2) === '*)') {
+            inBC = false; ci++;
+          }
+          continue;
+        }
+        if (raw[ci] === '"') { inStr = !inStr; continue; }
+        if (inStr || inBC) continue;
+        if (CJK_CHAR.test(raw[ci]) && !hasCJK) { hasCJK = true; firstCJK = ci; }
+        if (CJK_PUNCT.test(raw[ci])) puncts.push({ col: ci, ch: raw[ci] });
+      }
+      if (hasCJK) diagnostics.push({ line: lineNum, col: firstCJK, endCol: firstCJK + 1,
+        msg: '中文字符：宏程序只允许使用英文字符', severity: 'error' });
+      for (const p of puncts) diagnostics.push({ line: lineNum, col: p.col, endCol: p.col + 1,
+        msg: `中文标点 "${p.ch}"：宏程序应使用英文字符`, severity: 'error' });
+    })();
+
+    // --- 括号匹配 ---
+    (() => {
+      const clean = stripCommentsAndStrings(lines[i]);
+      if (!clean.trim()) return;
+      const parenStack = [];
+      let inStr = false;
+      for (let ci = 0; ci < clean.length; ci++) {
+        if (clean[ci] === '"') inStr = !inStr;
+        if (inStr) continue;
+        if (clean[ci] === '(') parenStack.push(ci);
+        else if (clean[ci] === ')') {
+          if (parenStack.length === 0) {
+            diagnostics.push({ line: lineNum, col: ci, endCol: ci + 1,
+              msg: '括号不匹配：多余的右括号', severity: 'warning' });
+          } else { parenStack.pop(); }
+        }
+      }
+      if (parenStack.length > 0) {
+        diagnostics.push({ line: lineNum, col: parenStack[0], endCol: parenStack[0] + 1,
+          msg: `括号不匹配：缺少 ${parenStack.length} 个右括号`, severity: 'warning' });
+      }
+    })();
+
     for (const pos of positions) {
       const kw = pos.keyword;
 
@@ -365,62 +418,6 @@ function validateDocument(content) {
         line: ref.line, col: 0, endCol: 0,
         msg: `GOTO 目标 ${ref.target} 不存在`, severity: 'warning',
       });
-    }
-  }
-
-  // === 中文字符检查 ===
-  const CJK_PUNCT = /[；：，。！？【】《》（）""''、]/;
-  const CJK_CHAR  = /[\u4e00-\u9fff\u3400-\u4dbf]/;
-  for (let i = 0; i < lines.length; i++) {
-    const lineNum = i + 1;
-    const raw = lines[i];
-    let inStr = false, inBC = false;
-    let hasCJK = false, firstCJK = -1;
-    const puncts = [];
-
-    for (let ci = 0; ci < raw.length; ci++) {
-      if (!inStr && !inBC && raw.substring(ci, ci + 2) === '//') break;
-      if (!inStr && raw.substring(ci, ci + 2) === '(*') {
-        inBC = true; ci++; continue;
-      }
-      if (inBC) {
-        if (raw.substring(ci, ci + 2) === '*)') {
-          inBC = false; ci++;
-        }
-        continue;
-      }
-      if (raw[ci] === '"') { inStr = !inStr; continue; }
-      if (inStr || inBC) continue;
-      if (CJK_CHAR.test(raw[ci]) && !hasCJK) { hasCJK = true; firstCJK = ci; }
-      if (CJK_PUNCT.test(raw[ci])) puncts.push({ col: ci, ch: raw[ci] });
-    }
-    if (hasCJK) diagnostics.push({ line: lineNum, col: firstCJK, endCol: firstCJK + 1,
-      msg: '中文字符：宏程序只允许使用英文字符', severity: 'error' });
-    for (const p of puncts) diagnostics.push({ line: lineNum, col: p.col, endCol: p.col + 1,
-      msg: `中文标点 "${p.ch}"：宏程序应使用英文字符`, severity: 'error' });
-  }
-
-  // === 括号匹配检查 ===
-  for (let i = 0; i < lines.length; i++) {
-    const lineNum = i + 1;
-    const clean = stripCommentsAndStrings(lines[i]);
-    if (!clean.trim()) continue;
-    const parenStack = [];
-    let inStr = false;
-    for (let ci = 0; ci < clean.length; ci++) {
-      if (clean[ci] === '"') inStr = !inStr;
-      if (inStr) continue;
-      if (clean[ci] === '(') parenStack.push(ci);
-      else if (clean[ci] === ')') {
-        if (parenStack.length === 0) {
-          diagnostics.push({ line: lineNum, col: ci, endCol: ci + 1,
-            msg: '括号不匹配：多余的右括号', severity: 'warning' });
-        } else { parenStack.pop(); }
-      }
-    }
-    if (parenStack.length > 0) {
-      diagnostics.push({ line: lineNum, col: parenStack[0], endCol: parenStack[0] + 1,
-        msg: `括号不匹配：缺少 ${parenStack.length} 个右括号`, severity: 'warning' });
     }
   }
 

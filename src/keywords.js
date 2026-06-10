@@ -31,8 +31,11 @@ exports.keywords = {
   ],
 };
 
+let _allKeywordsCache = null;
+
 exports.getAllKeywords = function() {
-  return [...new Set([
+  if (_allKeywordsCache) return _allKeywordsCache;
+  _allKeywordsCache = [...new Set([
     ...exports.keywords.conditional,
     ...exports.keywords.repeat,
     ...exports.keywords.while,
@@ -41,10 +44,11 @@ exports.getAllKeywords = function() {
     ...exports.keywords.flow,
     ...exports.keywords.operators,
   ])];
+  return _allKeywordsCache;
 };
 
 exports.getMCodeDesc = function(code) {
-  var descs = {
+  const descs = {
     'M99': '子程序返回 / 宏程序结束',
     'M30': '程序结束并复位',
     'M65': '宏程序调用',

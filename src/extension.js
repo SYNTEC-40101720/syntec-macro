@@ -1,10 +1,10 @@
-// syntec-macro v2.0.1 - extension.js
+// syntec-macro v2.0.2 - extension.js
 // VSCode 扩展主入口：提供 IntelliSense / Hover / 诊断
 
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
-const { functions } = require('./functions');
+const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc } = require('./keywords');
 const { validateDocument } = require('./validator');
 const packageJson = require('../package.json');
@@ -13,6 +13,9 @@ const LANG_ID = 'syntec-macro';
 const RECURSIVE_SEARCH_DEPTH = 5;
 const VARIABLE_COMPLETION_COUNT = 20;
 const DIAGNOSTIC_DEBOUNCE_MS = 300;
+const BIG_VARIABLES = [100, 500, 1000, 2000, 9901, 9902, 9903, 9904, 9905, 9906];
+
+const functionIndex = buildFunctionIndex();
 
 function getConfig(resource) {
   return vscode.workspace.getConfiguration('syntecMacro', resource);
@@ -87,31 +90,34 @@ function provideMCodeCompletions(prefix, items) {
   }
 }
 
+function provideVariableCompletions() {
+  const items = [];
+  for (let i = 1; i <= VARIABLE_COMPLETION_COUNT; i++) {
+    const item = new vscode.CompletionItem('#' + i, vscode.CompletionItemKind.Variable);
+    item.detail = '局部变量 #' + i;
+    item.insertText = String(i);
+    items.push(item);
+  }
+  for (const v of BIG_VARIABLES) {
+    const item = new vscode.CompletionItem('#' + v, vscode.CompletionItemKind.Variable);
+    item.detail = '局部变量 #' + v;
+    item.insertText = String(v);
+    items.push(item);
+  }
+  return items;
+}
+
 function provideCompletionItems(document, position) {
   if (!isFeatureEnabled(document.uri, 'enableCompletions')) return [];
 
   const line = document.lineAt(position).text;
   const textBefore = line.substring(0, position.character);
 
-  const items = [];
-
   if (textBefore.endsWith('#')) {
-    for (let i = 1; i <= VARIABLE_COMPLETION_COUNT; i++) {
-      const item = new vscode.CompletionItem('#' + i, vscode.CompletionItemKind.Variable);
-      item.detail = '局部变量 #' + i;
-      item.insertText = String(i);
-      items.push(item);
-    }
-    const bigVars = [100, 500, 1000, 2000, 9901, 9902, 9903, 9904, 9905, 9906];
-    for (const v of bigVars) {
-      const item = new vscode.CompletionItem('#' + v, vscode.CompletionItemKind.Variable);
-      item.detail = '局部变量 #' + v;
-      item.insertText = String(v);
-      items.push(item);
-    }
-    return items;
+    return provideVariableCompletions();
   }
 
+  const items = [];
   const wordMatch = textBefore.match(/[A-Za-z_][A-Za-z0-9_]*$/);
   if (!wordMatch) return items;
 
@@ -153,7 +159,7 @@ function provideHover(document, position) {
   const word = document.getText(range).toUpperCase();
 
   // 查找函数
-  const fn = functions.find(f => f.name === word);
+  const fn = functionIndex.get(word);
   if (fn) {
     const md = new vscode.MarkdownString();
     md.appendCodeblock(fn.sig, 'syntec-macro');

@@ -114,3 +114,12 @@ exports.functions = [
   { name: 'RAD',     sig: 'RAD(deg)',        doc: 'Degrees to radians\nRAD(180) -> 3.14159' },
   { name: 'MOD',     sig: 'MOD(a, b)',       doc: 'Modulo (remainder)\nMOD(10, 3) -> 1' },
 ];
+
+/** 构建函数名索引 Map，key 为函数名（大写），value 为函数对象 */
+exports.buildFunctionIndex = function() {
+  const map = new Map();
+  for (const fn of exports.functions) {
+    map.set(fn.name, fn);
+  }
+  return map;
+};
