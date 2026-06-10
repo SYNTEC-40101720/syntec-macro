@@ -1,3 +1,19 @@
+## [2.0.2] - 2026-06-10
+
+### Bug 修复
+
+**REPEAT/UNTIL/END_REPEAT 嵌套语法诊断修复**
+- 修复嵌套 `REPEAT` 块中，当 `UNTIL` 和 `END_REPEAT` 不在同一行时误报 "UNTIL 没有匹配的 REPEAT"
+- 修复 `END_REPEAT` 在 `UNTIL` 处理后错误地弹出更外层 `REPEAT` 的问题
+- 修复 `END_REPEAT` 单独成行时不应匹配已被 `UNTIL` 关闭的 `REPEAT`
+- 新增 `untiledRepeats` 栈追踪，正确区分 "同行配对" 与 "跨行配对" 场景
+- 确保多余 `END_REPEAT` 仍能正确报错
+
+**测试覆盖**
+- 新增 20 个嵌套场景测试用例，涵盖 REPEAT/FOR/WHILE 嵌套、混合嵌套、错误场景
+
+---
+
 ## [2.0.1] - 2026-06-02
 
 ### 🔧 代码精简与 Bug 修复

@@ -156,6 +156,7 @@ function validateDocument(content) {
   const lines = content.split(/\r?\n/);
   const diagnostics = [];
   const stack = []; // 控制流块栈 [{line, keyword, hasElse}]
+  const untiledRepeats = []; // 栈：记录已被 UNTIL 关闭但尚未遇到 END_REPEAT 的 REPEAT 行号
 
   // === 第一遍：收集 N标签 + 检查 %@MACRO ===
   const nLabels = new Set();
@@ -232,6 +233,23 @@ function validateDocument(content) {
 
       // --- 关闭关键字 ---
       else if (kw in CLOSER_TO_OPENER) {
+        // END_REPEAT/ENDREPEAT 是 UNTIL 的语法跟随符：
+        // 1) 同行有 UNTIL：UNTIL 已关闭 REPEAT，END_REPEAT 只是语法结束符
+        // 2) 不同行：UNTIL 已在前面关闭了 REPEAT，END_REPEAT 应跳过已被 UNTIL 关闭的 REPEAT
+        let skipThisKw = false;
+        if (kw === 'END_REPEAT' || kw === 'ENDREPEAT') {
+          if (positions.some(p => p.keyword === 'UNTIL')) {
+            skipThisKw = true; // 同行，UNTIL 已处理
+          } else {
+            // 不同行：消费一个 untiled REPEAT
+            if (untiledRepeats.length > 0) {
+              untiledRepeats.pop();
+              skipThisKw = true;
+            }
+          }
+        }
+        if (skipThisKw) continue;
+
         const opener = CLOSER_TO_OPENER[kw];
         let matchIdx = -1;
         for (let j = stack.length - 1; j >= 0; j--) {
@@ -240,10 +258,6 @@ function validateDocument(content) {
         if (matchIdx >= 0) {
           stack.splice(matchIdx, 1);
         } else {
-          // END_REPEAT/ENDREPEAT 可能已在同行的 UNTIL 处关闭，跳过此报错
-          if ((kw === 'END_REPEAT' || kw === 'ENDREPEAT') && positions.some(p => p.keyword === 'UNTIL')) {
-            continue; // UNTIL 已关闭 REPEAT，END_REPEAT 紧跟是合法用法
-          }
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
             msg: `${kw} 没有匹配的 ${opener}`,
@@ -304,6 +318,14 @@ function validateDocument(content) {
             msg: 'UNTIL 没有匹配的 REPEAT', severity: 'error',
           });
         } else {
+          // 如果同行没有 END_REPEAT/ENDREPEAT，说明 END_REPEAT 会在下一行，需要记录
+          // 如果同行有 END_REPEAT/ENDREPEAT，它们在同一行已形成完整配对，无需记录
+          const hasEndRepeatOnSameLine = positions.some(p =>
+            p.keyword === 'END_REPEAT' || p.keyword === 'ENDREPEAT'
+          );
+          if (!hasEndRepeatOnSameLine) {
+            untiledRepeats.push(stack[ni].line);
+          }
           stack.splice(ni, 1);
         }
       }
