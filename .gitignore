@@ -13,3 +13,9 @@ Thumbs.db
 # IDE
 .vscode/
 *.swp
+
+# Trae
+.trae/
+
+# Release notes
+release-notes-*
