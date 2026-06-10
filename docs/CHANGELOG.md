@@ -1,3 +1,26 @@
+## [2.1.0] - 2026-06-10
+
+### 🚀 稳定版本发布
+
+**项目目录规范化**
+- 创建 `config/` 目录收纳 `.eslintrc.js`
+- 创建 `docs/` 目录收纳 `CHANGELOG.md`
+- 新增 `.github/` Issue/PR 模板
+
+**代码重构与性能优化**
+- `functions.js` 新增 `buildFunctionIndex()` → `Map` 预索引，函数查找 O(1)
+- `keywords.js` `getAllKeywords()` 模块级缓存，避免重复 Set 构造
+- `validator.js` 合并中文字符检查与括号匹配为单次遍历，`lines` 遍历从 3 次减少到 1 次
+- `extension.js` 提取 `provideVariableCompletions()` 独立函数
+- `extension.js` Hover Provider 使用 `functionIndex` 替代 `functions.find()`
+
+**配置优化**
+- 全面重构 `.gitignore`（9 个功能分组）
+- 优化 `.vscodeignore`（移除冗余，补全遗漏）
+- 新增 `lint` 脚本指向 `config/.eslintrc.js`
+
+---
+
 ## [2.0.2] - 2026-06-10
 
 ### Bug 修复
