@@ -1,18 +1,32 @@
-# Files excluded from VSIX package
-.md
-!CHANGELOG.md
-!README.md
-dist/
-.vscodeignore
-.gitignore
-.git/
-*.vsix
+# Documentation (not needed in VSIX)
+README.md
+docs/
+release-notes-*.md
+
+# Development files
+.github/
+.trae/
+config/
+tests/
+
+# Build tools & scripts
 *.py
 *.ps1
-test_*
-tests/
+build/
+
+# Dependencies
 node_modules/
-__pycache__/
+
+# OS & IDE
 .DS_Store
-.trae/
-.github/
+Thumbs.db
+.vscode/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# VSIX artifacts
+*.vsix
+*.vsix.orig

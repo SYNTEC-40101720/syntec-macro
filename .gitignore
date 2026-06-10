@@ -1,21 +1,36 @@
-# Build / packaging
-*.vsix
-*.vsix.orig
+# ==================== Dependencies ====================
 node_modules/
+
+# ==================== Build Output ====================
+*.vsix
+dist/
+
+# ==================== Python Build ====================
 __pycache__/
 *.pyc
-dist/*.vsix
+*.pyo
 
-# OS
+# ==================== OS Files ====================
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# IDE
+# ==================== IDE & Editor ====================
 .vscode/
 *.swp
+*.swo
+*~
 
-# Trae
+# ==================== Trae IDE ====================
 .trae/
 
-# Release notes
-release-notes-*
+# ==================== Environment & Logs ====================
+.env
+.env.local
+*.log
+
+# ==================== Release Notes (temporary) ====================
+release-notes-*.md
+
+# ==================== VSIX Packages ====================
+syntec-macro-*.vsix
