@@ -1,4 +1,4 @@
-// syntec-macro v2.6.0 - functions.js
+// syntec-macro v2.6.1 - functions.js
 // 内置函数完整定义：补全数据 + Hover文档
 
 exports.functions = [

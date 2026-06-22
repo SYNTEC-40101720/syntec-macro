@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-06-23
+
+### Changed
+- **validator.js 重构**: 将 validateDocument 函数（约290行）按职责拆分为6个独立验证器函数
+  - collectMetadata: N标签收集与%@MACRO文件头检查
+  - validateChineseCharacters: 中文字符与标点检测
+  - validateParentheses: 括号匹配验证
+  - validateControlFlowKeyword: 控制流关键字栈操作
+  - validateUnclosedBlocks: 文件结束未关闭块检查
+  - validateGotoReferences: GOTO标签引用验证
+- **策略模式**: 引入 LINE_VALIDATORS 数组，行级验证器可插拔扩展
+- **版本号统一**: 更新至 v2.6.1
+
 ## [2.6.0] - 2026-06-23
 
 ### Added
