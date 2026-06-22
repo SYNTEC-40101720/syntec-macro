@@ -1,4 +1,4 @@
-// syntec-macro v2.5.0 - functions.js
+// syntec-macro v2.6.0 - functions.js
 // 内置函数完整定义：补全数据 + Hover文档
 
 exports.functions = [
@@ -41,6 +41,8 @@ exports.functions = [
   { name: 'SYSVAR',    sig: 'SYSVAR("name")', doc: '读取系统变量\nSYSVAR("SYSTEM::NC_MODE") -> 值\n范例: #1 := SYSVAR("SYSTEM::FEEDRATE")' },
   { name: 'SYSDATA',   sig: 'SYSDATA(axis)',  doc: '读取当前轴位置数据\nSYSDATA(axis) -> 数值\naxis: X=0, Y=1, Z=2, A=3, B=4, C=5' },
   { name: 'DRVDATA',   sig: 'DRVDATA(axis)',  doc: '读取驱动器数据\nDRVDATA(axis) -> 数值' },
+  { name: 'GETPR',     sig: 'GETPR(prNumber)',  doc: '读取控制器参数\nGETPR(3500) -> 读取 Pr3500 的值\n范例: @1 := GETPR(3500)' },
+  { name: 'SETPR',     sig: 'SETPR(prNumber, value)', doc: '写入控制器参数\nSETPR(3500, @1) -> 将 @1 写入 Pr3500\n范例: SETPR(3500, 100)' },
 
   // ===== 文件 I/O =====
   { name: 'OPEN',   sig: 'OPEN(fileNo, path, mode)', doc: '开启文件\nOPEN(1, "C:\\TEMP\\LOG.TXT", "W")\nmode: R=读取, W=写入, A=附加\n返回值: 0=成功, <0=失败' },
@@ -86,7 +88,7 @@ exports.functions = [
   { name: 'ALARM',   sig: 'ALARM(no, "msg")', doc: '触发警报并暂停程序\nALARM(1001, "Tool not ready")\nno: 警报编号\nmsg: 显示讯息' },
   { name: 'MSG',     sig: 'MSG("text")',     doc: '在萤幕显示讯息（非阻断）\nMSG("Progress: " + STR(#1) + "%")' },
   { name: 'WAIT',    sig: 'WAIT(ms)',         doc: '等待（毫秒）\nWAIT(2000) -> 等待 2 秒' },
-  { name: 'SLEEP',   sig: 'SLEEP(sec)',       doc: '等待（秒）\nSLEEP(1) -> 等待 1 秒\nWAIT 与 SLEEP 区别: WAIT=毫秒, SLEEP=秒' },
+  { name: 'SLEEP',   sig: 'SLEEP(ms)',        doc: '等待（毫秒）\nSLEEP(100) -> 等待 100ms\n建议在无穷循环中定期调用以避免卡死' },
   { name: 'CHKMI',   sig: 'CHKMI',           doc: '检查 M 码是否生效\nCHKMI -> 0=未生效, 1=已生效' },
   { name: 'CHKMN',   sig: 'CHKMN(Mnn)',       doc: '检查指定 M 码是否存在\nCHKMN(98) -> 1=存在' },
   { name: 'CHKSN',   sig: 'CHKSN(Snn)',       doc: '检查 S 码\nCHKSN(1000)' },

@@ -1,4 +1,4 @@
-// syntec-macro v2.5.0 - validator.js
+// syntec-macro v2.6.0 - validator.js
 // 语法诊断：括号匹配、IF/END_IF配对、控制流检查、中文字符检测
 // ============================================================
 // 块关键字定义
@@ -226,7 +226,7 @@ function validateDocument(content) {
     (() => {
       const CJK_PUNCT = /[；：，。！？【】《》（）""''、]/;
       const CJK_CHAR  = /[\u4e00-\u9fff\u3400-\u4dbf]/;
-      let inStr = false, inBC = false;
+      let inStr = false, inBC = lineStartInBlock;
       let hasCJK = false, firstCJK = -1;
       const puncts = [];
 

@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Version](https://img.shields.io/badge/version-2.6.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -15,6 +15,7 @@
 - [详细功能](#详细功能)
 - [配置选项](#配置选项)
 - [代码片段](#代码片段)
+- [机器人指令](#机器人指令)
 - [已知限制](#已知限制)
 - [控制器语法规则](#控制器语法规则)
 - [故障排除](#故障排除)
@@ -27,13 +28,14 @@
 
 | 功能 | 说明 | 状态 |
 |------|------|------|
-| **语法高亮** | `%@MACRO`、控制流、60+ 函数、G/M 代码、变量、字符串 | ✅ |
+| **语法高亮** | `%@MACRO`、控制流、88+ 函数、G/M 代码、变量、字符串 | ✅ |
 | **智能补全** | 输入函数名 → 自动弹出含签名参数的补全列表 | ✅ 增强 v2.0.0 |
 | **悬停文档** | 悬停函数名/G/M 代码 → 显示完整说明、参数解释、使用示例 | ✅ |
 | **代码跳转** | Ctrl+点击 N 标签 → 跳转到定义行；G65 Pxxx → 跳转宏程序 | ✅ |
 | **实时诊断** | IF/END_IF/FOR/WHILE/CASE 块配对、括号匹配、中文字符检测 | ✅ |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
-| **代码片段** | 40+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
+| **代码片段** | 50+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
+| **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令 | ✅ 新增 v2.6.0 |
 | **诊断防抖** | 300ms 防抖，打字时不再卡顿 | 🆕 v2.0.0 |
 | **includePath** | 配置额外搜索路径，G65 跳转支持多目录 | 🆕 v2.0.0 |
 
@@ -43,7 +45,7 @@
 
 ### 方法 1：从 VSIX 文件安装（推荐）
 
-1. 下载 `syntec-macro-2.1.0.vsix`
+1. 下载 `syntec-macro-2.6.0.vsix`
 2. 在 VS Code 中按 `Ctrl+Shift+P`
 3. 输入 `Install from VSIX...`
 4. 选择下载的 `.vsix` 文件
@@ -75,7 +77,7 @@ npm run build
 npm run package
 
 # 安装生成的 .vsix 文件
-code --install-extension syntec-macro-2.1.0.vsix
+code --install-extension syntec-macro-2.6.0.vsix
 ```
 
 ---
@@ -340,6 +342,28 @@ N100；  (* 错误：中文分号 *)
 
 ---
 
+## 🤖 机器人指令
+
+本扩展支持新代控制器的机器人指令语法高亮和补全：
+
+| 类别 | 指令 | 说明 |
+|------|------|------|
+| **移动指令** | MOVJ, MOVJ-II, MOVL, MOVC, INCMOVJ, INCMOVL | 关节/直线/圆弧运动 |
+| **坐标系** | USERCOR, OBJCORON/OFF/CLEAR, TOOLCOR/ON/OFF | 用户/工件/工具坐标系 |
+| **应用指令** | SKIPCOND, SKIP, SWAITSIG, SYNCOUT, WEAVEON/OFF, STITCHON/OFF, POSEMAP, SHIFTON/OFF, PAUSE | 跳脱/等待/摆动/偏移 |
+| **速度参数** | ACC, DEC, FJ, FEJ, FL, FR, PL, PQ, PR | 加减速/速度/平滑 |
+
+### 范例
+
+```syntec-macro
+MOVJ C1=0 C2=0 C3=90 C4=0 C5=0 C6=0 FJ=50 PL=5;
+MOVL X=200. Y=100. Z=50. FL=100. PL=3;
+USERCOR P1;
+G68.18 P1 X10. Y20. Z30.;
+```
+
+---
+
 ## ⚠️ 已知限制
 
 ### 1. GOTO 跳转限制
@@ -358,6 +382,9 @@ N100；  (* 错误：中文分号 *)
 ### 4. 控制器语法限制
 
 详见 [控制器语法规则](#控制器语法规则)
+
+### 5. 机器人指令限制
+- 机器人指令的参数验证尚未实现，仅提供高亮和补全
 
 ---
 
@@ -415,6 +442,20 @@ N100；  (* 错误：中文分号 *)
 1. 检查是否是中文标点符号（如 `；` 应为 `;`）
 2. 检查是否是控制器不支持的语法（如 `ELSIF`）
 3. 提交 Issue 到 GitHub，附上代码示例
+
+### 问题 5：`#` 变量显示为黑色方块
+
+**原因**：VS Code 的颜色装饰器与语法高亮冲突。
+
+**解决方法**：
+
+在 VS Code 设置中禁用颜色装饰器：
+
+```json
+{
+  "editor.colorDecorators": false
+}
+```
 
 ---
 

@@ -44,6 +44,22 @@
       "name": "keyword.control.flow.syntec-macro"
     },
     {
+      "match": "\\b(MOVJ|MOVJ-II|MOVL|MOVC|INCMOVJ|INCMOVL)\\b",
+      "name": "keyword.control.robot-move.syntec-macro"
+    },
+    {
+      "match": "\\b(USERCOR|OBJCORON|OBJCOROFF|OBJCORCLEAR|TOOLCOR|TOOLCORON|TOOLCOROFF)\\b",
+      "name": "keyword.control.robot-coord.syntec-macro"
+    },
+    {
+      "match": "\\b(SKIPCOND|SKIP|SWAITSIG|SYNCOUT|WEAVEON|WEAVEOFF|STITCHON|STITCHOFF|POSEMAP|SHIFTON|SHIFTOFF|PAUSE)\\b",
+      "name": "keyword.control.robot-app.syntec-macro"
+    },
+    {
+      "match": "\\b(ACC|DEC|FJ|FEJ|FL|FR|PL|PQ|PR)\\b",
+      "name": "keyword.operator.robot-param.syntec-macro"
+    },
+    {
       "match": "\\b(AND|OR|XOR|NOT)\\b",
       "name": "keyword.operator.logical.syntec-macro"
     },
@@ -76,7 +92,7 @@
       "name": "support.function.db.syntec-macro"
     },
     {
-      "match": "\\b(ALARM|MSG|WAIT|SLEEP|SYSVAR|SYSDATA|DRVDATA|STD|STDAX|TOOLSET|SETCO)\\b",
+      "match": "\\b(ALARM|MSG|WAIT|SLEEP|SYSVAR|SYSDATA|DRVDATA|STD|STDAX|TOOLSET|SETCO|GETPR|SETPR)\\b",
       "name": "support.function.system.syntec-macro"
     },
     {

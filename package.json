@@ -2,7 +2,7 @@
   "name": "syntec-macro",
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
@@ -55,7 +55,8 @@
         "editor.insertSpaces": false,
         "editor.autoIndent": "advanced",
         "editor.colorDecorators": false,
-        "editor.defaultColorDecorators": "never"
+        "editor.defaultColorDecorators": "never",
+        "editor.colorDecoratorsActivatedOn": "never"
       }
     },
     "configuration": {
@@ -91,7 +92,7 @@
     }
   },
   "scripts": {
-    "test": "node tests/validator.test.js",
+    "test": "node tests/validator.test.js && node --test tests/extension.test.js",
     "package": "npx vsce package --allow-star-activation",
     "lint": "npx eslint src/ tests/"
   },

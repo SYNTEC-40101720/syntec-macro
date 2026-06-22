@@ -1,4 +1,4 @@
-// syntec-macro v2.5.0 - extension.js
+// syntec-macro v2.6.0 - extension.js
 // VSCode 扩展主入口：提供 IntelliSense / Hover / 诊断
 
 const vscode = require('vscode');
@@ -382,15 +382,29 @@ function provideDocumentSymbol(document) {
 // 扩展激活
 // =====================
 function activate(context) {
-  // 强制禁用颜色装饰器，防止 #100 等变量显示为 CSS 颜色方块
-  const config = vscode.workspace.getConfiguration('editor');
-  config.update('colorDecorators', false, vscode.ConfigurationTarget.Workspace);
-  if (config.get('defaultColorDecorators') !== undefined) {
-    config.update('defaultColorDecorators', 'never', vscode.ConfigurationTarget.Workspace);
-  }
-
   // 注册语言服务
   const selector = { language: LANG_ID };
+
+  // 强制禁用颜色装饰器，防止 #100 等变量被 VSCode 识别为 CSS 颜色方块
+  // 方式1: 通过 configurationDefaults 已设置（package.json）
+  // 方式2: 激活时强制写入语言特定工作区配置
+  const langConfig = vscode.workspace.getConfiguration('editor', { languageId: LANG_ID });
+  langConfig.update('colorDecorators', false, vscode.ConfigurationTarget.Workspace, true);
+  langConfig.update('defaultColorDecorators', 'never', vscode.ConfigurationTarget.Workspace, true);
+  langConfig.update('colorDecoratorsActivatedOn', 'never', vscode.ConfigurationTarget.Workspace, true);
+
+  // 方式3: 注册空颜色提供者，覆盖 VSCode 内置 CSS 颜色检测器
+  // VSCode 会合并所有颜色提供者的结果，空提供者不返回任何颜色信息
+  context.subscriptions.push(
+    vscode.languages.registerDocumentColorProvider(selector, {
+      provideDocumentColors(_document, _token) {
+        return [];
+      },
+      provideColorPresentations(_color, _context, _token) {
+        return [];
+      }
+    })
+  );
 
   // Completion
   context.subscriptions.push(

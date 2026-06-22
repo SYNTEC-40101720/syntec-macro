@@ -284,5 +284,133 @@
       "#${1:变量} := POP()"
     ],
     "description": "从堆栈弹出值"
+  },
+  "MOVJ 关节运动": {
+    "prefix": "movj",
+    "body": [
+      "MOVJ C1=${1:0} C2=${2:0} C3=${3:90} C4=${4:0} C5=${5:0} C6=${6:0} FJ=${7:50} PL=${8:5};"
+    ],
+    "description": "MOVJ 关节运动到指定位置"
+  },
+  "MOVL 直线运动": {
+    "prefix": "movl",
+    "body": [
+      "MOVL X=${1:0} Y=${2:0} Z=${3:0} FL=${4:100} PL=${5:3};"
+    ],
+    "description": "MOVL 末端直线运动到指定坐标"
+  },
+  "MOVC 圆弧运动": {
+    "prefix": "movc",
+    "body": [
+      "MOVC Xp=${1:0} Yp=${2:0} Zp=${3:0} X=${4:0} Y=${5:0} Z=${6:0} FL=${7:100};"
+    ],
+    "description": "MOVC 圆弧运动（经过中间点到终点）"
+  },
+  "INCMOVJ 增量关节运动": {
+    "prefix": "incmovj",
+    "body": [
+      "INCMOVJ C1=${1:10} C2=${2:5} FJ=${3:30} PL=${4:2};"
+    ],
+    "description": "INCMOVJ 增量关节运动"
+  },
+  "INCMOVL 增量直线运动": {
+    "prefix": "incmovl",
+    "body": [
+      "INCMOVL X=${1:50} Y=${2:20} Z=${3:10} FL=${4:80} PL=${5:2};"
+    ],
+    "description": "INCMOVL 增量直线运动"
+  },
+  "USERCOR 用户坐标系": {
+    "prefix": "usercor",
+    "body": [
+      "USERCOR P${1:1};"
+    ],
+    "description": "设定用户坐标系"
+  },
+  "OBJCORON 工件坐标系开启": {
+    "prefix": "objcoron",
+    "body": [
+      "OBJCORON X=${1:0} Y=${2:0} Z=${3:0} A=${4:0} B=${5:0} C=${6:0};"
+    ],
+    "description": "开启工件坐标系（叠加层）"
+  },
+  "TOOLCOR 工具坐标系": {
+    "prefix": "toolcor",
+    "body": [
+      "TOOLCOR T${1:1};"
+    ],
+    "description": "设定工具坐标系"
+  },
+  "SKIPCOND 跳脱条件": {
+    "prefix": "skipcond",
+    "body": [
+      "SKIPCOND E${1:1} Q${2:33} R${3:1} P${4:1};"
+    ],
+    "description": "设定跳脱条件"
+  },
+  "SWAITSIG 等待讯号": {
+    "prefix": "swaitsig",
+    "body": [
+      "SWAITSIG P${1:1} Q${2:33} R${3:1} L${4:100} T${5:5000};"
+    ],
+    "description": "等待讯号不减速"
+  },
+  "SYNCOUT 进阶输出": {
+    "prefix": "syncout",
+    "body": [
+      "SYNCOUT S${1:1} Q${2:1} P${3:50} R${4:1};"
+    ],
+    "description": "进阶输出指令"
+  },
+  "WEAVEON 摆动开启": {
+    "prefix": "weaveon",
+    "body": [
+      "WEAVEON P${1:1} E${2:2.0} Q${3:1.0} K${4:45} L${5:100};"
+    ],
+    "description": "开启摆动指令"
+  },
+  "PAUSE 暂停": {
+    "prefix": "pause",
+    "body": [
+      "PAUSE;"
+    ],
+    "description": "暂停程序执行，需人工重启"
+  },
+  "GETPR 读取参数": {
+    "prefix": "getpr",
+    "body": [
+      "#${1:变量} := GETPR(${2:参数编号});"
+    ],
+    "description": "读取控制器参数（Pr）"
+  },
+  "SETPR 写入参数": {
+    "prefix": "setpr",
+    "body": [
+      "SETPR(${1:参数编号}, ${2:值});"
+    ],
+    "description": "写入控制器参数（Pr）"
+  },
+  "SLEEP 延时等待": {
+    "prefix": "sleep",
+    "body": [
+      "SLEEP(${1:100});"
+    ],
+    "description": "程序延时等待（单位：毫秒）"
+  },
+  "M198 子程序呼叫": {
+    "prefix": "m198",
+    "body": [
+      "M198 P${1:程序号} H${2:行号} L${3:次数};"
+    ],
+    "description": "呼叫子程序（另一路径）"
+  },
+  "G66.1 模式宏程序": {
+    "prefix": "g661",
+    "body": [
+      "G66.1 P${1:宏程序号} L${2:次数};",
+      "${3:// 每行运动指令都会调用}",
+      "G67;"
+    ],
+    "description": "G66.1 模式宏程序呼叫（每行运动都调用，G67 取消）"
   }
 }
