@@ -1,4 +1,4 @@
-// syntec-macro v2.1.0 - extension.js
+// syntec-macro v2.5.0 - extension.js
 // VSCode 扩展主入口：提供 IntelliSense / Hover / 诊断
 
 const vscode = require('vscode');
@@ -185,8 +185,6 @@ function provideDefinition(document, position) {
   const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
   if (!range) return [];
 
-  const word = document.getText(range).toUpperCase();
-
   // GOTO 数字 → 跳转到 N 标签
   // 实测语法：GOTO 100;（不带N），目标为 N100;
   const gotoMatch = line.match(/\bGOTO\s+(\d+)/i);
@@ -235,7 +233,7 @@ function buildFileCandidates(dir, fileName) {
     path.join(dir, fileName),
     path.join(dir, fileName + '.macro'),
     path.join(dir, fileName + '.G'),
-    path.join(dir, fileName + '.scp'),
+    path.join(dir, fileName + '.scp')
   ];
 }
 
@@ -257,7 +255,7 @@ function findMacroFile(document, progNo) {
     fileName,
     fileName + '.macro',
     fileName + '.G',
-    fileName + '.scp',
+    fileName + '.scp'
   ].map(name => name.toUpperCase());
 
   let found = findFileRecursive(dir, new Set(recursiveCandidates), RECURSIVE_SEARCH_DEPTH);
@@ -384,13 +382,20 @@ function provideDocumentSymbol(document) {
 // 扩展激活
 // =====================
 function activate(context) {
+  // 强制禁用颜色装饰器，防止 #100 等变量显示为 CSS 颜色方块
+  const config = vscode.workspace.getConfiguration('editor');
+  config.update('colorDecorators', false, vscode.ConfigurationTarget.Workspace);
+  if (config.get('defaultColorDecorators') !== undefined) {
+    config.update('defaultColorDecorators', 'never', vscode.ConfigurationTarget.Workspace);
+  }
+
   // 注册语言服务
   const selector = { language: LANG_ID };
 
   // Completion
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(selector, {
-      provideCompletionItems,
+      provideCompletionItems
     }, '.', '#')
   );
 
@@ -445,7 +450,7 @@ function activate(context) {
   statusBar.show();
   context.subscriptions.push(statusBar);
 
-  console.log('[syntec-macro] 扩展已激活 v' + packageJson.version);
+  console.info('[syntec-macro] 扩展已激活 v' + packageJson.version);
 }
 
 function deactivate() {}

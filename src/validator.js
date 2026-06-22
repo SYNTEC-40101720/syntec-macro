@@ -1,7 +1,5 @@
-// syntec-macro v2.0.1 - validator.js
+// syntec-macro v2.5.0 - validator.js
 // 语法诊断：括号匹配、IF/END_IF配对、控制流检查、中文字符检测
-// v1.3.6: 修复 GOTO 语法（GOTO 100 而非 GOTO N100），移除 INT 函数，修正 N 标签格式
-// v1.3.6: 修复所有中文乱码
 // ============================================================
 // 块关键字定义
 // ============================================================
@@ -14,7 +12,7 @@ const CLOSER_TO_OPENER = {
   'END_IF':     'IF',    'END_FOR':    'FOR',    'END_WHILE':  'WHILE',
   'END_CASE':   'CASE',  'END_REPEAT': 'REPEAT',
   'ENDIF':      'IF',    'ENDFOR':     'FOR',    'ENDWHILE':   'WHILE',
-  'ENDCASE':    'CASE',  'ENDREPEAT':  'REPEAT',
+  'ENDCASE':    'CASE',  'ENDREPEAT':  'REPEAT'
 };
 
 // 循环类开启关键字（EXIT 专用）
@@ -75,7 +73,7 @@ function getKeywordPositions(line) {
   // 顺序：越长越先替换（ENDREPEAT > ENDFOR > ... > REPEAT > UNTIL）
   const subs = [
     'ENDREPEAT', 'ENDFOR', 'ENDWHILE', 'ENDCASE', 'ENDIF',
-    'END_REPEAT', 'END_FOR', 'END_WHILE', 'END_CASE', 'END_IF',
+    'END_REPEAT', 'END_FOR', 'END_WHILE', 'END_CASE', 'END_IF'
   ];
   let s = clean;
   const offsetMap = []; // [{origKw, pos}] 记录占位后的位置映射
@@ -97,7 +95,7 @@ function getKeywordPositions(line) {
     'ELSEIF', 'ELSE',
     'UNTIL', 'EXIT',
     'TO', 'BY', 'DO', 'OF',
-    'GOTO',
+    'GOTO'
   ];
   // 检测不支持的语法
   const unsupportedKws = ['ELSIF'];
@@ -192,17 +190,30 @@ function validateDocument(content) {
     diagnostics.push({
       line: firstNonCommentIdx + 1, col: 0, endCol: first.length,
       msg: '此文件缺少 %@MACRO 文件头，将被视为 ISO 格式文件',
-      severity: 'warning',
+      severity: 'warning'
     });
   }
 
   // === 主循环：逐行处理关键字 ===
   const gotoRefs = []; // GOTO 引用 [{line, target}]
+  let inBlockComment = false; // 跨行块注释状态追踪
 
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
     const raw = lines[i];
     const positions = getKeywordPositions(raw);
+
+    // 更新块注释状态（用于括号匹配）
+    const lineStartInBlock = inBlockComment;
+    for (let ci = 0; ci < raw.length; ci++) {
+      if (!inBlockComment && raw.substring(ci, ci + 2) === '(*') {
+        inBlockComment = true;
+        ci++; // 跳过 *
+      } else if (inBlockComment && raw.substring(ci, ci + 2) === '*)') {
+        inBlockComment = false;
+        ci++; // 跳过 )
+      }
+    }
 
     // GOTO 目标引用
     const gotoTarget = extractGotoTarget(raw);
@@ -235,14 +246,16 @@ function validateDocument(content) {
         if (CJK_CHAR.test(raw[ci]) && !hasCJK) { hasCJK = true; firstCJK = ci; }
         if (CJK_PUNCT.test(raw[ci])) puncts.push({ col: ci, ch: raw[ci] });
       }
-      if (hasCJK) diagnostics.push({ line: lineNum, col: firstCJK, endCol: firstCJK + 1,
-        msg: '中文字符：宏程序只允许使用英文字符', severity: 'error' });
-      for (const p of puncts) diagnostics.push({ line: lineNum, col: p.col, endCol: p.col + 1,
-        msg: `中文标点 "${p.ch}"：宏程序应使用英文字符`, severity: 'error' });
+      if (hasCJK) {diagnostics.push({ line: lineNum, col: firstCJK, endCol: firstCJK + 1,
+        msg: '中文字符：宏程序只允许使用英文字符', severity: 'error' });}
+      for (const p of puncts) {diagnostics.push({ line: lineNum, col: p.col, endCol: p.col + 1,
+        msg: `中文标点 "${p.ch}"：宏程序应使用英文字符`, severity: 'error' });}
     })();
 
     // --- 括号匹配 ---
     (() => {
+      // 如果行首处于块注释内，跳过括号匹配（跨行块注释的 (* 和 *) 不是真正的括号）
+      if (lineStartInBlock) return;
       const clean = stripCommentsAndStrings(lines[i]);
       if (!clean.trim()) return;
       const parenStack = [];
@@ -274,7 +287,7 @@ function validateDocument(content) {
         else msg = `${kw} 是不支持的语法`;
         diagnostics.push({
           line: lineNum, col: pos.col, endCol: pos.endCol,
-          msg, severity: 'error',
+          msg, severity: 'error'
         });
         continue;
       }
@@ -314,7 +327,7 @@ function validateDocument(content) {
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
             msg: `${kw} 没有匹配的 ${opener}`,
-            severity: 'error',
+            severity: 'error'
           });
         }
       }
@@ -329,7 +342,7 @@ function validateDocument(content) {
         if (ni < 0) {
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
-            msg: 'ELSE 没有匹配的 IF 或 CASE', severity: 'error',
+            msg: 'ELSE 没有匹配的 IF 或 CASE', severity: 'error'
           });
         } else {
           for (let j = ni; j >= 0; j--) {
@@ -347,12 +360,12 @@ function validateDocument(content) {
         if (ni < 0) {
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
-            msg: 'ELSEIF 没有匹配的 IF', severity: 'error',
+            msg: 'ELSEIF 没有匹配的 IF', severity: 'error'
           });
         } else if (stack[ni].hasElse) {
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
-            msg: 'IF 块已有 ELSE，再次遇到 ELSEIF', severity: 'error',
+            msg: 'IF 块已有 ELSE，再次遇到 ELSEIF', severity: 'error'
           });
         }
       }
@@ -368,7 +381,7 @@ function validateDocument(content) {
         if (ni < 0) {
           diagnostics.push({
             line: lineNum, col: pos.col, endCol: pos.endCol,
-            msg: 'UNTIL 没有匹配的 REPEAT', severity: 'error',
+            msg: 'UNTIL 没有匹配的 REPEAT', severity: 'error'
           });
         } else {
           // 如果同行没有 END_REPEAT/ENDREPEAT，说明 END_REPEAT 会在下一行，需要记录
@@ -383,18 +396,19 @@ function validateDocument(content) {
         }
       }
 
-      // --- EXIT：弹出最近的循环块；嵌套条件块标记 exited=true（不报 unclosed warning）--
+      // --- EXIT：标记循环块为已退出，但不弹出；嵌套条件块标记 exited=true（不报 unclosed warning）--
       else if (kw === 'EXIT') {
         let loopIdx = -1;
         for (let j = stack.length - 1; j >= 0; j--) {
           if (LOOP_OPENERS.has(stack[j].keyword)) { loopIdx = j; break; }
         }
         if (loopIdx >= 0) {
-          // 移除循环块；其上方的嵌套块标记 exited=true
+          // 标记循环块为已退出，但不移除
+          stack[loopIdx].exited = true;
+          // 其上方的嵌套块标记 exited=true
           for (let j = loopIdx - 1; j >= 0; j--) {
             if (stack[j].keyword === 'IF') stack[j].exited = true;
           }
-          stack.splice(loopIdx, 1);
         }
         // EXIT 不入栈；无循环块时不报错
       }
@@ -407,7 +421,7 @@ function validateDocument(content) {
     diagnostics.push({
       line: block.line, col: 0, endCol: 0,
       msg: `${block.keyword} 块缺少对应的 END_（文件结束）`,
-      severity: 'warning',
+      severity: 'warning'
     });
   }
 
@@ -416,7 +430,7 @@ function validateDocument(content) {
     if (!nLabels.has(ref.target)) {
       diagnostics.push({
         line: ref.line, col: 0, endCol: 0,
-        msg: `GOTO 目标 ${ref.target} 不存在`, severity: 'warning',
+        msg: `GOTO 目标 ${ref.target} 不存在`, severity: 'warning'
       });
     }
   }

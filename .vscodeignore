@@ -8,6 +8,7 @@ release-notes-*.md
 .trae/
 config/
 tests/
+eslint.config.js
 
 # Build tools & scripts
 *.py

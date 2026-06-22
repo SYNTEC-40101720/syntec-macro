@@ -1,12 +1,8 @@
-// validator.test.js - syntec-macro v2.0.1
+// validator.test.js - syntec-macro v2.5.0
 // 用法: node validator.test.js
 // 测试覆盖: IF/END_IF配对、CASE/END_CASE、REPEAT/UNTIL、中文字符检测、括号匹配、替代关键字、EXIT、GOTO、%@MACRO
 
 const { validateDocument } = require('../src/validator');
-
-// 辅助: 按 severity 过滤
-function errors(text)   { return validateDocument(text).filter(d => d.severity === 'error'); }
-function warnings(text) { return validateDocument(text).filter(d => d.severity === 'warning'); }
 
 // 辅助: 宽松比较 - 只比较 [sev, msg片段] 对，忽略 line/col/endCol/重复
 // 格式: [['error', '精确消息'], ['warning', '包含此串']]
@@ -14,9 +10,9 @@ function match(text, expected) {
   const got = validateDocument(text);
   // 按 severity 分组，逐组比较
   const gotBySev = { error: got.filter(d => d.severity === 'error').map(d => d.msg),
-                     warning: got.filter(d => d.severity === 'warning').map(d => d.msg) };
+    warning: got.filter(d => d.severity === 'warning').map(d => d.msg) };
   const expBySev = { error: (expected.filter(e => e[0] === 'error').map(e => e[1])),
-                     warning: (expected.filter(e => e[0] === 'warning').map(e => e[1])) };
+    warning: (expected.filter(e => e[0] === 'warning').map(e => e[1])) };
   for (const sev of ['error', 'warning']) {
     if (gotBySev[sev].length !== expBySev[sev].length) return { ok: false, got, expected, detail: sev + ' count: got ' + gotBySev[sev].length + ', expected ' + expBySev[sev].length };
     for (const msg of expBySev[sev]) {
@@ -266,15 +262,15 @@ console.log('\n[13] 替代关键字（不带下划线）');
 // ============================================================
 console.log('\n[14] EXIT 跳出');
 {
-  eq('EXIT 跳出 FOR 后不应有 ENDFOR（EXIT 已退出循环）',
+  eq('EXIT 在 FOR 内不影响块栈匹配（FOR...EXIT...ENDFOR 正确配对）',
     'FOR #1=1 TO 10 DO\nIF #1=5 THEN\nEXIT\nEND_IF\nENDFOR',
-    [['error','ENDFOR 没有匹配的 FOR']]);
-  eq('EXIT 跳出 WHILE 后不应有 END_WHILE（EXIT 已退出循环）',
+    []);
+  eq('EXIT 在 WHILE 内不影响块栈匹配（WHILE...EXIT...END_WHILE 正确配对）',
     'WHILE #1=1 DO\nEXIT\nEND_WHILE',
-    [['error','END_WHILE 没有匹配的 WHILE']]);
-  eq('EXIT 在 REPEAT 内（EXIT 已退出循环，UNTIL 报错 REPEAT 不匹配）',
+    []);
+  eq('EXIT 在 REPEAT 内不影响块栈匹配（REPEAT...EXIT...UNTIL...END_REPEAT 正确配对）',
     'REPEAT\nEXIT\nUNTIL #1=1 END_REPEAT',
-    [['error','UNTIL 没有匹配的 REPEAT']]);
+    []);
   eq('EXIT 单独出现 不报错（允许在最外层使用）',
     'EXIT', []);
 }

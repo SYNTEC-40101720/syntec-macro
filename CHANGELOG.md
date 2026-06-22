@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-06-22
+
+### Changed
+- **版本号统一**: 统一所有源码文件版本注释为 v2.5.0
+- **test 脚本**: package.json 新增 `npm test` 脚本
+
+### Fixed
+- 修复跨行块注释 `(* ... *)` 导致的括号匹配误报（`*)` 被误认为多余右括号）
+
+### Removed
+- 删除临时调试文件 `check-demo.js`
+- 删除重复文档 `docs/CHANGELOG.md`（根目录 CHANGELOG.md 为唯一权威）
+- 移除失效的 `build` 脚本（引用不存在的 `build/build_grammar.py`）
+- 清理 `src/validator.js` 头部过时的 v1.3.6 历史注释
+
+## [2.4.0] - 2026-06-22
+
+### Changed
+- **函数说明全部中文化**: 所有内置函数的悬停文档说明改为中文（参考《新代控制器技术参考手册》）
+- **版本号统一**: 统一所有源码文件版本注释为 v2.4.0
+
+### Fixed
+- 修复 `#` 变量前显示黑色方块的问题（`editor.colorDecorators: false`）
+- 修复 REPEAT/UNTIL/EXIT 嵌套语法诊断误报
+
 ## [2.3.0] - 2026-06-22
 
 ### Added

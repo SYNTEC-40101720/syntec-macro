@@ -4,7 +4,6 @@ node_modules/
 # ==================== Build Output ====================
 *.vsix
 dist/
-coverage/
 
 # ==================== Python Build ====================
 __pycache__/
@@ -32,10 +31,6 @@ desktop.ini
 
 # ==================== Release Notes (temporary) ====================
 release-notes-*.md
-
-# ==================== Test & Debug ====================
-test-demo.macro
-_check.js
 
 # ==================== VSIX Packages ====================
 syntec-macro-*.vsix

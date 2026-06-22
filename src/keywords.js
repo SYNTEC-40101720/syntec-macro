@@ -1,4 +1,4 @@
-// syntec-macro v2.0.1 - keywords.js
+// syntec-macro v2.5.0 - keywords.js
 // 关键字、常量、控制流、变量格式定义
 
 exports.keywords = {
@@ -16,7 +16,7 @@ exports.keywords = {
     'G65','G66','G66.1','G67','G68','G69','G73','G74','G76','G80','G81',
     'G82','G83','G84','G85','G86','G87','G88','G89','G90','G91','G92','G94',
     'G95','G96','G97','G98','G99','G04.1','G08','G09','G22','G23','G25','G26','G27',
-    'G34','G35','G36','G37','G37.1','G45','G46','G47','G48',
+    'G34','G35','G36','G37','G37.1','G45','G46','G47','G48'
   ],
   mcodes: [
     'M00','M01','M02','M03','M04','M05','M06','M07','M08','M09','M10','M11',
@@ -27,8 +27,8 @@ exports.keywords = {
     'M60','M61','M62','M63','M64','M65','M66','M67','M68','M69','M70','M71',
     'M72','M73','M74','M75','M76','M77','M78','M79','M80','M81','M82','M83',
     'M84','M85','M86','M87','M88','M89','M90','M91','M92','M93','M94','M95',
-    'M96','M97','M98','M99',
-  ],
+    'M96','M97','M98','M99'
+  ]
 };
 
 let _allKeywordsCache = null;
@@ -42,7 +42,7 @@ exports.getAllKeywords = function() {
     ...exports.keywords.for,
     ...exports.keywords.case,
     ...exports.keywords.flow,
-    ...exports.keywords.operators,
+    ...exports.keywords.operators
   ])];
   return _allKeywordsCache;
 };
@@ -51,7 +51,7 @@ exports.getMCodeDesc = function(code) {
   const descs = {
     'M99': '子程序返回 / 宏程序结束',
     'M30': '程序结束并复位',
-    'M65': '宏程序调用',
+    'M65': '宏程序调用'
   };
   return descs[code] || 'M代码';
 };
