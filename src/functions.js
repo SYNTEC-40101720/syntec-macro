@@ -1,120 +1,88 @@
 // syntec-macro v2.6.1 - functions.js
 // 内置函数完整定义：补全数据 + Hover文档
+// 基于《新代控制器技术参考手册》函数表修订
 
 exports.functions = [
 
-  // ===== 数学函数 =====
-  { name: 'ABS',   sig: 'ABS(num)',           doc: '取绝对值\nABS(num) -> 数值\n范例: #3 := ABS(#2 - #1)' },
-  { name: 'ACOS',  sig: 'ACOS(num)',           doc: '取反余弦值（弧度）\nACOS(num) -> 数值' },
-  { name: 'ASIN',  sig: 'ASIN(num)',           doc: '取反正弦值（弧度）\nASIN(num) -> 数值' },
-  { name: 'ATAN',  sig: 'ATAN(num)',           doc: '取反正切值（弧度）\nATAN(num) -> 数值' },
-  { name: 'ATAN2', sig: 'ATAN2(y, x)',         doc: '取反正切值（弧度，含象限判断）\nATAN2(y, x) -> 数值' },
-  { name: 'COS',   sig: 'COS(angle)',          doc: '取余弦值（弧度）\nCOS(angle) -> 数值' },
-  { name: 'SIN',   sig: 'SIN(angle)',          doc: '取正弦值（弧度）\nSIN(angle) -> 数值' },
-  { name: 'TAN',   sig: 'TAN(angle)',          doc: '取正切值（弧度）\nTAN(angle) -> 数值' },
-  { name: 'SQRT',  sig: 'SQRT(num)',           doc: '取平方根\nSQRT(num) -> 数值' },
-  { name: 'CEIL',  sig: 'CEIL(num)',           doc: '向上取整\nCEIL(3.2) -> 4' },
-  { name: 'FLOOR', sig: 'FLOOR(num)',          doc: '向下取整\nFLOOR(3.8) -> 3' },
-  { name: 'ROUND', sig: 'ROUND(num)',          doc: '四舍五入取整\nROUND(3.5) -> 4' },
-  { name: 'EXP',   sig: 'EXP(num)',            doc: '取 e 的 n 次方\nEXP(1) -> 2.718' },
-  { name: 'LN',    sig: 'LN(num)',             doc: '取自然对数\nLN(2.718) -> 1' },
-  { name: 'LOG',   sig: 'LOG(num)',            doc: '取常用对数（以 10 为底）\nLOG(100) -> 2' },
-  { name: 'POW',   sig: 'POW(base, exp)',      doc: '取幂运算\nPOW(2, 3) -> 8' },
-  { name: 'MAX',   sig: 'MAX(a, b)',            doc: '取较大值\nMAX(3, 5) -> 5' },
-  { name: 'MIN',   sig: 'MIN(a, b)',            doc: '取较小值\nMIN(3, 5) -> 3' },
-  { name: 'SIGN',  sig: 'SIGN(num)',            doc: '取符号（-1/0/1）\nSIGN(-5) -> -1' },
-  { name: 'RANDOM', sig: 'RANDOM()',           doc: '取 0~1 之间的随机数\nRANDOM() -> 0.732...' },
+  // ===== 数学函数（角度制） =====
+  { name: 'ABS',   sig: 'ABS(num)',           doc: '取绝对值\nABS(num) -> 数值\n范例: #1 := ABS(#10);\n#1 = 1.1' },
+  { name: 'ACOS',  sig: 'ACOS(num)',           doc: '取反余弦值（角度制）\nACOS(num) -> 角度\n范例: ACOS(1) -> 0, ACOS(-1) -> 180' },
+  { name: 'ASIN',  sig: 'ASIN(num)',           doc: '取反正弦值（角度制）\nASIN(num) -> 角度\n范例: ASIN(1) -> 90, ASIN(-1) -> -90' },
+  { name: 'ATAN',  sig: 'ATAN(num)',           doc: '取反正切值（角度制，±90°）\nATAN(num) -> 角度\n范例: ATAN(1) -> 45, ATAN(-1) -> -45' },
+  { name: 'ATAN2', sig: 'ATAN2(y, x)',         doc: '取 Y/X 反正切值（角度制，含象限判断，±180°）\nATAN2(y, x) -> 角度\n有效版本：10.118.29W+\n范例: ATAN2(1,1) -> 135' },
+  { name: 'COS',   sig: 'COS(angle)',          doc: '取余弦值（角度制）\nCOS(angle) -> 数值\n范例: COS(180) -> -1' },
+  { name: 'SIN',   sig: 'SIN(angle)',          doc: '取正弦值（角度制）\nSIN(angle) -> 数值\n范例: SIN(90) -> 1' },
+  { name: 'TAN',   sig: 'TAN(angle)',          doc: '取正切值（角度制）\nTAN(angle) -> 数值\n范例: TAN(45) -> 1' },
+  { name: 'SQRT',  sig: 'SQRT(num)',           doc: '取平方根\nSQRT(num) -> 数值\n范例: SQRT(4) -> 2' },
+  { name: 'CEIL',  sig: 'CEIL(num)',           doc: '向上取整（返回>=该值的最小整数）\nCEIL(1.4) -> 2' },
+  { name: 'FLOOR', sig: 'FLOOR(num)',          doc: '向下取整（返回<=该值的最大整数）\nFLOOR(1.4) -> 1' },
+  { name: 'ROUND', sig: 'ROUND(num)',          doc: '四舍五入取整\nROUND(1.4) -> 1, ROUND(1.5) -> 2' },
+  { name: 'EXP',   sig: 'EXP(num)',            doc: '计算以自然数 e 为底的指数值\nEXP(num) -> 数值\n有效版本：10.116.16\n范例: EXP(1) -> 2.71828' },
+  { name: 'LN',    sig: 'LN(num)',             doc: '计算以自然数 e 为底的对数值（自然对数）\nLN(num) -> 数值\n有效版本：10.116.16\n范例: LN(100) -> 4.60517\n注意：引数需为正数' },
+  { name: 'POW',   sig: 'POW(base, exp)',      doc: '取幂运算\nPOW(base, exp) -> 数值\n有效版本：10.116.16\n范例: POW(16, 0.5) -> 4\n注意：基底不可为负值' },
+  { name: 'MAX',   sig: 'MAX(a, b)',            doc: '取两输入值的最大值\nMAX(a, b) -> 数值\n范例: MAX(1.2, 4.5) -> 4.5' },
+  { name: 'MIN',   sig: 'MIN(a, b)',            doc: '取两输入值的最小值\nMIN(a, b) -> 数值\n范例: MIN(1.2, 4.5) -> 1.2' },
+  { name: 'SIGN',  sig: 'SIGN(num)',            doc: '取符号值（负数=-1, 正数=1, 0=0）\nSIGN(num) -> -1/0/1\n范例: SIGN(-4) -> -1' },
+  { name: 'RANDOM', sig: 'RANDOM()',           doc: '产生 0~32767 间的一个随机数\nRANDOM() -> 随机整数\n范例: #1 := RANDOM();' },
 
   // ===== 字符串函数 =====
-  { name: 'STR2INT', sig: 'STR2INT(string)',   doc: '将字符串转换为整数\nSTR2INT("123") -> 123\n常配合 SCANTEXT 使用' },
-  { name: 'SCANTEXT', sig: 'SCANTEXT(addr)',  doc: '从记忆体位址读取字符串\nSCANTEXT(60001) -> 字符串内容\n参数: NC 记忆体位址（整数）\n返回值: 字符串' },
-  { name: 'CHR',    sig: 'CHR(code)',          doc: '将 ASCII 码转换为字元\nCHR(65) -> "A"' },
-  { name: 'LEN',    sig: 'LEN(string)',        doc: '取字符串长度\nLEN("ABC") -> 3' },
-  { name: 'MID',   sig: 'MID(str, start, len)', doc: '取子字符串\nMID("ABCDEF", 2, 3) -> "BCD"' },
-  { name: 'STR',   sig: 'STR(num)',            doc: '将数值转换为字符串\nSTR(123) -> "123"' },
-  { name: 'FORMAT', sig: 'FORMAT(fmt, val)',   doc: '将数值格式化为字符串\nFORMAT("%.2f", #1)' },
+  { name: 'STR2INT', sig: 'STR2INT(string)',   doc: '将数字字符串转换为整数\nSTR2INT(string) -> 整数\n范例: STR2INT("123") -> 123\n常配合 SCANTEXT 使用\n注意：含文字则不合法' },
+  { name: 'SCANTEXT', sig: 'SCANTEXT(addr)',  doc: '从公用变数读取字符串内容\nSCANTEXT(addr) -> 字符串\n参数: 变数号码（整数）\n范例: #1 := SCANTEXT(1);' },
 
-  // ===== 参数/变量读写 =====
-  { name: 'GETARG',    sig: 'GETARG(Xn)',     doc: '读取宏程序呼叫引数\nGETARG(X1) -> 引数 #1 的值\n参数: X1~X15 对应 A~O\nG65 P__ X1#1 -> #1 = GETARG(X1)' },
-  { name: 'GETTRAPARG', sig: 'GETTRAPARG(n)', doc: '读取中断触发时储存的参数\nGETTRAPARG(n)' },
-  { name: 'PARAM',     sig: 'PARAM(type, idx)', doc: '读取 NC 系统参数\nPARAM(type, idx) -> 数值\ntype: 0=轴, 1=系统, 2=节距补偿\n范例: #1 := PARAM(1, 1001)' },
-  { name: 'SYSVAR',    sig: 'SYSVAR("name")', doc: '读取系统变量\nSYSVAR("SYSTEM::NC_MODE") -> 值\n范例: #1 := SYSVAR("SYSTEM::FEEDRATE")' },
-  { name: 'SYSDATA',   sig: 'SYSDATA(axis)',  doc: '读取当前轴位置数据\nSYSDATA(axis) -> 数值\naxis: X=0, Y=1, Z=2, A=3, B=4, C=5' },
-  { name: 'DRVDATA',   sig: 'DRVDATA(axis)',  doc: '读取驱动器数据\nDRVDATA(axis) -> 数值' },
-  { name: 'GETPR',     sig: 'GETPR(prNumber)',  doc: '读取控制器参数\nGETPR(3500) -> 读取 Pr3500 的值\n范例: @1 := GETPR(3500)' },
-  { name: 'SETPR',     sig: 'SETPR(prNumber, value)', doc: '写入控制器参数\nSETPR(3500, @1) -> 将 @1 写入 Pr3500\n范例: SETPR(3500, 100)' },
+  // ===== 变数/资料存取函数 =====
+  { name: 'GETARG',    sig: 'GETARG(name)',     doc: '读取呼叫者传递的引数\nGETARG(name) -> 值\n参数: 引数字母名称（如 X, Z1 等）\n范例: #1 := GETARG(X);\n若引数不存在则回传 VACANT (#0)' },
+  { name: 'GETTRAPARG', sig: 'GETTRAPARG(name)', doc: '读取 G66/G66.1 Trap 单节内的引数内容\nGETTRAPARG(name) -> 值\n参数: 引数字母名称\n范例: #1 := GETTRAPARG(X);' },
+  { name: 'PARAM',     sig: 'PARAM(prNo[, axisGroup])', doc: '读取系统参数 Pr 或 V12 PN 参数\nPARAM(prNo) -> 整数\nPARAM(prNo, axisGroup) -> 整数/浮点/字符串\n范例: #1 := PARAM(3204);\n#2 := PARAM(20001, 2);\n若参数不支援则回传 VACANT' },
+  { name: 'SYSVAR',    sig: 'SYSVAR(group, code)', doc: '读取特定轴群中的系统变数\nSYSVAR(group, code) -> 数值\n参数: group=轴群识别码(1~N), code=系统变数码\n范例: #1 := SYSVAR(1, 1000);' },
+  { name: 'SYSDATA',   sig: 'SYSDATA(diagNo)',  doc: '读取系统诊断变数\nSYSDATA(diagNo) -> 数值\n有效版本：10.118.23U+\n范例: #1 := SYSDATA(336);\n注意：执行前建议下 WAIT() 挡预解' },
+  { name: 'DRVDATA',   sig: 'DRVDATA(stationNo, varNo)', doc: '读取驱动器状态变数\nDRVDATA(stationNo, varNo) -> 数值\n有效版本：10.118.23U+\nvarNo: 10进位数 或 "16进制字串"(如"D61h")\n范例: #1 := DRVDATA(1000, 3366);\n注意：每个函数执行约0.1~0.2s' },
+
+  // ===== 标准单位转换 =====
+  { name: 'STD',    sig: 'STD(val, unit)',      doc: '根据 Pr17 将整数数值转换成系统设定的输入单位\nSTD(val, unit) -> 数值\n参数: val=欲转换数值, unit=标准单位(常用 #1600)\n范例: #10 := STD(#9, #1600);' },
+  { name: 'STDAX',  sig: 'STDAX(var, axis)',   doc: '将整数数值转为对应轴向的标准单位\nSTDAX(var, axis) -> 数值\n参数: var=变数, axis=轴向名称\n范例: #3 := STDAX(#3, A);\n输入为小数点型态则不转换' },
 
   // ===== 文件 I/O =====
-  { name: 'OPEN',   sig: 'OPEN(fileNo, path, mode)', doc: '开启文件\nOPEN(1, "C:\\TEMP\\LOG.TXT", "W")\nmode: R=读取, W=写入, A=附加\n返回值: 0=成功, <0=失败' },
-  { name: 'CLOSE',  sig: 'CLOSE(fileNo)',    doc: '关闭文件\nCLOSE(1)' },
-  { name: 'PRINT',  sig: 'PRINT(fileNo, "text")', doc: '写入文本到文件\nPRINT(1, "Hello")\nPRINT(1, STR(#1)) 写入变量值' },
-  { name: 'READ',   sig: 'READ(fileNo, var)', doc: '从文件读取一行到变量\nREAD(1, #var)' },
-  { name: 'EXIST',  sig: 'EXIST("path")',    doc: '检查文件是否存在\nEXIST("C:\\TEMP\\DATA.TXT") -> 1=存在, 0=不存在' },
-  { name: 'DELETE', sig: 'DELETE("path")',   doc: '删除文件\nDELETE("C:\\TEMP\\OLD.TXT")' },
-  { name: 'RENAME', sig: 'RENAME(old, new)',  doc: '重命名文件\nRENAME("A.TXT", "B.TXT")' },
+  { name: 'OPEN',   sig: 'OPEN("path"[, "mode"])', doc: '在 NcFiles 或 Macro 资料夹开启文字档\nOPEN("path") -> 开启档案\nOPEN("path", "mode") -> mode: "a"=附加, 不指定=覆写\n范例: OPEN("PROBE.NC");\nOPEN("COM"); 表示打开 RS232/RS485 传输埠' },
+  { name: 'CLOSE',  sig: 'CLOSE()',    doc: '关闭由 OPEN 开启的档案\nCLOSE()\n程序结束后档案亦会自动关闭' },
+  { name: 'PRINT',  sig: 'PRINT("text")', doc: '输出字符串到档案或传输埠\nPRINT("text")\n字符串中的变数名称会被替换为变数内容\n范例: PRINT("G01 X#3 Y@53 Z20.0");' },
 
-  // ===== 数字量 I/O =====
-  { name: 'READDI',  sig: 'READDI(port)',   doc: '读取数字输入 DI\nREADDI(1) -> 0 或 1\n参数: DI 埠号（整数）' },
-  { name: 'READDO',  sig: 'READDO(port)',   doc: '读取数字输出 DO\nREADDO(1) -> 0 或 1' },
-  { name: 'SETDO',   sig: 'SETDO(port, val)', doc: '设定数字输出\nSETDO(1, 1) -> DO1=1\nSETDO(1, 0) -> DO1=0' },
-  { name: 'READABIT', sig: 'READABIT(port, bit)', doc: '读取指定埠的特定位元\nREADABIT(1, 3) -> 读取 PORT1 的 bit 3' },
-  { name: 'SETABIT',  sig: 'SETABIT(port, bit, val)', doc: '设定指定埠的特定位元\nSETABIT(1, 3, 1)' },
-  { name: 'READRREGBIT', sig: 'READRREGBIT(reg)', doc: '读取暂存器位元\nREADRREGBIT(reg)' },
-  { name: 'SETRREGBIT',  sig: 'SETRREGBIT(reg, val)', doc: '设定暂存器位元\nSETRREGBIT(reg, val)' },
-  { name: 'READREG',  sig: 'READREG(regNo)', doc: '读取暂存器值\nREADREG(1) -> 暂存器 1 的值' },
-  { name: 'SETREG',   sig: 'SETREG(regNo, val)', doc: '设定暂存器值\nSETREG(1, 100)' },
+  // ===== I/O 控制函数 =====
+  { name: 'READDI',  sig: 'READDI(portNo)',   doc: '读取指定的 DI 点编号\nREADDI(portNo) -> 0/1\n有效版本：10.116.23\n参数: portNo=点编号(0~511)\n范例: #88 := READDI(11);' },
+  { name: 'READDO',  sig: 'READDO(portNo)',   doc: '读取指定的 DO 点编号\nREADDO(portNo) -> 0/1\n有效版本：10.116.23\n范例: #88 := READDO(11);' },
+  { name: 'SETDO',   sig: 'SETDO(portNo, val)', doc: '设定指定的 DO 点开/关\nSETDO(portNo, val)\n有效版本：10.116.23\nval: 1=开, 0=关\n范例: SETDO(3, 1);\n注意：DO 点编号范围 0~511' },
+  { name: 'READABIT', sig: 'READABIT(portNo)', doc: '读取指定的 A 点编号\nREADABIT(portNo) -> 0/1\n有效版本：10.116.44\n范例: #88 := READABIT(11);\n注意：A 点编号范围 0~511' },
+  { name: 'SETABIT',  sig: 'SETABIT(portNo, val)', doc: '设定指定的 A 点开/关\nSETABIT(portNo, val)\n有效版本：10.116.44\nval: 1=开, 0=关\n注意：A 点编号范围 0~511' },
+  { name: 'READRREGBIT', sig: 'READRREGBIT(regNo, bit)', doc: '读取指定的 R 值编号及指定的 Bit\nREADRREGBIT(regNo, bit) -> 0/1\n有效版本：10.116.39\n参数: regNo=R值编号(0~65535), bit=指定Bit(0~31)\n范例: @52 := READRREGBIT(31, 3);' },
+  { name: 'SETRREGBIT',  sig: 'SETRREGBIT(regNo, bit, val)', doc: '设定指定的 R 值编号、指定 Bit 的开/关\nSETRREGBIT(regNo, bit, val)\n有效版本：10.116.39\nval: 1=开, 0=关\n范例: SETRREGBIT(50, 3, 1);' },
 
-  // ===== 刀具/坐标系 =====
-  { name: 'TOOLSET', sig: 'TOOLSET(toolNo)', doc: '设定当前刀具编号\nTOOLSET(5) -> 切换到刀具 5' },
-  { name: 'STD',    sig: 'STD(ax)',          doc: '设定工件坐标轴\nSTD(X) -> 设定 X 轴' },
-  { name: 'STDAX',  sig: 'STDAX(X, Y, Z)',   doc: '同时设定多个坐标轴\nSTDAX(X, Y, Z)' },
-  { name: 'SETCO',  sig: 'SETCO(coord)',     doc: '设定当前坐标系\nSETCO(1) -> G54\nSETCO(6) -> G59' },
+  // ===== XML/Cycle 档案操作函数 =====
+  { name: 'DBOPEN',   sig: 'DBOPEN("filename")',  doc: '开启既有的 Cycle 档案\nDBOPEN("filename") -> 资料个数(成功) / 0(失败)\n范例: DBOPEN("Test.cyc");\n同时间仅能开启一个 Cycle 档案' },
+  { name: 'DBNEW',    sig: 'DBNEW("filename")', doc: '新增并开启全新的 Cycle 档案\nDBNEW("filename") -> 1(成功) / 0/-1/-2(失败)\n有效版本：10.118.56L+\n失败原因: -1=档名过长, -2=已存在' },
+  { name: 'DBLOAD',   sig: 'DBLOAD(index)',  doc: '读取第 index 笔的 Cycle 资料\nDBLOAD(index) -> 1(成功) / 0(失败)\n范例: DBLOAD(0); 读取第0笔' },
+  { name: 'DBSAVE',   sig: 'DBSAVE(index)', doc: '覆盖第 index 笔的 Cycle 资料\nDBSAVE(index) -> 1(成功) / 0(失败)\n有效版本：10.118.39+\n范例: DBSAVE(0);' },
+  { name: 'DBINSERT', sig: 'DBINSERT(index, "name")', doc: '新增 Cycle 资料到第 index 笔\nDBINSERT(index, "CycleName") -> 1(成功) / 0/-1/-2/-3(失败)\n有效版本：10.118.56L+\n范例: DBINSERT(0, "WarmTest");' },
+  { name: 'DBDELETE', sig: 'DBDELETE(index)', doc: '删除第 index 笔的 Cycle 资料\nDBDELETE(index) -> 1(成功) / 0/-1/-2(失败)\n有效版本：10.118.56L+\n范例: DBDELETE(0);' },
 
-  // ===== 数据库 =====
-  { name: 'DBOPEN',   sig: 'DBOPEN("filename")',  doc: '开启数据库文件\nDBOPEN("TOOL.DB")\n返回值: 0=成功' },
-  { name: 'DBCLOSE',  sig: 'DBCLOSE',        doc: '关闭当前数据库\nDBCLOSE' },
-  { name: 'DBNEW',    sig: 'DBNEW("schema")', doc: '创建新数据库\nDBNEW("ID:I,NAME:S,LENGTH:D")' },
-  { name: 'DBLOAD',   sig: 'DBLOAD(group)',  doc: '从数据库加载一笔记录\nDBLOAD(群组号)' },
-  { name: 'DBSAVE',   sig: 'DBSAVE("filename")', doc: '将数据库储存到文件\nDBSAVE("TOOL.DB")' },
-  { name: 'DBINSERT', sig: 'DBINSERT(group)', doc: '向数据库插入一笔记录\nDBINSERT(群组号)' },
-  { name: 'DBDELETE', sig: 'DBDELETE(group)', doc: '删除当前记录\nDBDELETE(群组号)' },
-  { name: 'DBEDIT',   sig: 'DBEDIT(field, val)', doc: '编辑当前记录栏位\nDBEDIT(2, "ToolName")' },
+  // ===== 图形模拟函数 =====
+  { name: 'SETDRAW',  sig: 'SETDRAW(color[, fill, radius])', doc: '定义图形模拟的画图样式\nSETDRAW(color) -> 原颜色值(可暂存恢复)\nSETDRAW(color, fill, radius)\n参数: color=路径颜色(BGR码), fill=填充颜色, radius=刀具半径\n范例: SETDRAW(255, 65280, 5);' },
+  { name: 'DRAWHOLE', sig: 'DRAWHOLE()', doc: '在目前位置画一个圆（图形模拟内有效）\nDRAWHOLE()\n需配合 SETDRAW 定义的颜色和刀具半径' },
 
-  // ===== 仿真/绘图 =====
-  { name: 'SETDRAW',  sig: 'SETDRAW(mode, color)', doc: '设定刀具路径绘图模式\nSETDRAW(0, 1) -> mode: 0=关闭, 1=实线, 2=虚线\ncolor: 颜色代码' },
-  { name: 'DRAWHOLE', sig: 'DRAWHOLE(x, y, r)', doc: '绘制钻孔路径\nDRAWHOLE(X, Y, R)' },
+  // ===== 系统信息/检查函数 =====
+  { name: 'ALARM',   sig: 'ALARM(id[, "msg"])', doc: '触发宏程序警报\nALARM(id) 或 ALARM(id, "msg")\n参数: id=警报ID(0~65535), msg=警报内容(中文≤19字,英文≤39字)\n会伴随触发警报 COR-027\n范例: ALARM(300); ALARM(301, "ALARM Content");' },
+  { name: 'MSG',     sig: 'MSG([id, ]"text")', doc: '显示提示信息（可按 ESC 消除）\nMSG(id) 或 MSG("text") 或 MSG(id, "text")\n参数: id=提示ID(0~65535), text=提示内容\n范例: MSG("钻头遗失"); MSG(100, "钻头遗失");' },
+  { name: 'WAIT',    sig: 'WAIT()',         doc: '系统停止预解，直到 WAIT 前指令执行完毕\nWAIT()\n确保 WAIT 前的 G/M 码执行完毕前不会继续预解\n常用于读取系统数据前挡预解' },
+  { name: 'SLEEP',   sig: 'SLEEP()',        doc: '暂时放弃此次宏程序循环的执行权\nSLEEP()\n配合循环使用，避免进入无穷循环而造成人机卡死\n建议在 REPEAT/WHILE/FOR/GOTO 循环中适时调用' },
+  { name: 'CHKMN',   sig: 'CHKMN("code")',  doc: '检查机械厂代码是否一致\nCHKMN("code") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #51 := CHKMN("5566");' },
+  { name: 'CHKSN',   sig: 'CHKSN("sn")',    doc: '检查控制器序号是否一致\nCHKSN("sn") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #52 := CHKSN("M9A0001");' },
+  { name: 'CHKMT',   sig: 'CHKMT("type")',  doc: '检查机床属性是否一致\nCHKMT("type") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #53 := CHKMT("MILL");' },
+  { name: 'CHKMI',   sig: 'CHKMI("model")', doc: '检查控制器机型是否一致\nCHKMI("model") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #54 := CHKMI("S");' },
+  { name: 'CHKINF',  sig: 'CHKINF(cat, "code")', doc: '检查代码与类别编号对应的内容是否一致\nCHKINF(cat, "code") -> 1(一致) / 0(不符)\n目标版本：10.118.22M+\ncat: 1=机械厂代码, 2=序号, 3=机床属性, 4=机型, 5=专机代码\n范例: #51 := CHKINF(1, "5566");' },
+  { name: 'AXID',    sig: 'AXID("name")',     doc: '查询轴名称对应的轴编号（1基）\nAXID("name") -> 轴编号(整数) / VACANT(不存在)\n范例: AXID(Y) -> 2, AXID(Y2) -> 6' },
 
-  // ===== 系统/诊断 =====
-  { name: 'ALARM',   sig: 'ALARM(no, "msg")', doc: '触发警报并暂停程序\nALARM(1001, "Tool not ready")\nno: 警报编号\nmsg: 显示讯息' },
-  { name: 'MSG',     sig: 'MSG("text")',     doc: '在萤幕显示讯息（非阻断）\nMSG("Progress: " + STR(#1) + "%")' },
-  { name: 'WAIT',    sig: 'WAIT(ms)',         doc: '等待（毫秒）\nWAIT(2000) -> 等待 2 秒' },
-  { name: 'SLEEP',   sig: 'SLEEP(ms)',        doc: '等待（毫秒）\nSLEEP(100) -> 等待 100ms\n建议在无穷循环中定期调用以避免卡死' },
-  { name: 'CHKMI',   sig: 'CHKMI',           doc: '检查 M 码是否生效\nCHKMI -> 0=未生效, 1=已生效' },
-  { name: 'CHKMN',   sig: 'CHKMN(Mnn)',       doc: '检查指定 M 码是否存在\nCHKMN(98) -> 1=存在' },
-  { name: 'CHKSN',   sig: 'CHKSN(Snn)',       doc: '检查 S 码\nCHKSN(1000)' },
-  { name: 'CHKMT',   sig: 'CHKMT(Tnn)',       doc: '检查 T 码\nCHKMT(5)' },
-  { name: 'CHKINF',  sig: 'CHKINF(axis)',     doc: '检查轴资讯\nCHKINF(X)' },
-  { name: 'AXID',    sig: 'AXID("name")',     doc: '取得轴 ID 编号\nAXID("X") -> 0' },
-
-  // ===== 堆栈 =====
-  { name: 'PUSH',   sig: 'PUSH(value)',      doc: '将值推入堆叠\nPUSH(#1)' },
-  { name: 'POP',    sig: 'POP()',            doc: '从堆叠顶部取出值\n#1 := POP()' },
-  { name: 'STKTOP', sig: 'STKTOP()',         doc: '读取堆叠顶部值（不取出）\n#1 := STKTOP()' },
-
-  // ===== 刀具路径 =====
-  { name: 'ARC',   sig: 'ARC(X, Y, I, J)',   doc: '绘制圆弧路径（仿真）\nARC(X, Y, I, J)\nI, J 为相对中心坐标' },
-  { name: 'LINE',  sig: 'LINE(X, Y)',        doc: '绘制直线路径（仿真）\nLINE(X, Y)' },
-
-  // ===== 其他 =====
-  { name: 'BITAND',  sig: 'BITAND(a, b)',   doc: '位元 AND 运算\nBITAND(5, 3) -> 1' },
-  { name: 'BITOR',   sig: 'BITOR(a, b)',    doc: '位元 OR 运算\nBITOR(5, 3) -> 7' },
-  { name: 'BITXOR',  sig: 'BITXOR(a, b)',   doc: '位元 XOR 运算\nBITXOR(5, 3) -> 6' },
-  { name: 'BITNOT',  sig: 'BITNOT(a)',      doc: '位元 NOT 运算\nBITNOT(5)' },
-  { name: 'INLIST',  sig: 'INLIST(val, a, b, c...)', doc: '检查值是否在列表中\nINLIST(#1, 1, 2, 3, 4, 5)' },
-  { name: 'PI',      sig: 'PI()',           doc: '取圆周率\nPI() -> 3.14159...' },
-  { name: 'DEG',     sig: 'DEG(rad)',        doc: '弧度转角度\nDEG(3.14159) -> 180' },
-  { name: 'RAD',     sig: 'RAD(deg)',        doc: '角度转弧度\nRAD(180) -> 3.14159' },
-  { name: 'MOD',     sig: 'MOD(a, b)',       doc: '取余数运算\nMOD(10, 3) -> 1' }
+  // ===== 堆栈操作函数 =====
+  { name: 'PUSH',   sig: 'PUSH(value)',      doc: '将资料塞进栈（Stack）\nPUSH(value)\n最先 PUSH 的值在栈最底层，依序往上叠加\n范例: PUSH(#1); PUSH(5);' },
+  { name: 'POP',    sig: 'POP()',            doc: '从栈中取出资料（由最上层取到最底层）\nPOP() -> 值\n范例: #1 := POP();' },
+  { name: 'STKTOP', sig: 'STKTOP[index]',    doc: '复制栈中的资料（不删除）\nSTKTOP[index] -> 值\n范例: #1 := STKTOP[0];  // 最顶层' }
 ];
 
 /** 构建函数名索引 Map，key 为函数名（大写），value 为函数对象 */

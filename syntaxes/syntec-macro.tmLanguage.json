@@ -72,27 +72,27 @@
       "name": "keyword.operator.comparison.syntec-macro"
     },
     {
-      "match": "\\b(ABS|ACOS|ASIN|ATAN|ATAN2|COS|SIN|TAN|CEIL|FLOOR|ROUND|SQRT|EXP|LN|LOG|POW|MAX|MIN|SIGN|RANDOM)\\b",
+      "match": "\\b(ABS|ACOS|ASIN|ATAN|ATAN2|COS|SIN|TAN|CEIL|FLOOR|ROUND|SQRT|EXP|LN|POW|MAX|MIN|SIGN|RANDOM)\\b",
       "name": "support.function.math.syntec-macro"
     },
     {
-      "match": "\\b(STR2INT|SCANTEXT|CHR|LEN|MID|STR|FORMAT)\\b",
+      "match": "\\b(STR2INT|SCANTEXT)\\b",
       "name": "support.function.string.syntec-macro"
     },
     {
-      "match": "\\b(OPEN|CLOSE|PRINT|READ|EXIST|DELETE|RENAME|GETARG|GETTRAPARG|PARAM)\\b",
+      "match": "\\b(OPEN|CLOSE|PRINT|GETARG|GETTRAPARG|PARAM)\\b",
       "name": "support.function.io.syntec-macro"
     },
     {
-      "match": "\\b(READDI|READDO|READABIT|SETDO|SETABIT|READRREGBIT|SETRREGBIT|READREG|SETREG)\\b",
+      "match": "\\b(READDI|READDO|READABIT|SETDO|SETABIT|READRREGBIT|SETRREGBIT)\\b",
       "name": "support.function.io.rw.syntec-macro"
     },
     {
-      "match": "\\b(DBOPEN|DBCLOSE|DBNEW|DBLOAD|DBSAVE|DBINSERT|DBDELETE|DBEDIT)\\b",
+      "match": "\\b(DBOPEN|DBNEW|DBLOAD|DBSAVE|DBINSERT|DBDELETE)\\b",
       "name": "support.function.db.syntec-macro"
     },
     {
-      "match": "\\b(ALARM|MSG|WAIT|SLEEP|SYSVAR|SYSDATA|DRVDATA|STD|STDAX|TOOLSET|SETCO|GETPR|SETPR)\\b",
+      "match": "\\b(ALARM|MSG|WAIT|SLEEP|SYSVAR|SYSDATA|DRVDATA|STD|STDAX)\\b",
       "name": "support.function.system.syntec-macro"
     },
     {
@@ -106,10 +106,6 @@
     {
       "match": "\\b(SETDRAW|DRAWHOLE)\\b",
       "name": "support.function.draw.syntec-macro"
-    },
-    {
-      "match": "\\b(BITAND|BITOR|BITXOR|BITNOT|INLIST|PI|DEG|RAD|MOD)\\b",
-      "name": "support.function.misc.syntec-macro"
     },
     {
       "match": "@[A-Za-z_][A-Za-z0-9_]*|@\\d+|@\\[[^\\]]+\\]",
