@@ -395,16 +395,21 @@ function activate(context) {
 
   // 方式3: 注册空颜色提供者，覆盖 VSCode 内置 CSS 颜色检测器
   // VSCode 会合并所有颜色提供者的结果，空提供者不返回任何颜色信息
-  context.subscriptions.push(
-    vscode.languages.registerDocumentColorProvider(selector, {
-      provideDocumentColors(_document, _token) {
-        return [];
-      },
-      provideColorPresentations(_color, _context, _token) {
-        return [];
-      }
-    })
-  );
+  // 注意: 部分 IDE（如 Trae CN）可能不支持此 API，需要用 try-catch 保护
+  try {
+    context.subscriptions.push(
+      vscode.languages.registerDocumentColorProvider(selector, {
+        provideDocumentColors(_document, _token) {
+          return [];
+        },
+        provideColorPresentations(_color, _context, _token) {
+          return [];
+        }
+      })
+    );
+  } catch (_err) {
+    console.info('[syntec-macro] registerDocumentColorProvider 不可用，跳过');
+  }
 
   // Completion
   context.subscriptions.push(
