@@ -2,7 +2,7 @@
   "name": "syntec-macro",
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
