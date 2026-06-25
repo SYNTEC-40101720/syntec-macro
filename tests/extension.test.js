@@ -49,9 +49,27 @@ test('PAUSE exists in flow keywords', () => {
   assert.ok(keywords.flow.includes('PAUSE'), 'PAUSE should be in flow keywords');
 });
 
-test('SLEEP doc mentions milliseconds', () => {
+test('SLEEP takes no parameters', () => {
   const { functions } = require('../src/functions');
   const sleep = functions.find(f => f.name === 'SLEEP');
   assert.ok(sleep, 'SLEEP function should exist');
-  assert.ok(sleep.doc.includes('毫秒'), 'SLEEP doc should mention milliseconds');
+  assert.strictEqual(sleep.sig, 'SLEEP()', 'SLEEP should have no parameters');
+});
+
+test('Snippets match function definitions (no stale parameters)', () => {
+  const snippets = require('../snippets/syntec-macro.json');
+  const byPrefix = {};
+  for (const val of Object.values(snippets)) {
+    byPrefix[val.prefix] = val;
+  }
+  // SLEEP/WAIT/CLOSE: parameterless
+  assert.strictEqual(byPrefix.sleep.body[0], 'SLEEP();', 'SLEEP snippet should be parameterless');
+  assert.strictEqual(byPrefix.wait.body[0], 'WAIT();', 'WAIT snippet should be parameterless');
+  assert.strictEqual(byPrefix.close.body[0], 'CLOSE();', 'CLOSE snippet should be parameterless');
+  // OPEN: path-based API, not file-handle
+  assert.ok(byPrefix.open.body[0].startsWith('OPEN("'), 'OPEN snippet should use path API');
+  // READABIT: single arg, no 位号
+  assert.ok(!byPrefix.readabit.body[0].includes('位号'), 'READABIT should have single arg');
+  // SETABIT: two args, no 位号
+  assert.ok(!byPrefix.setabit.body[0].includes('位号'), 'SETABIT should not have three args');
 });

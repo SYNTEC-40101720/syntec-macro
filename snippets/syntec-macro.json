@@ -131,33 +131,33 @@
     ],
     "description": "屏幕显示消息提示"
   },
-  "WAIT 等待": {
+  "WAIT 挡预解": {
     "prefix": "wait",
     "body": [
-      "WAIT(${1:等待时间毫秒})"
+      "WAIT();"
     ],
-    "description": "程序暂停等待（单位：毫秒）"
+    "description": "系统停止预解，直到 WAIT 前的指令执行完毕"
   },
   "OPEN 打开文件": {
     "prefix": "open",
     "body": [
-      "OPEN(${1:文件号}, \"${2:文件路径}\", ${3:模式})"
+      "OPEN(\"${1:文件路径}\"[, \"a\"])"
     ],
-    "description": "打开文件（模式: R读取 / W写入 / A追加）"
+    "description": "打开文件（不指定模式=覆写，\"a\"=附加）"
   },
-  "PRINT 写入文件": {
+  "PRINT 输出字符串": {
     "prefix": "print",
     "body": [
-      "PRINT(${1:文件号}, \"${2:内容}\")"
+      "PRINT(\"${1:输出字串}\")"
     ],
-    "description": "向已打开的文件写入内容"
+    "description": "输出字符串到档案或传输埠（变数名会被替换为内容）"
   },
   "CLOSE 关闭文件": {
     "prefix": "close",
     "body": [
-      "CLOSE(${1:文件号})"
+      "CLOSE();"
     ],
-    "description": "关闭已打开的文件"
+    "description": "关闭由 OPEN 开启的档案"
   },
   "READDI 读取DI信号": {
     "prefix": "readdi",
@@ -176,16 +176,16 @@
   "READABIT 读取ABIT": {
     "prefix": "readabit",
     "body": [
-      "#${1:变量} := READABIT(${2:端口号}, ${3:位号})"
+      "#${1:变量} := READABIT(${2:点编号})"
     ],
-    "description": "读取指定端口的指定位"
+    "description": "读取指定的 A 点编号（0~511）"
   },
   "SETABIT 设置ABIT": {
     "prefix": "setabit",
     "body": [
-      "SETABIT(${1:端口号}, ${2:位号}, ${3:0或1})"
+      "SETABIT(${1:点编号}, ${2:0或1})"
     ],
-    "description": "设置指定端口的指定位"
+    "description": "设定指定的 A 点开/关（0~511）"
   },
   "G65 调用宏程序": {
     "prefix": "g65",
@@ -204,16 +204,16 @@
   "DBSAVE 保存数据库": {
     "prefix": "dbsave",
     "body": [
-      "DBSAVE(\"${1:数据库文件名}\")"
+      "DBSAVE(${1:Index})"
     ],
-    "description": "保存数据库到文件"
+    "description": "覆盖第 Index 笔的 Cycle 资料"
   },
   "DBINSERT 插入数据": {
     "prefix": "dbinsert",
     "body": [
-      "DBINSERT(${1:数据组})"
+      "DBINSERT(${1:Index}, \"${2:Cycle Name}\")"
     ],
-    "description": "向数据库插入一条数据"
+    "description": "新增 Cycle 资料到第 Index 笔"
   },
   "DBLOAD 加载数据": {
     "prefix": "dbload",
@@ -232,16 +232,16 @@
   "DBNEW 新建数据库": {
     "prefix": "dbnew",
     "body": [
-      "DBNEW(\"${1:字段定义}\")"
+      "DBNEW(\"${1:档案名}\")"
     ],
-    "description": "新建数据库（定义字段结构）"
+    "description": "新增并开启全新的 Cycle 档案"
   },
   "SETDRAW 绘图设置": {
     "prefix": "setdraw",
     "body": [
-      "SETDRAW(${1:绘图模式}, ${2:颜色})"
+      "SETDRAW(${1:路径颜色}[, ${2:填充颜色}, ${3:刀具半径}])"
     ],
-    "description": "设置刀具路径绘图（仿真用）"
+    "description": "定义图形模拟的画图样式"
   },
   "块注释": {
     "prefix": "bc",
@@ -253,23 +253,23 @@
   "SYSVAR 系统变量": {
     "prefix": "sysvar",
     "body": [
-      "#${1:变量} := SYSVAR(\"${2:系统变量名}\")"
+      "#${1:变量} := SYSVAR(${2:轴群识别码}, ${3:系统变数码})"
     ],
-    "description": "读取系统变量"
+    "description": "读取特定轴群中的系统变数"
   },
-  "CHKMN 检查M码": {
+  "CHKMN 检查机械厂代码": {
     "prefix": "chkmn",
     "body": [
-      "#${1:变量} := CHKMN(${2:M码编号})"
+      "#${1:变量} := CHKMN(\"${2:机械厂代码}\")"
     ],
-    "description": "检查M代码是否可用"
+    "description": "检查机械厂代码是否一致"
   },
   "PARAM 参数读取": {
     "prefix": "param",
     "body": [
-      "#${1:变量} := PARAM(${2:参数类型}, ${3:参数编号})"
+      "#${1:变量} := PARAM(${2:参数号码}[, ${3:轴群}])"
     ],
-    "description": "读取系统参数"
+    "description": "读取系统参数 Pr 或 V12 PN 参数"
   },
   "PUSH 压栈": {
     "prefix": "push",
@@ -390,12 +390,12 @@
     ],
     "description": "写入控制器参数（Pr）"
   },
-  "SLEEP 延时等待": {
+  "SLEEP 释放执行权": {
     "prefix": "sleep",
     "body": [
-      "SLEEP(${1:100});"
+      "SLEEP();"
     ],
-    "description": "程序延时等待（单位：毫秒）"
+    "description": "暂时放弃宏程序循环执行权，释放 CPU 资源（仅在循环中有效）"
   },
   "M198 子程序呼叫": {
     "prefix": "m198",
