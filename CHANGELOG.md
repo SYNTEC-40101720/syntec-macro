@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-06-26
+
+### Fixed
+- **代码片段 API 一致性**: 修复 14 个过时代码片段，使其与 functions.js 和技术手册一致
+  - SLEEP/WAIT: 移除错误的毫秒参数，改为无参数 `SLEEP();`/`WAIT();`
+  - OPEN/PRINT/CLOSE: 移除旧的"文件号"API，改为路径式 API
+  - READABIT/SETABIT: 修正参数数量（3→1、3→2）
+  - SYSVAR/CHKMN/PARAM/SETDRAW: 修正参数类型
+  - DBSAVE/DBINSERT/DBNEW: 修正参数（文件名→索引等）
+- **README 文档错误**:
+  - 移除对不存在的 `STR()` 函数的引用（手册仅有 `STR2INT`）
+  - 函数数量 `88+` → `60+`（实际 62）
+  - 代码示例语法修正：FOR/WHILE 缺 `DO`、`X[#3*10]` 方括号运算、裸中文注释
+  - 函数片段表移除不存在的 `abs/str/sqrt/random` 前缀，替换为真实片段
+
+### Changed
+- **测试用例**: "SLEEP doc mentions milliseconds" 重命名为 "SLEEP takes no parameters"，验证无参数签名
+- **片段回归测试**: 新增 snippets 一致性测试，锁定 SLEEP/WAIT/OPEN/CLOSE/READABIT/SETABIT 正确签名
+
 ## [2.6.2] - 2026-06-25
 
 ### Changed

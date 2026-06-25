@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.6.2-blue)
+![Version](https://img.shields.io/badge/version-2.6.3-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -45,7 +45,7 @@
 
 ### 方法 1：从 VSIX 文件安装（推荐）
 
-1. 下载 `syntec-macro-2.6.2.vsix`
+1. 下载 `syntec-macro-2.6.3.vsix`
 2. 在 VS Code 中按 `Ctrl+Shift+P`
 3. 输入 `Install from VSIX...`
 4. 选择下载的 `.vsix` 文件
@@ -74,7 +74,7 @@ npm install
 npm run package
 
 # 安装生成的 .vsix 文件
-code --install-extension syntec-macro-2.6.2.vsix
+code --install-extension syntec-macro-2.6.3.vsix
 ```
 
 ---
