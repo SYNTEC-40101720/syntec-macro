@@ -1,4 +1,4 @@
-// syntec-macro v2.6.1 - functions.js
+// functions.js
 // 内置函数完整定义：补全数据 + Hover文档
 // 基于《新代控制器技术参考手册》函数表修订
 
@@ -36,6 +36,8 @@ exports.functions = [
   { name: 'SYSVAR',    sig: 'SYSVAR(group, code)', doc: '读取特定轴群中的系统变数\nSYSVAR(group, code) -> 数值\n参数: group=轴群识别码(1~N), code=系统变数码\n范例: #1 := SYSVAR(1, 1000);' },
   { name: 'SYSDATA',   sig: 'SYSDATA(diagNo)',  doc: '读取系统诊断变数\nSYSDATA(diagNo) -> 数值\n有效版本：10.118.23U+\n范例: #1 := SYSDATA(336);\n注意：执行前建议下 WAIT() 挡预解' },
   { name: 'DRVDATA',   sig: 'DRVDATA(stationNo, varNo)', doc: '读取驱动器状态变数\nDRVDATA(stationNo, varNo) -> 数值\n有效版本：10.118.23U+\nvarNo: 10进位数 或 "16进制字串"(如"D61h")\n范例: #1 := DRVDATA(1000, 3366);\n注意：每个函数执行约0.1~0.2s' },
+  { name: 'GETPR',   sig: 'GETPR(prNo)',      doc: '读取系统参数 Pr 的值\nGETPR(prNo) -> 数值\n参数: prNo=参数编号\n范例: @1 := GETPR(3500);\n支援版本：10.118.56Z、10.118.60T+' },
+  { name: 'SETPR',   sig: 'SETPR(prNo, val)',  doc: '写入系统参数 Pr 的值\nSETPR(prNo, val)\n参数: prNo=参数编号, val=写入值\n范例: SETPR(3500, @1);\n支援版本：10.118.56Z、10.118.60T+' },
 
   // ===== 标准单位转换 =====
   { name: 'STD',    sig: 'STD(val, unit)',      doc: '根据 Pr17 将整数数值转换成系统设定的输入单位\nSTD(val, unit) -> 数值\n参数: val=欲转换数值, unit=标准单位(常用 #1600)\n范例: #10 := STD(#9, #1600);' },
@@ -71,7 +73,7 @@ exports.functions = [
   { name: 'ALARM',   sig: 'ALARM(id[, "msg"])', doc: '触发宏程序警报\nALARM(id) 或 ALARM(id, "msg")\n参数: id=警报ID(0~65535), msg=警报内容(中文≤19字,英文≤39字)\n会伴随触发警报 COR-027\n范例: ALARM(300); ALARM(301, "ALARM Content");' },
   { name: 'MSG',     sig: 'MSG([id, ]"text")', doc: '显示提示信息（可按 ESC 消除）\nMSG(id) 或 MSG("text") 或 MSG(id, "text")\n参数: id=提示ID(0~65535), text=提示内容\n范例: MSG("钻头遗失"); MSG(100, "钻头遗失");' },
   { name: 'WAIT',    sig: 'WAIT()',         doc: '系统停止预解，直到 WAIT 前指令执行完毕\nWAIT()\n确保 WAIT 前的 G/M 码执行完毕前不会继续预解\n常用于读取系统数据前挡预解' },
-  { name: 'SLEEP',   sig: 'SLEEP()',        doc: '暂时放弃此次宏程序循环的执行权\nSLEEP()\n配合循环使用，避免进入无穷循环而造成人机卡死\n建议在 REPEAT/WHILE/FOR/GOTO 循环中适时调用' },
+  { name: 'SLEEP',   sig: 'SLEEP()',        doc: '暂时放弃此次宏程序循环的执行权（约数十毫秒后恢复）\nSLEEP()\n防止迴圈耗尽 CPU 资源导致人机卡死\n执行后让出资源给人机介面等其他执行绪\n建议在 WHILE/FOR/REPEAT 循环中适时调用\n注意：SLEEP 仅对迴圈有效，放在 IF 中无实质作用\n与 WAIT 区别：WAIT 关闭预解确保读到最新系统状态，SLEEP 用于休息与资源分配' },
   { name: 'CHKMN',   sig: 'CHKMN("code")',  doc: '检查机械厂代码是否一致\nCHKMN("code") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #51 := CHKMN("5566");' },
   { name: 'CHKSN',   sig: 'CHKSN("sn")',    doc: '检查控制器序号是否一致\nCHKSN("sn") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #52 := CHKSN("M9A0001");' },
   { name: 'CHKMT',   sig: 'CHKMT("type")',  doc: '检查机床属性是否一致\nCHKMT("type") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #53 := CHKMT("MILL");' },

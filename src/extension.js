@@ -1,4 +1,4 @@
-// syntec-macro v2.6.1 - extension.js
+// extension.js
 // VSCode 扩展主入口：提供 IntelliSense / Hover / 诊断
 
 const vscode = require('vscode');
