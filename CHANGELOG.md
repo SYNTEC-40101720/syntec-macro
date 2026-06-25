@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-06-25
+
+### Changed
+- **版本统一管理**: 移除源文件中的硬编码版本号，统一从 package.json 读取
+- **文档同步**: 更新 README.md 和 CHANGELOG.md 中的版本号至 2.6.2
+
+### Added
+- **GETPR/SETPR 函数**: 添加系统参数读写函数定义
+- **SLEEP 函数文档**: 完善 SLEEP() 函数说明，明确其无参数特性
+
+### Fixed
+- **SLEEP 函数签名**: 修正为 `SLEEP()`（无参数），移除了错误的毫秒参数描述
+- **测试文件版本号**: 移除测试文件中的硬编码版本号注释
+
 ## [2.6.1] - 2026-06-23
 
 ### Changed
@@ -86,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 函数签名修正 (参考手册):
   - ALARM: `ALARM(code)` 或 `ALARM(code, "message")`
   - MSG: `MSG(id)` 或 `MSG("content")` 或 `MSG(id, "content")`
-  - SLEEP: `SLEEP(ms)` 接受毫秒参数
+  - SLEEP: `SLEEP()` 无参数，暂时放弃宏程序循环执行权
   - GETPR/SETPR: `GETPR(prNumber)` 和 `SETPR(prNumber, value)`
 
 ## [2.2.0] - 2026-06-22

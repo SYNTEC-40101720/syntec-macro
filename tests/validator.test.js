@@ -1,4 +1,4 @@
-// validator.test.js - syntec-macro v2.6.1
+// validator.test.js
 // 用法: node validator.test.js
 // 测试覆盖: IF/END_IF配对、CASE/END_CASE、REPEAT/UNTIL、中文字符检测、括号匹配、替代关键字、EXIT、GOTO、%@MACRO
 

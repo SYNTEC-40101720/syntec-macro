@@ -1,4 +1,4 @@
-// extension.test.js - syntec-macro v2.6.1
+// extension.test.js
 // 用法: node --test tests/extension.test.js
 // 测试覆盖: 关键字、函数索引、G/M代码、机器人指令、PAUSE、SLEEP
 
