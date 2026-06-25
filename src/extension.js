@@ -385,14 +385,8 @@ function activate(context) {
   // 注册语言服务
   const selector = { language: LANG_ID };
 
-  // 强制禁用颜色装饰器，防止 #100 等变量被 VSCode 识别为 CSS 颜色方块
-  // 方式1: 通过 configurationDefaults 已设置（package.json）
-  // 方式2: 激活时强制写入语言特定工作区配置
-  const langConfig = vscode.workspace.getConfiguration('editor', { languageId: LANG_ID });
-  langConfig.update('colorDecorators', false, vscode.ConfigurationTarget.Workspace, true);
-  langConfig.update('defaultColorDecorators', 'never', vscode.ConfigurationTarget.Workspace, true);
-  langConfig.update('colorDecoratorsActivatedOn', 'never', vscode.ConfigurationTarget.Workspace, true);
-
+  // 颜色装饰器已通过 package.json configurationDefaults 禁用
+  // 无需在代码中重复设置，避免在用户工作区产生 .vscode/settings.json
 
   // Completion
   context.subscriptions.push(
