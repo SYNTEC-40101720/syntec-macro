@@ -5,7 +5,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const { functions, buildFunctionIndex } = require('./functions');
-const { keywords, getAllKeywords, getMCodeDesc } = require('./keywords');
+const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
 const packageJson = require('../package.json');
 
@@ -65,6 +65,11 @@ function provideKeywordCompletions(prefix, items) {
   for (const kw of allKeywords) {
     if (kw.startsWith(prefix) && kw !== 'GOTO') {
       const item = new vscode.CompletionItem(kw, vscode.CompletionItemKind.Keyword);
+      const kwDoc = getKeywordDoc(kw);
+      if (kwDoc) {
+        item.detail = kwDoc.sig;
+        item.documentation = new vscode.MarkdownString(kwDoc.doc);
+      }
       items.push(item);
     }
   }
@@ -170,6 +175,13 @@ function provideHover(document, position) {
   // 查找关键字
   const allKw = getAllKeywords();
   if (allKw.includes(word)) {
+    const kwDoc = getKeywordDoc(word);
+    if (kwDoc) {
+      const md = new vscode.MarkdownString();
+      md.appendCodeblock(kwDoc.sig, 'syntec-macro');
+      md.appendMarkdown('\n' + kwDoc.doc);
+      return new vscode.Hover(md, range);
+    }
     const md = new vscode.MarkdownString('**关键字**: ' + word);
     return new vscode.Hover(md, range);
   }
