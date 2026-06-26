@@ -192,17 +192,30 @@ function provideHover(document, position) {
 // =====================
 // 3. Go-to Definition
 // =====================
-function provideDefinition(document, position) {
+function getTargetMatchAtPosition(document, position, regex) {
   const line = document.lineAt(position).text;
-  const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
-  if (!range) return [];
+  let match;
+  regex.lastIndex = 0;
+  while ((match = regex.exec(line)) !== null) {
+    const targetStart = match.index + match[1].length;
+    const targetEnd = targetStart + match[2].length;
+    if (position.character >= targetStart && position.character <= targetEnd) {
+      return {
+        text: match[2],
+        range: new vscode.Range(position.line, targetStart, position.line, targetEnd)
+      };
+    }
+  }
+  return null;
+}
 
+function provideDefinition(document, position) {
   // GOTO 数字 → 跳转到 N 标签
   // 实测语法：GOTO 100;（不带N），目标为 N100;
-  const gotoMatch = line.match(/\bGOTO\s+(\d+)/i);
-  if (gotoMatch) {
-    const targetLabel = 'N' + gotoMatch[1];
-    const labelRegex = createNLabelRegex(gotoMatch[1]);
+  const gotoTarget = getTargetMatchAtPosition(document, position, /\b(GOTO\s+)(\d+)(?!\w)/ig);
+  if (gotoTarget) {
+    const targetLabel = 'N' + gotoTarget.text;
+    const labelRegex = createNLabelRegex(gotoTarget.text);
     const targets = [];
     for (let i = 0; i < document.lineCount; i++) {
       const rawLine = document.lineAt(i).text;
@@ -217,9 +230,9 @@ function provideDefinition(document, position) {
   }
 
   // G65 Pxxx → 跳转到宏程序（文件名约定 G0xxx）
-  const g65Match = line.match(/G65\s+P(\w+)/i);
-  if (g65Match) {
-    const progNo = g65Match[1].toUpperCase();
+  const g65Target = getTargetMatchAtPosition(document, position, /\b(G65(?:\.1)?\s+)(P\w+)/ig);
+  if (g65Target) {
+    const progNo = g65Target.text.substring(1).toUpperCase();
     // 尝试在当前工作区找同名文件
     const targetFile = findMacroFile(document, progNo);
     if (targetFile) {
@@ -321,11 +334,15 @@ function findFileRecursive(dir, targetUpperNames, maxDepth, depth = 0) {
 // 4. Diagnostics（实时语法检查）
 // =====================
 let diagnosticCollection;
-let diagTimer = null;
+const diagnosticTimers = new Map();
 
 function scheduleDiagnostics(document) {
-  clearTimeout(diagTimer);
-  diagTimer = setTimeout(() => refreshDiagnostics(document), DIAGNOSTIC_DEBOUNCE_MS);
+  const key = document.uri.toString();
+  clearTimeout(diagnosticTimers.get(key));
+  diagnosticTimers.set(key, setTimeout(() => {
+    diagnosticTimers.delete(key);
+    refreshDiagnostics(document);
+  }, DIAGNOSTIC_DEBOUNCE_MS));
 }
 
 function refreshDiagnostics(document) {

@@ -23,12 +23,25 @@ const LOOP_OPENERS = new Set(['FOR', 'WHILE', 'REPEAT']);
 // ============================================================
 
 // 去除字符串和注释，保留代码逻辑
-// 字符串内容用空格替换，边界引号也去除
-function stripCommentsAndStrings(line) {
+// 字符串和注释内容用空格替换，保留列宽
+function stripCommentsAndStringsWithState(line, lineStartInBlock = false) {
   let result = '';
   let inString = false;
+  let inBlockComment = lineStartInBlock;
   let i = 0;
   while (i < line.length) {
+    if (inBlockComment) {
+      if (line.substring(i, i + 2) === '*)') {
+        result += '  ';
+        inBlockComment = false;
+        i += 2;
+        continue;
+      }
+      result += ' ';
+      i++;
+      continue;
+    }
+
     // 行注释 //
     if (!inString && line.substring(i, i + 2) === '//') {
       result += ' '.repeat(line.length - i);
@@ -36,10 +49,9 @@ function stripCommentsAndStrings(line) {
     }
     // 块注释 (* *)
     if (!inString && line.substring(i, i + 2) === '(*') {
-      const end = line.indexOf('*)', i + 2);
-      const endIdx = end >= 0 ? end + 2 : line.length;
-      result += ' '.repeat(endIdx - i);
-      i = endIdx;
+      result += '  ';
+      inBlockComment = true;
+      i += 2;
       continue;
     }
     // 字符串（双引号）
@@ -51,23 +63,24 @@ function stripCommentsAndStrings(line) {
       if (bs % 2 === 0) {
         // 未被转义，正常切换 inString
         inString = !inString;
-      } else {
-        // 被转义，" 是字符串内容，不切换 inString
-        // 在结果中保留一个空格占位
-        if (inString) result += ' ';
       }
+      result += ' ';
     } else {
       result += inString ? ' ' : line[i];
     }
     i++;
   }
-  return result;
+  return { text: result, inBlockComment };
+}
+
+function stripCommentsAndStrings(line) {
+  return stripCommentsAndStringsWithState(line).text;
 }
 
 // 获取关键字在行中的位置（防止 ENDREPEAT/REPEAT 等子串冲突）
 // 策略：用下划线占位法，先把长替代关键字替换成等长占位符，再匹配
-function getKeywordPositions(line) {
-  const clean = stripCommentsAndStrings(line);
+function getKeywordPositions(line, isClean = false) {
+  const clean = isClean ? line : stripCommentsAndStrings(line);
 
   // 第一步：把长替代关键字替换成等长占位符（防止 ENDREPEAT 内的 REPEAT 被误匹配）
   // 顺序：越长越先替换（ENDREPEAT > ENDFOR > ... > REPEAT > UNTIL）
@@ -140,8 +153,8 @@ function isNLabelLine(line) {
 
 // 提取静态 GOTO 目标：GOTO 100
 // GOTO #变量 是运行期跳转，无法静态验证目标标签是否存在
-function extractGotoTarget(line) {
-  const clean = stripCommentsAndStrings(line);
+function extractGotoTarget(line, isClean = false) {
+  const clean = isClean ? line : stripCommentsAndStrings(line);
   const m = clean.match(/\bGOTO\s+(\d+)(?!\w)/i);
   if (m) return m[1] || null;
   return null;
@@ -157,9 +170,12 @@ function collectMetadata(lines) {
   let firstNonCommentIdx = -1;
   let hasMacroHeader = false;
   let firstNonCommentIsBarePercent = false; // % 后面不是 @ 或者只有 %
+  let inBlockComment = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
+    const stripped = stripCommentsAndStringsWithState(lines[i], inBlockComment);
+    inBlockComment = stripped.inBlockComment;
+    const trimmed = stripped.text.trim();
 
     // 找第一个非空非注释行
     if (firstNonCommentIdx < 0 && trimmed !== '' && !trimmed.startsWith('//') && !trimmed.startsWith('(*')) {
@@ -235,10 +251,8 @@ function validateChineseCharacters(raw, lineNum, lineStartInBlock) {
 }
 
 // 括号匹配验证器：检测多余的右括号或缺少的右括号
-function validateParentheses(line, lineNum, lineStartInBlock) {
-  // 如果行首处于块注释内，跳过括号匹配（跨行块注释的 (* 和 *) 不是真正的括号）
-  if (lineStartInBlock) return [];
-  const clean = stripCommentsAndStrings(line);
+function validateParentheses(line, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? stripCommentsAndStrings(line) : cleanLine;
   if (!clean.trim()) return [];
 
   const diagnostics = [];
@@ -308,12 +322,20 @@ function validateControlFlowKeyword(pos, lineNum, positions, stack, untiledRepea
     if (skipThisKw) return;
 
     const opener = CLOSER_TO_OPENER[kw];
-    let matchIdx = -1;
-    for (let j = stack.length - 1; j >= 0; j--) {
-      if (stack[j].keyword === opener) { matchIdx = j; break; }
-    }
-    if (matchIdx >= 0) {
-      stack.splice(matchIdx, 1);
+    const top = stack[stack.length - 1];
+    if (top && top.keyword === opener) {
+      stack.pop();
+    } else if (top) {
+      diagnostics.push({
+        line: lineNum, col: pos.col, endCol: pos.endCol,
+        msg: `${kw} 嵌套顺序错误：当前未闭合的是 ${top.keyword}`,
+        severity: 'error'
+      });
+      let matchIdx = -1;
+      for (let j = stack.length - 2; j >= 0; j--) {
+        if (stack[j].keyword === opener) { matchIdx = j; break; }
+      }
+      if (matchIdx >= 0) stack.splice(matchIdx);
     } else {
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
@@ -464,22 +486,14 @@ function validateDocument(content) {
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
     const raw = lines[i];
-    const positions = getKeywordPositions(raw);
-
-    // 更新块注释状态（用于括号匹配）
     const lineStartInBlock = inBlockComment;
-    for (let ci = 0; ci < raw.length; ci++) {
-      if (!inBlockComment && raw.substring(ci, ci + 2) === '(*') {
-        inBlockComment = true;
-        ci++; // 跳过 *
-      } else if (inBlockComment && raw.substring(ci, ci + 2) === '*)') {
-        inBlockComment = false;
-        ci++; // 跳过 )
-      }
-    }
+    const stripped = stripCommentsAndStringsWithState(raw, lineStartInBlock);
+    const clean = stripped.text;
+    inBlockComment = stripped.inBlockComment;
+    const positions = getKeywordPositions(clean, true);
 
     // GOTO 目标引用
-    const gotoTarget = extractGotoTarget(raw);
+    const gotoTarget = extractGotoTarget(clean, true);
     if (gotoTarget) gotoRefs.push({ line: lineNum, target: gotoTarget });
 
     // 按字符位置排序（同行中按从左到右顺序处理关键字）
@@ -487,7 +501,7 @@ function validateDocument(content) {
 
     // 执行行级验证策略
     for (const validator of LINE_VALIDATORS) {
-      const results = validator(raw, lineNum, lineStartInBlock);
+      const results = validator(raw, lineNum, lineStartInBlock, clean);
       diagnostics.push(...results);
     }
 

@@ -66,10 +66,27 @@ test('Snippets match function definitions (no stale parameters)', () => {
   assert.strictEqual(byPrefix.sleep.body[0], 'SLEEP();', 'SLEEP snippet should be parameterless');
   assert.strictEqual(byPrefix.wait.body[0], 'WAIT();', 'WAIT snippet should be parameterless');
   assert.strictEqual(byPrefix.close.body[0], 'CLOSE();', 'CLOSE snippet should be parameterless');
+  assert.strictEqual(byPrefix.msg.body[0], 'MSG("${1:提示信息}")', 'MSG snippet should not insert a leading space');
   // OPEN: path-based API, not file-handle
-  assert.ok(byPrefix.open.body[0].startsWith('OPEN("'), 'OPEN snippet should use path API');
+  assert.strictEqual(byPrefix.open.body[0], 'OPEN("${1:文件路径}")', 'OPEN snippet should use valid overwrite syntax');
+  assert.strictEqual(byPrefix.opena.body[0], 'OPEN("${1:文件路径}", "a")', 'OPEN append snippet should use valid append syntax');
   // READABIT: single arg, no 位号
   assert.ok(!byPrefix.readabit.body[0].includes('位号'), 'READABIT should have single arg');
   // SETABIT: two args, no 位号
   assert.ok(!byPrefix.setabit.body[0].includes('位号'), 'SETABIT should not have three args');
+});
+
+test('Grammar highlights documented operators and variable forms', () => {
+  const grammar = require('../syntaxes/syntec-macro.tmLanguage.json');
+  const patternByName = Object.fromEntries(
+    grammar.patterns.filter(p => p.match && p.name).map(p => [p.name, p.match])
+  );
+
+  assert.match('&', new RegExp(patternByName['keyword.operator.logical.syntec-macro']));
+  assert.match('MOD', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
+  assert.match('DIV', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
+  assert.match('AR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));
+  assert.match('MAR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));
+  assert.match('$1', new RegExp(patternByName['variable.language.axis-group.syntec-macro']));
+  assert.match('$4', new RegExp(patternByName['variable.language.axis-group.syntec-macro']));
 });

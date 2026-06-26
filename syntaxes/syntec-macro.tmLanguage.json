@@ -60,8 +60,12 @@
       "name": "keyword.operator.robot-param.syntec-macro"
     },
     {
-      "match": "\\b(AND|OR|XOR|NOT)\\b",
+      "match": "\\b(AND|OR|XOR|NOT)\\b|&",
       "name": "keyword.operator.logical.syntec-macro"
+    },
+    {
+      "match": "\\b(MOD|DIV)\\b",
+      "name": "keyword.operator.arithmetic.syntec-macro"
     },
     {
       "match": ":=",
@@ -116,8 +120,12 @@
       "name": "variable.language.local.syntec-macro"
     },
     {
-      "match": "\\b(AR|MAR)\\d+\\b",
+      "match": "\\b(?:AR|MAR)(?:\\d+|\\[[^\\]]+\\])",
       "name": "variable.language.app.syntec-macro"
+    },
+    {
+      "match": "\\$[1-4]\\b",
+      "name": "variable.language.axis-group.syntec-macro"
     },
     {
       "match": "\\bG\\d+(?:\\.\\d+)?\\b",

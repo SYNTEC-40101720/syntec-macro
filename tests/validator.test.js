@@ -141,14 +141,13 @@ console.log('\n[7] 混嵌');
   eq('IF 内嵌 CASE，外层正确闭合',
     'IF #1=1 THEN\n  CASE #51 OF\n  END_CASE\nELSE\nEND_IF', []);
 
-  // END_IF 弹出外层 IF 时，把内层 FOR 一起弹出，不报两层 warning
-  eq('IF 内嵌 FOR，FOR缺END_FOR → 只报 FOR 层',
+  eq('IF 内嵌 FOR，先遇到 END_IF → 报嵌套顺序错误',
     'IF #1=1 THEN\n  FOR #1=1 TO 10 DO\nEND_IF',
-    [['warning', 'FOR 块缺少对应的 END_']]);
+    [['error', 'END_IF 嵌套顺序错误']]);
 
-  eq('WHILE 内嵌 REPEAT，REPEAT缺UNTIL → 只报 REPEAT 层',
+  eq('WHILE 内嵌 REPEAT，先遇到 END_WHILE → 报嵌套顺序错误',
     'WHILE #1=1 DO\n  REPEAT\nEND_WHILE',
-    [['warning', 'REPEAT 块缺少对应的 END_']]);
+    [['error', 'END_WHILE 嵌套顺序错误']]);
 }
 
 // ============================================================
@@ -158,6 +157,8 @@ console.log('\n[8] 注释内关键字豁免');
 {
   eq('行注释内 END_IF 不触发报错', '// IF #1=1 THEN\n// END_IF', []);
   eq('块注释内 END_IF 不触发报错', '(* END_IF *)', []);
+  eq('跨行块注释内 IF 不触发报错', '(*\nIF #1=1 THEN\nEND_IF\n*)', []);
+  eq('跨行块注释内 GOTO 不验证目标', '(*\nGOTO 99\n*)', []);
   // 关键修复: 字符串内 END_IF 不被误报
   eq('字符串内关键字不触发报错', 'MSG("END_IF is keyword")', []);
   eq('字符串内 #变量 不触发', 'MSG("hello #VAR world")', []);

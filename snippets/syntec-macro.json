@@ -127,7 +127,7 @@
   "MSG 消息提示": {
     "prefix": "msg",
     "body": [
-      "MSG(\" ${1:提示信息}\")"
+      "MSG(\"${1:提示信息}\")"
     ],
     "description": "屏幕显示消息提示"
   },
@@ -141,9 +141,16 @@
   "OPEN 打开文件": {
     "prefix": "open",
     "body": [
-      "OPEN(\"${1:文件路径}\"[, \"a\"])"
+      "OPEN(\"${1:文件路径}\")"
     ],
     "description": "打开文件（不指定模式=覆写，\"a\"=附加）"
+  },
+  "OPEN 附加打开文件": {
+    "prefix": "opena",
+    "body": [
+      "OPEN(\"${1:文件路径}\", \"a\")"
+    ],
+    "description": "以附加模式打开文件"
   },
   "PRINT 输出字符串": {
     "prefix": "print",

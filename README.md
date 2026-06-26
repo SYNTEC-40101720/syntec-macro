@@ -319,10 +319,10 @@ N100；  (* 错误：中文分号 *)
 |------|-------------|
 | `if` | `IF...THEN...END_IF` |
 | `ife` | `IF...THEN...ELSEIF...ELSE...END_IF` |
-| `for` | `FOR...TO...BY...ENDFOR` |
-| `while` | `WHILE...ENDWHILE` |
-| `case` | `CASE...OF...ENDCASE` |
-| `repeat` | `REPEAT...UNTIL` |
+| `for` | `FOR...TO...BY...END_FOR` |
+| `while` | `WHILE...DO...END_WHILE` |
+| `case` | `CASE...OF...END_CASE` |
+| `repeat` | `REPEAT...UNTIL...END_REPEAT` |
 
 ### 函数片段
 
@@ -330,6 +330,11 @@ N100；  (* 错误：中文分号 *)
 |------|-------------|
 | `getpr` | `GETPR(参数编号)` |
 | `sleep` | `SLEEP()` |
+| `wait` | `WAIT()` |
+| `msg` | `MSG("提示信息")` |
+| `open` | `OPEN("文件路径")` |
+| `opena` | `OPEN("文件路径", "a")` |
+| `close` | `CLOSE()` |
 | `readdi` | `READDI(端口号)` |
 | `alarm` | `ALARM(编号, "信息")` |
 
