@@ -1,0 +1,86 @@
+name: Release VSIX
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v2.6.4'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Package VSIX
+        run: npm run package
+
+      - name: Generate release notes
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const inputTag = process.env.RELEASE_TAG;
+          const version = inputTag.replace(/^v/, '');
+          const lines = fs.readFileSync('CHANGELOG.md', 'utf8').split(/\r?\n/);
+          const start = lines.findIndex(line => line.startsWith(`## [${version}]`));
+
+          if (start < 0) {
+            throw new Error(`CHANGELOG section for ${inputTag} was not found.`);
+          }
+
+          let end = lines.length;
+          for (let i = start + 1; i < lines.length; i++) {
+            if (lines[i].startsWith('## [')) {
+              end = i;
+              break;
+            }
+          }
+
+          const body = lines.slice(start + 1, end).join('\n').trim();
+
+          if (!body) {
+            throw new Error(`CHANGELOG section for ${inputTag} is empty.`);
+          }
+
+          fs.writeFileSync('release-notes.md', body + '\n', 'utf8');
+          NODE
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          body_path: release-notes.md
+          files: syntec-macro-*.vsix
+          fail_on_unmatched_files: true
