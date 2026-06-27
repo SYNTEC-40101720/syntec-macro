@@ -3,6 +3,9 @@ README.md
 docs/
 release-notes-*.md
 
+# Local reference samples
+Macro/
+
 # Development files
 .github/
 .trae/

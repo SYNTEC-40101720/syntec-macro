@@ -49,6 +49,16 @@ test('PAUSE exists in flow keywords', () => {
   assert.ok(keywords.flow.includes('PAUSE'), 'PAUSE should be in flow keywords');
 });
 
+test('Deprecated short closers are not suggested', () => {
+  const { getAllKeywords, getKeywordDoc } = require('../src/keywords');
+  const allKw = getAllKeywords();
+  for (const keyword of ['ENDIF', 'ENDFOR', 'ENDWHILE', 'ENDCASE', 'ENDREPEAT']) {
+    assert.ok(!allKw.includes(keyword), `${keyword} should not be suggested`);
+    assert.strictEqual(getKeywordDoc(keyword), null, `${keyword} should not have hover docs`);
+  }
+  assert.ok(!getKeywordDoc('END_IF').doc.includes('ENDIF'), 'END_IF docs should not mention ENDIF');
+});
+
 test('SLEEP takes no parameters', () => {
   const { functions } = require('../src/functions');
   const sleep = functions.find(f => f.name === 'SLEEP');
@@ -67,6 +77,7 @@ test('Snippets match function definitions (no stale parameters)', () => {
   assert.strictEqual(byPrefix.wait.body[0], 'WAIT();', 'WAIT snippet should be parameterless');
   assert.strictEqual(byPrefix.close.body[0], 'CLOSE();', 'CLOSE snippet should be parameterless');
   assert.strictEqual(byPrefix.msg.body[0], 'MSG("${1:提示信息}")', 'MSG snippet should not insert a leading space');
+  assert.ok(byPrefix.for.body[0].includes(' := '), 'FOR snippet should use recommended := assignment');
   // OPEN: path-based API, not file-handle
   assert.strictEqual(byPrefix.open.body[0], 'OPEN("${1:文件路径}")', 'OPEN snippet should use valid overwrite syntax');
   assert.strictEqual(byPrefix.opena.body[0], 'OPEN("${1:文件路径}", "a")', 'OPEN append snippet should use valid append syntax');

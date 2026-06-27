@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.6.4-blue)
+![Version](https://img.shields.io/badge/version-2.6.5-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -32,7 +32,7 @@
 | **智能补全** | 输入函数名 → 自动弹出含签名参数的补全列表 | ✅ 增强 v2.0.0 |
 | **悬停文档** | 悬停函数名/G/M 代码 → 显示完整说明、参数解释、使用示例 | ✅ |
 | **代码跳转** | Ctrl+点击 N 标签 → 跳转到定义行；G65 Pxxx → 跳转宏程序 | ✅ |
-| **实时诊断** | IF/END_IF/FOR/WHILE/CASE 块配对、括号匹配、中文字符检测 | ✅ |
+| **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
 | **代码片段** | 50+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
 | **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令 | ✅ 新增 v2.6.0 |
@@ -45,7 +45,7 @@
 
 ### 方法 1：从 VSIX 文件安装（推荐）
 
-1. 下载 `syntec-macro-2.6.4.vsix`
+1. 下载 `syntec-macro-2.6.5.vsix`
 2. 在 VS Code 中按 `Ctrl+Shift+P`
 3. 输入 `Install from VSIX...`
 4. 选择下载的 `.vsix` 文件
@@ -74,7 +74,7 @@ npm install
 npm run package
 
 # 安装生成的 .vsix 文件
-code --install-extension syntec-macro-2.6.4.vsix
+code --install-extension syntec-macro-2.6.5.vsix
 ```
 
 ---
@@ -149,17 +149,17 @@ END_IF;
 
 FOR #3 := 1 TO 10 BY 1 DO
   G01 X#3 F500;
-ENDFOR;
+END_FOR;
 
 WHILE #4 < 100 DO
   #4 := #4 + 1;
-ENDWHILE;
+END_WHILE;
 
 CASE #5 OF
   1: G00 X0;
   2: G00 X100;
   DEFAULT: G00 X50;
-ENDCASE;
+END_CASE;
 ```
 
 ### 2. 智能补全
@@ -267,7 +267,7 @@ IF #1 > 0 THEN
 
 FOR #i := 1 TO 10;
   #sum := #sum + #i;
-ENDFOR;  (* 正确 *)
+END_FOR;  (* 正确 *)
 
 N100；  (* 错误：中文分号 *)
 ```

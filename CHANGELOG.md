@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5] - 2026-06-27
+
+### Added
+- **AI 语法覆盖 Demo**: 重构 `test-demo.nc` 为紧凑语法速查文件，覆盖变量规格、控制流、运算符、函数、宏调用、机器人指令与 G/M 码形态
+- **风格建议诊断**: 对兼容但不推荐的短结束符 (`ENDIF`/`ENDFOR`/`ENDWHILE`/`ENDCASE`/`ENDREPEAT`) 提示使用标准 `END_*` 写法
+- **赋值风格提示**: 对赋值 `=` 提示建议使用 `:=`，条件比较 `=` 不误报
+- **命名变量诊断**: 对 `#TEMP` / `@TEMP` 等控制器不支援的命名变量报错
+- **语法覆盖补强**: 支援动态 M 码高亮 (`M#4`)、`=`/`==` 比较高亮、局部间接变量 `#[expr]`、动态/字符串宏调用示例
+
+### Changed
+- **补全与 Hover**: 移除不推荐短结束符的补全和 Hover 文档提示，仅保留语法兼容与诊断提醒
+- **代码片段**: FOR snippet 改用推荐赋值写法 `:=`
+- **文档整理**: README 与使用手册改为展示推荐写法，避免引导不推荐语法
+
+### Fixed
+- **VSIX 打包内容**: 排除本地参考 `Macro/` 目录，避免参考宏程序进入发布包
+
 ## [2.6.4] - 2026-06-26
 
 ### Fixed

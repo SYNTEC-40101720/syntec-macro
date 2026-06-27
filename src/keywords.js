@@ -2,11 +2,11 @@
 // 关键字、常量、控制流、变量格式定义
 
 exports.keywords = {
-  conditional: ['IF', 'THEN', 'ELSE', 'ELSEIF', 'END_IF', 'ENDIF'],
-  repeat:      ['REPEAT', 'UNTIL', 'END_REPEAT', 'ENDREPEAT'],
-  while:       ['WHILE', 'DO', 'END_WHILE', 'ENDWHILE'],
-  for:         ['FOR', 'TO', 'BY', 'END_FOR', 'ENDFOR'],
-  case:        ['CASE', 'OF', 'END_CASE', 'ENDCASE'],
+  conditional: ['IF', 'THEN', 'ELSE', 'ELSEIF', 'END_IF'],
+  repeat:      ['REPEAT', 'UNTIL', 'END_REPEAT'],
+  while:       ['WHILE', 'DO', 'END_WHILE'],
+  for:         ['FOR', 'TO', 'BY', 'END_FOR'],
+  case:        ['CASE', 'OF', 'END_CASE'],
   flow:        ['GOTO', 'EXIT', 'PAUSE'],
   operators:   ['AND', 'OR', 'XOR', 'NOT', 'MOD', 'DIV', '&'],
   robot: [
@@ -69,11 +69,7 @@ exports.keywordDocs = {
   },
   'END_IF': {
     sig: 'END_IF;',
-    doc: '结束 IF 条件语句块。也可写作 ENDIF（无下划线）。'
-  },
-  'ENDIF': {
-    sig: 'ENDIF;',
-    doc: '结束 IF 条件语句块（短形式）。等同于 END_IF。'
+    doc: '结束 IF 条件语句块。'
   },
   'FOR': {
     sig: 'FOR 变量 := 初值 TO 终值 [BY 步进] DO',
@@ -93,11 +89,7 @@ exports.keywordDocs = {
   },
   'END_FOR': {
     sig: 'END_FOR;',
-    doc: '结束 FOR 循环语句块。也可写作 ENDFOR（无下划线）。'
-  },
-  'ENDFOR': {
-    sig: 'ENDFOR;',
-    doc: '结束 FOR 循环语句块（短形式）。等同于 END_FOR。'
+    doc: '结束 FOR 循环语句块。'
   },
   'WHILE': {
     sig: 'WHILE 条件 DO',
@@ -105,11 +97,7 @@ exports.keywordDocs = {
   },
   'END_WHILE': {
     sig: 'END_WHILE;',
-    doc: '结束 WHILE 循环语句块。也可写作 ENDWHILE（无下划线）。'
-  },
-  'ENDWHILE': {
-    sig: 'ENDWHILE;',
-    doc: '结束 WHILE 循环语句块（短形式）。等同于 END_WHILE。'
+    doc: '结束 WHILE 循环语句块。'
   },
   'REPEAT': {
     sig: 'REPEAT ... UNTIL 条件',
@@ -121,11 +109,7 @@ exports.keywordDocs = {
   },
   'END_REPEAT': {
     sig: 'END_REPEAT;',
-    doc: '结束 REPEAT 循环语句块。也可写作 ENDREPEAT（无下划线）。'
-  },
-  'ENDREPEAT': {
-    sig: 'ENDREPEAT;',
-    doc: '结束 REPEAT 循环语句块（短形式）。等同于 END_REPEAT。'
+    doc: '结束 REPEAT 循环语句块。'
   },
   'CASE': {
     sig: 'CASE 变量 OF ... END_CASE',
@@ -137,11 +121,7 @@ exports.keywordDocs = {
   },
   'END_CASE': {
     sig: 'END_CASE;',
-    doc: '结束 CASE 多分支语句块。也可写作 ENDCASE（无下划线）。'
-  },
-  'ENDCASE': {
-    sig: 'ENDCASE;',
-    doc: '结束 CASE 多分支语句块（短形式）。等同于 END_CASE。'
+    doc: '结束 CASE 多分支语句块。'
   },
   'GOTO': {
     sig: 'GOTO 标签号',
