@@ -32,5 +32,8 @@ desktop.ini
 # ==================== Release Notes (temporary) ====================
 release-notes-*.md
 
+# ==================== Reference Macro Samples ====================
+Macro/
+
 # ==================== VSIX Packages ====================
 syntec-macro-*.vsix

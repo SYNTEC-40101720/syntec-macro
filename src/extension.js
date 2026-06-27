@@ -142,7 +142,7 @@ function provideCompletionItems(document, position) {
 function provideHover(document, position) {
   if (!isFeatureEnabled(document.uri, 'enableHover')) return null;
 
-  const variableRange = getRegexRangeAtPosition(document, position, /#\[[^\]]+\]|#[1-9]\d*|#[A-Za-z_][A-Za-z0-9_]*|@\[[^\]]+\]|@\d+|@[A-Za-z_][A-Za-z0-9_]*/g);
+  const variableRange = getRegexRangeAtPosition(document, position, /#\[[^\]]+\]|#[1-9]\d*|@\[[^\]]+\]|@\d+/g);
   if (variableRange) {
     const variable = document.getText(variableRange).toUpperCase();
     return new vscode.Hover(new vscode.MarkdownString('**变量**: ' + variable), variableRange);

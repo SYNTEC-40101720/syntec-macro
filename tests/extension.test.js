@@ -85,6 +85,14 @@ test('Grammar highlights documented operators and variable forms', () => {
   assert.match('&', new RegExp(patternByName['keyword.operator.logical.syntec-macro']));
   assert.match('MOD', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
   assert.match('DIV', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
+  assert.match('=', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
+  assert.match('==', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
+  assert.match('#123', new RegExp(patternByName['variable.language.local.syntec-macro']));
+  assert.match('#[10+#3]', new RegExp(patternByName['variable.language.local.syntec-macro']));
+  assert.doesNotMatch('#TEMP', new RegExp(patternByName['variable.language.local.syntec-macro']));
+  assert.match('@123', new RegExp(patternByName['variable.language.global.syntec-macro']));
+  assert.doesNotMatch('@TEMP', new RegExp(patternByName['variable.language.global.syntec-macro']));
+  assert.match('M#4', new RegExp(patternByName['entity.name.function.mcode.dynamic.syntec-macro']));
   assert.match('AR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));
   assert.match('MAR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));
   assert.match('$1', new RegExp(patternByName['variable.language.axis-group.syntec-macro']));

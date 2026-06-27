@@ -15,6 +15,15 @@ const CLOSER_TO_OPENER = {
   'ENDCASE':    'CASE',  'ENDREPEAT':  'REPEAT'
 };
 
+// 支援但不推荐的替代结束关键字
+const PREFERRED_CLOSERS = {
+  'ENDIF': 'END_IF',
+  'ENDFOR': 'END_FOR',
+  'ENDWHILE': 'END_WHILE',
+  'ENDCASE': 'END_CASE',
+  'ENDREPEAT': 'END_REPEAT'
+};
+
 // 循环类开启关键字（EXIT 专用）
 const LOOP_OPENERS = new Set(['FOR', 'WHILE', 'REPEAT']);
 
@@ -280,6 +289,59 @@ function validateParentheses(line, lineNum, _lineStartInBlock, cleanLine) {
   return diagnostics;
 }
 
+// 命名变量验证器：新代宏程序变量使用数字编号，不支持 #TEMP / @TEMP 形式
+function validateNamedVariables(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim() || isMacroHeaderLine(clean.trim())) return [];
+
+  const diagnostics = [];
+  const re = /(^|[^A-Za-z0-9_])([#@][A-Za-z_][A-Za-z0-9_]*)/g;
+  let match;
+  while ((match = re.exec(clean)) !== null) {
+    const variable = match[2];
+    const col = match.index + match[1].length;
+    diagnostics.push({
+      line: lineNum, col, endCol: col + variable.length,
+      msg: `${variable} 是不支持的命名变量；请使用数字变量编号`,
+      severity: 'error'
+    });
+  }
+  return diagnostics;
+}
+
+// 风格建议：保留兼容语法，但推荐生成更一致的标准写法
+function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+
+  const closerRe = /\b(ENDIF|ENDFOR|ENDWHILE|ENDCASE|ENDREPEAT)\b/g;
+  let match;
+  while ((match = closerRe.exec(clean)) !== null) {
+    const keyword = match[1];
+    const preferred = PREFERRED_CLOSERS[keyword];
+    diagnostics.push({
+      line: lineNum, col: match.index, endCol: match.index + keyword.length,
+      msg: `${keyword} 支援但不推荐；建议使用 ${preferred}`,
+      severity: 'warning'
+    });
+  }
+
+  const assignmentRe = /^\s*(?:[#@](?:\d+|\[[^\]]+\])|(?:AR|MAR)(?:\d+|\[[^\]]+\]))\s*=(?!=)/;
+  const assignmentMatch = clean.match(assignmentRe);
+  if (assignmentMatch) {
+    const col = clean.indexOf('=', assignmentMatch[0].lastIndexOf('='));
+    diagnostics.push({
+      line: lineNum, col, endCol: col + 1,
+      msg: '赋值使用 = 支援但不推荐；建议使用 :=',
+      severity: 'warning'
+    });
+  }
+
+  return diagnostics;
+}
+
 // 控制流关键字验证：处理单个关键字的栈操作和错误报告
 function validateControlFlowKeyword(pos, lineNum, positions, stack, untiledRepeats, diagnostics) {
   const kw = pos.keyword;
@@ -467,7 +529,9 @@ function validateGotoReferences(gotoRefs, nLabels) {
 // 行级验证策略集合（按从左到右顺序执行）
 const LINE_VALIDATORS = [
   validateChineseCharacters,
-  validateParentheses
+  validateParentheses,
+  validateNamedVariables,
+  validateStylePreferences
 ];
 
 function validateDocument(content) {

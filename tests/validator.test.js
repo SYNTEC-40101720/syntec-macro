@@ -249,13 +249,19 @@ console.log('\n[12] GOTO 标签');
 // ============================================================
 console.log('\n[13] 替代关键字（不带下划线）');
 {
-  eq('ENDIF 等效于 END_IF', 'IF #1=1 THEN\nENDIF', []);
-  eq('ENDFOR 等效于 END_FOR', 'FOR #1=1 TO 10 DO\nENDFOR', []);
-  eq('ENDCASE 等效于 END_CASE', 'CASE #51 OF\nENDCASE', []);
-  eq('ENDWHILE 等效于 END_WHILE', 'WHILE #1=1 DO\nENDWHILE', []);
-  eq('ENDREPEAT 等效于 END_REPEAT', 'REPEAT\nUNTIL #1=1 ENDREPEAT', []);
+  eq('ENDIF 等效于 END_IF，但建议 END_IF', 'IF #1=1 THEN\nENDIF',
+    [['warning', 'ENDIF 支援但不推荐']]);
+  eq('ENDFOR 等效于 END_FOR，但建议 END_FOR', 'FOR #1=1 TO 10 DO\nENDFOR',
+    [['warning', 'ENDFOR 支援但不推荐']]);
+  eq('ENDCASE 等效于 END_CASE，但建议 END_CASE', 'CASE #51 OF\nENDCASE',
+    [['warning', 'ENDCASE 支援但不推荐']]);
+  eq('ENDWHILE 等效于 END_WHILE，但建议 END_WHILE', 'WHILE #1=1 DO\nENDWHILE',
+    [['warning', 'ENDWHILE 支援但不推荐']]);
+  eq('ENDREPEAT 等效于 END_REPEAT，但建议 END_REPEAT', 'REPEAT\nUNTIL #1=1 ENDREPEAT',
+    [['warning', 'ENDREPEAT 支援但不推荐']]);
   eq('混用标准与替代形式 正确',
-    'IF #1=1 THEN\nFOR #2=1 TO 10 DO\nENDFOR\nENDIF', []);
+    'IF #1=1 THEN\nFOR #2=1 TO 10 DO\nENDFOR\nENDIF',
+    [['warning', 'ENDFOR 支援但不推荐'], ['warning', 'ENDIF 支援但不推荐']]);
 }
 
 // ============================================================
@@ -264,7 +270,7 @@ console.log('\n[13] 替代关键字（不带下划线）');
 console.log('\n[14] EXIT 跳出');
 {
   eq('EXIT 在 FOR 内不影响块栈匹配（FOR...EXIT...ENDFOR 正确配对）',
-    'FOR #1=1 TO 10 DO\nIF #1=5 THEN\nEXIT\nEND_IF\nENDFOR',
+    'FOR #1=1 TO 10 DO\nIF #1=5 THEN\nEXIT\nEND_IF\nEND_FOR',
     []);
   eq('EXIT 在 WHILE 内不影响块栈匹配（WHILE...EXIT...END_WHILE 正确配对）',
     'WHILE #1=1 DO\nEXIT\nEND_WHILE',
@@ -300,6 +306,28 @@ console.log('\n[16] 不支持的语法检测');
   eq('ELSIF 报错提示使用 ELSEIF',
     '%@MACRO\nIF #1=1 THEN\nELSIF #1=2 THEN\nEND_IF',
     [['error', 'ELSIF 不支持']]);
+  eq('命名局部变量 #TEMP 报错',
+    '%@MACRO\n#TEMP := 1;',
+    [['error', '#TEMP 是不支持的命名变量']]);
+  eq('命名公用变量 @TEMP 报错',
+    '%@MACRO\n@TEMP := 1;',
+    [['error', '@TEMP 是不支持的命名变量']]);
+  eq('字符串和注释中的命名变量不报错',
+    '%@MACRO\nMSG("#TEMP @TEMP")\n// #TEMP\n(* @TEMP *)\n#1 := 1;', []);
+}
+
+// ============================================================
+// 17. 风格建议
+// ============================================================
+console.log('\n[17] 风格建议');
+{
+  eq('赋值 = 支援但建议 :=',
+    '%@MACRO\n#1 = 100;',
+    [['warning', '赋值使用 = 支援但不推荐']]);
+  eq('条件比较 = 不触发赋值建议',
+    '%@MACRO\nIF #1 = 100 THEN\nEND_IF;', []);
+  eq('推荐赋值 := 不触发建议',
+    '%@MACRO\n#1 := 100;', []);
 }
 
 // ============================================================
