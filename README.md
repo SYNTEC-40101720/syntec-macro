@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.8.0-blue)
+![Version](https://img.shields.io/badge/version-2.8.1-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -30,11 +30,11 @@
 |------|------|------|
 | **语法高亮** | `%@MACRO`、控制流、60+ 函数、G/M 代码、变量、字符串 | ✅ |
 | **智能补全** | 输入函数名 → 自动弹出含签名参数的补全列表 | ✅ 增强 v2.0.0 |
-| **悬停文档** | 悬停函数名/G/M 代码 → 显示完整说明、参数解释、使用示例 | ✅ |
+| **悬停文档** | 悬停函数名/G/M 代码/G10 L 指令 → 显示完整说明、参数解释、使用示例 | ✅ 增强 v2.8.1 |
 | **代码跳转** | Ctrl+点击 N 标签、G65/G66 Pxxx、M98/M198 Pxxx → 跳转定义 | ✅ |
 | **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
-| **代码片段** | 50+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
+| **代码片段** | 60+ 模板（IF/FOR/DB/IO/G10/报警等） | ✅ 增强 v2.8.1 |
 | **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令、替代 G 码 | ✅ 增强 v2.7.0 |
 | **诊断防抖** | 300ms 防抖，打字时不再卡顿 | 🆕 v2.0.0 |
 | **includePath** | 配置额外搜索路径，G65 跳转支持多目录 | 🆕 v2.0.0 |
@@ -332,6 +332,18 @@ N100；  (* 错误：中文分号 *)
 | `readdi` | `READDI(端口号)` |
 | `alarm` | `ALARM(编号, "信息")` |
 
+### G10 L 指令片段
+
+| 前缀 | 生成的代码 |
+|------|-------------|
+| `g10l1000` | `G10 L1000 P_ R_` |
+| `g10l1021` | `G10 L1021 [Q_] P_ S_ C_ I_ ...` |
+| `g10l1022r` / `g10l1022w` | EtherCAT 物件字典读取 / 写入 |
+| `g10l1803` / `g10l1805` | MACRO IO TYPE-1 / TYPE-2 |
+| `g10l1810` / `g10l1820` | 设定讯号条件 / 等待讯号条件成立 |
+| `g10l1900r` / `g10l1900w` / `g10l1901` | Modbus-TCP 读取 / 写入 / 自定义封包 |
+| `g10l1910r` / `g10l1910w` / `g10l1911` | Modbus-RS485 读取 / 写入 / 自定义封包 |
+
 ### 完整片段列表
 
 详见 [`snippets/syntec-macro.json`](https://github.com/SYNTEC-40101720/syntec-macro/blob/main/snippets/syntec-macro.json)
@@ -401,7 +413,9 @@ G43.16 P1 X10. Y20. Z30. A0. B0. C0.;
 | **DIV 不支持** | 整数除法请使用 `/`；分子与分母皆为整数时结果仍为整数 | ❌ `100 DIV 7` / ✅ `100 / 7` |
 | **== 不支持** | 等于比较请使用单独的 `=` | ❌ `#1 == 100` / ✅ `#1 = 100` |
 | **[] 不能用于运算** | 仅限间接定值和特定函数 | ✅ `@[#变量]` / ❌ `#1 := #[#2]` |
-| **NOT 只能对整数使用** | | ✅ `NOT 5` / ❌ `NOT 3.14` |
+| **布林 0/1 取反** | 推荐使用 `1 - #var`，不要把 `NOT` 当逻辑非 | ✅ `#100 := 1 - #100` |
+| **单 bit / 整字翻转** | 推荐使用 `XOR mask`；整字 mask 依控制器字宽选择 | ✅ `#100 := #100 XOR 1` / ✅ `#100 := #100 XOR 0xFFFF` |
+| **NOT 是数值补数** | 结果等同于 `-(x + 1)`，只能对整数使用 | ✅ `NOT 5` / ❌ `NOT 3.14` |
 | **XOR 支持两种形式** | `IF #1 XOR #2` 和 `IF (1=1) XOR (1=1)` | ✅ |
 
 ---

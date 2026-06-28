@@ -70,6 +70,104 @@
     ],
     "description": "GOTO 跳转到指定标签"
   },
+  "G10 L1000 R 寄存器写入": {
+    "prefix": "g10l1000",
+    "body": [
+      "G10 L1000 P${1:1024} R${2:0};"
+    ],
+    "description": "透过 G 码写入 R 寄存器"
+  },
+  "G10 L1803 MACRO IO TYPE-1": {
+    "prefix": "g10l1803",
+    "body": [
+      "G10 L1803 I${1:2} Q${2:50} P${3:0.} R${4:1} J${5:0} K${6:0} E${7:0};"
+    ],
+    "description": "MACRO IO TYPE-1：运动单节内按距离触发 R/O/A 讯号"
+  },
+  "G10 L1805 MACRO IO TYPE-2": {
+    "prefix": "g10l1805",
+    "body": [
+      "G10 L1805 I${1:2} Q${2:50} R${3:1} J${4:0};"
+    ],
+    "description": "MACRO IO TYPE-2：单节间触发 R/O/A 讯号"
+  },
+  "G10 L1810 设定讯号条件": {
+    "prefix": "g10l1810",
+    "body": [
+      "G10 L1810 I${1:2} Q${2:1} R${3:1} J${4:0};"
+    ],
+    "description": "设定 G10 L1820 讯号等待条件"
+  },
+  "G10 L1820 等待讯号条件": {
+    "prefix": "g10l1820",
+    "body": [
+      "G10 L1820 P${1:5000} K${2:0};"
+    ],
+    "description": "等待 G10 L1810 设定的讯号条件成立"
+  },
+  "G10 L1021 ENIP 通讯": {
+    "prefix": "g10l1021",
+    "body": [
+      "G10 L1021 Q${1:1} P${2:1} S${3:75} C${4:105} I${5:1} X${6:20000} Y${7:0} U${8:20032} V${9:1};"
+    ],
+    "description": "发送 EtherNet/IP 通讯命令"
+  },
+  "G10 L1022 EtherCAT 读取": {
+    "prefix": "g10l1022r",
+    "body": [
+      "G10 L1022 P0 A${1:1} I${2:\"2000h\"} U${3:0} R${4:30000};"
+    ],
+    "description": "EtherCAT 物件字典读取"
+  },
+  "G10 L1022 EtherCAT 写入": {
+    "prefix": "g10l1022w",
+    "body": [
+      "G10 L1022 P1 A${1:1} I${2:\"2000h\"} U${3:0} B${4:32} V${5:50} E${6:30000};"
+    ],
+    "description": "EtherCAT 物件字典写入"
+  },
+  "G10 L1900 Modbus TCP 读取": {
+    "prefix": "g10l1900r",
+    "body": [
+      "G10 L1900 C3 I${1:165} A${2:1000} Q${3:30000} K${4:1};"
+    ],
+    "description": "Modbus-TCP 读取一至多笔资料"
+  },
+  "G10 L1900 Modbus TCP 写入": {
+    "prefix": "g10l1900w",
+    "body": [
+      "G10 L1900 C6 I${1:165} A${2:1000} X${3:1995};"
+    ],
+    "description": "Modbus-TCP 写一笔资料"
+  },
+  "G10 L1901 Modbus TCP 自定义封包": {
+    "prefix": "g10l1901",
+    "body": [
+      "G10 L1901 P${1:2020} R${2:11} Q${3:30010} K${4:10};"
+    ],
+    "description": "Modbus-TCP 自定义封包"
+  },
+  "G10 L1910 Modbus RS485 读取": {
+    "prefix": "g10l1910r",
+    "body": [
+      "G10 L1910 C3 I${1:165} A${2:1000} Q${3:30000} K${4:1};"
+    ],
+    "description": "Modbus-RS485 读取一至多笔资料"
+  },
+  "G10 L1910 Modbus RS485 写入": {
+    "prefix": "g10l1910w",
+    "body": [
+      "G10 L1910 C6 I${1:165} A${2:1000} X${3:1995};"
+    ],
+    "description": "Modbus-RS485 写一笔资料"
+  },
+  "G10 L1911 Modbus RS485 自定义封包": {
+    "prefix": "g10l1911",
+    "body": [
+      "G10 L1911 P${1:2020} R${2:11} Q${3:30010} K${4:10};"
+    ],
+    "description": "Modbus-RS485 自定义封包"
+  },
   "变量赋值": {
     "prefix": "set",
     "body": [

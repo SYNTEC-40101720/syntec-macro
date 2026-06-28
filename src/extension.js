@@ -10,7 +10,7 @@ const { validateDocument } = require('./validator');
 const { normalizeProgramName, normalizeSubprogramName, buildFileCandidates } = require('./fileResolver');
 const { buildFunctionSnippet } = require('./completionSnippets');
 const { formatSyntecMacroDocument } = require('./formatter');
-const { getCodeDoc } = require('./codeDocs');
+const { getCodeDoc, getG10LCodeDoc } = require('./codeDocs');
 const packageJson = require('../package.json');
 
 const LANG_ID = 'syntec-macro';
@@ -90,6 +90,32 @@ function createCodeHover(code, range) {
   const md = new vscode.MarkdownString();
   md.appendCodeblock(codeDoc.sig, 'syntec-macro');
   md.appendMarkdown('\n' + codeDoc.doc);
+  return new vscode.Hover(md, range);
+}
+
+function getG10LCodeRangeAtPosition(document, position) {
+  const line = document.lineAt(position.line).text;
+  const regex = /\bG10\s+(L1000|L1021|L1022|L1803|L1805|L1810|L1820|L1900|L1901|L1910|L1911)\b/ig;
+  let match;
+  while ((match = regex.exec(line)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (position.character >= start && position.character <= end) {
+      return {
+        lCode: match[1].toUpperCase(),
+        range: new vscode.Range(position.line, start, position.line, end)
+      };
+    }
+  }
+  return null;
+}
+
+function createG10LCodeHover(lCode, range) {
+  const doc = getG10LCodeDoc(lCode);
+  if (!doc) return null;
+  const md = new vscode.MarkdownString();
+  md.appendCodeblock(doc.sig, 'syntec-macro');
+  md.appendMarkdown('\n' + doc.doc.replace(/\n/g, '\n\n'));
   return new vscode.Hover(md, range);
 }
 
@@ -209,12 +235,9 @@ function provideHover(document, position) {
     return new vscode.Hover(new vscode.MarkdownString('**轴群识别**: ' + axisGroup), axisGroupRange);
   }
 
-  const g10L1805Range = getRegexRangeAtPosition(document, position, /\bG10\s+L1805\b/g);
-  if (g10L1805Range) {
-    const md = new vscode.MarkdownString();
-    md.appendCodeblock('G10 L1805 I_ Q_ R_ [J_];', 'syntec-macro');
-    md.appendMarkdown('\nO/R/A-bit 脉冲输出。I=1/R-bit、2/O-bit、3/A-bit；R=0/LOW、1/HIGH；J 为讯号维持时间 ms，可省略，省略视为 0。');
-    return new vscode.Hover(md, g10L1805Range);
+  const g10LCode = getG10LCodeRangeAtPosition(document, position);
+  if (g10LCode) {
+    return createG10LCodeHover(g10LCode.lCode, g10LCode.range);
   }
 
   const variableRange = getRegexRangeAtPosition(document, position, /#\[[^\]]+\]|#[1-9]\d*|@\[[^\]]+\]|@\d+/g);

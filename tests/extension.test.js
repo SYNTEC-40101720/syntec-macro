@@ -124,6 +124,54 @@ test('G and M code hover docs include signatures and descriptions', () => {
   assert.ok(m98.doc.includes('O 副程序'), 'M98 hover doc should describe O subprogram call');
 });
 
+test('G10 L1803 and L1805 have detailed hover docs', () => {
+  const { getG10LCodeDoc } = require('../src/codeDocs');
+  const l1803 = getG10LCodeDoc('L1803');
+  assert.ok(l1803.sig.includes('G10 L1803 I_ Q_ P_ R_'), 'L1803 signature should include required arguments');
+  assert.ok(l1803.doc.includes('运动单节内'), 'L1803 docs should describe in-motion triggering');
+  assert.ok(l1803.doc.includes('G31'), 'L1803 docs should mention supported G31 version notes');
+
+  const l1805 = getG10LCodeDoc('l1805');
+  assert.ok(l1805.sig.includes('G10 L1805 I_ Q_ R_'), 'L1805 signature should include required arguments');
+  assert.ok(l1805.doc.includes('单节间'), 'L1805 docs should describe between-block triggering');
+  assert.ok(l1805.doc.includes('G10 L1801'), 'L1805 docs should mention related cancel command');
+});
+
+test('G10 communication L codes have detailed hover docs', () => {
+  const { getG10LCodeDoc } = require('../src/codeDocs');
+  const expected = [
+    ['L1021', 'EtherNet/IP', 'COR-350'],
+    ['L1022', 'EtherCAT', 'COR-146'],
+    ['L1900', 'Modbus-TCP', 'COR-356'],
+    ['L1901', '自定义封包', 'COR-358'],
+    ['L1910', 'Modbus-RS485', 'Pr3950'],
+    ['L1911', 'Modbus-RS485', 'R5040']
+  ];
+  for (const [lCode, docText, errorText] of expected) {
+    const doc = getG10LCodeDoc(lCode);
+    assert.ok(doc, `${lCode} should have hover docs`);
+    assert.ok(doc.sig.includes(`G10 ${lCode}`), `${lCode} signature should include code`);
+    assert.ok(doc.doc.includes(docText), `${lCode} docs should mention ${docText}`);
+    assert.ok(doc.doc.includes(errorText), `${lCode} docs should mention ${errorText}`);
+  }
+});
+
+test('G10 register and signal wait L codes have detailed hover docs', () => {
+  const { getG10LCodeDoc } = require('../src/codeDocs');
+  const expected = [
+    ['L1000', 'R 寄存器写入', 'Pr3241'],
+    ['L1810', '讯号等待', 'COR-335'],
+    ['L1820', 'COR-338', '10.118.19']
+  ];
+  for (const [lCode, docText, extraText] of expected) {
+    const doc = getG10LCodeDoc(lCode);
+    assert.ok(doc, `${lCode} should have hover docs`);
+    assert.ok(doc.sig.includes(`G10 ${lCode}`), `${lCode} signature should include code`);
+    assert.ok(doc.doc.includes(docText), `${lCode} docs should mention ${docText}`);
+    assert.ok(doc.doc.includes(extraText), `${lCode} docs should mention ${extraText}`);
+  }
+});
+
 test('PAUSE exists in flow keywords', () => {
   const { keywords } = require('../src/keywords');
   assert.ok(keywords.flow.includes('PAUSE'), 'PAUSE should be in flow keywords');
@@ -197,6 +245,11 @@ test('Snippets match function definitions (no stale parameters)', () => {
   assert.ok(!byPrefix.readabit.body[0].includes('位号'), 'READABIT should have single arg');
   // SETABIT: two args, no 位号
   assert.ok(!byPrefix.setabit.body[0].includes('位号'), 'SETABIT should not have three args');
+  assert.ok(byPrefix.g10l1803.body[0].includes('G10 L1803'), 'G10 L1803 snippet should exist');
+  assert.ok(byPrefix.g10l1805.body[0].includes('G10 L1805'), 'G10 L1805 snippet should exist');
+  for (const prefix of ['g10l1000', 'g10l1810', 'g10l1820', 'g10l1021', 'g10l1022r', 'g10l1022w', 'g10l1900r', 'g10l1900w', 'g10l1901', 'g10l1910r', 'g10l1910w', 'g10l1911']) {
+    assert.ok(byPrefix[prefix], `${prefix} snippet should exist`);
+  }
 });
 
 test('Grammar highlights documented operators and variable forms', () => {
@@ -206,6 +259,8 @@ test('Grammar highlights documented operators and variable forms', () => {
   );
 
   assert.match('&', new RegExp(patternByName['keyword.operator.logical.syntec-macro']));
+  assert.doesNotMatch('NOT', new RegExp(patternByName['keyword.operator.logical.syntec-macro']));
+  assert.match('NOT', new RegExp(patternByName['keyword.operator.bitwise.syntec-macro']));
   assert.match('MOD', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
   assert.doesNotMatch('DIV', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
   assert.match('=', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
@@ -215,6 +270,7 @@ test('Grammar highlights documented operators and variable forms', () => {
   assert.doesNotMatch('#TEMP', new RegExp(patternByName['variable.language.local.syntec-macro']));
   assert.match('@123', new RegExp(patternByName['variable.language.global.syntec-macro']));
   assert.doesNotMatch('@TEMP', new RegExp(patternByName['variable.language.global.syntec-macro']));
+  assert.match('0xFFFF', new RegExp(patternByName['constant.numeric.hex.syntec-macro']));
   assert.match('M#4', new RegExp(patternByName['entity.name.function.mcode.dynamic.syntec-macro']));
   assert.match('AR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));
   assert.match('MAR[#3]', new RegExp(patternByName['variable.language.app.syntec-macro']));

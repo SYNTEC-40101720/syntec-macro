@@ -60,8 +60,12 @@
       "name": "keyword.operator.robot-param.syntec-macro"
     },
     {
-      "match": "\\b(AND|OR|XOR|NOT)\\b|&",
+      "match": "\\b(AND|OR|XOR)\\b|&",
       "name": "keyword.operator.logical.syntec-macro"
+    },
+    {
+      "match": "\\bNOT\\b",
+      "name": "keyword.operator.bitwise.syntec-macro"
     },
     {
       "match": "\\bMOD\\b",
@@ -155,6 +159,10 @@
       "begin": "\"",
       "end": "\"",
       "name": "string.quoted.double.syntec-macro"
+    },
+    {
+      "match": "\\b0x[0-9A-Fa-f]+\\b",
+      "name": "constant.numeric.hex.syntec-macro"
     },
     {
       "match": "\\b\\d+\\.\\d*\\b",

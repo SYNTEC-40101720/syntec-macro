@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2026-06-28
+
+### Added
+- **G10 L1803/L1805 Hover**: 补充 MACRO IO TYPE-1/TYPE-2 的悬停文档，覆盖指令格式、引数范围、Q 引数范例、版本与限制说明。
+- **G10 L1803/L1805 Snippet**: 新增 `g10l1803` 与 `g10l1805` 代码片段。
+- **G10 通讯指令 Hover/Snippet**: 补充 `G10 L1021`、`G10 L1022`、`G10 L1900/L1901`、`G10 L1910/L1911` 的通讯指令悬停文档与代码片段。
+- **G10 R 寄存器与讯号等待 Hover/Snippet**: 补充 `G10 L1000`、`G10 L1810`、`G10 L1820` 的悬停文档与代码片段。
+
+### Changed
+- **语法手册**: 同步 `G10 L1803` 与 `G10 L1805` 定义，修正 `G10 L1805` 最低版本口径。
+- **语法手册**: 补充 ENIP、EtherCAT 物件字典、Modbus-TCP/RS485 相关 `G10` 通讯指令说明。
+- **语法手册**: 补充 `G10 L1000` R 寄存器写入与 `G10 L1810/L1820` 讯号等待说明。
+
 ## [2.8.0] - 2026-06-28
 
 ### Added
