@@ -8,17 +8,17 @@ exports.keywords = {
   for:         ['FOR', 'TO', 'BY', 'END_FOR'],
   case:        ['CASE', 'OF', 'END_CASE'],
   flow:        ['GOTO', 'EXIT', 'PAUSE'],
-  operators:   ['AND', 'OR', 'XOR', 'NOT', 'MOD', 'DIV', '&'],
+  operators:   ['AND', 'OR', 'XOR', 'NOT', 'MOD', '&'],
   robot: [
     // 移动指令
-    'MOVJ', 'MOVJ-II', 'MOVL', 'MOVC', 'INCMOVJ', 'INCMOVL',
+    'MOVJ', 'MOVL', 'MOVC', 'INCMOVJ', 'INCMOVL',
     // 坐标系指令
     'USERCOR', 'OBJCORON', 'OBJCOROFF', 'OBJCORCLEAR',
-    'TOOLCOR', 'TOOLCORON', 'TOOLCOROFF',
+    'TOOLCOR', 'TOOLCOROFF',
     // 应用指令
     'SKIPCOND', 'SKIP', 'SWAITSIG', 'SYNCOUT',
     'WEAVEON', 'WEAVEOFF', 'STITCHON', 'STITCHOFF',
-    'POSEMAP', 'SHIFTON', 'SHIFTOFF',
+    'POSEMAP', 'SHIFTON', 'SHIFTOFF', 'WAITSYNC', 'ENDSYNC', 'CIRMODE',
     // 速度与轨迹参数
     'ACC', 'DEC', 'FJ', 'FEJ', 'FL', 'FR', 'PL', 'PQ', 'PR'
   ],
@@ -29,8 +29,11 @@ exports.keywords = {
     'G65','G66','G66.1','G67','G68','G69','G73','G74','G76','G80','G81',
     'G82','G83','G84','G85','G86','G87','G88','G89','G90','G91','G92','G94',
     'G95','G96','G97','G98','G99','G04.1','G08','G09','G22','G23','G25','G26','G27',
-    'G34','G35','G36','G37','G37.1','G45','G46','G47','G48',
-    'G04.102','G68.18','G192.1','G192.2'
+    'G34','G35','G36','G37','G37.1','G43.16','G45','G46','G47','G48',
+    'G01.101','G01.102','G04.101','G04.102','G04.103','G10.101',
+    'G11.101','G11.102','G11.103','G12.101','G52.101','G53.101','G53.102',
+    'G68.18','G141.2','G142.101','G142.102','G142.2','G142.3','G143.1',
+    'G144.1','G144.2','G144.103','G144.104','G145.1','G145.2','G192.1','G192.2'
   ],
   mcodes: [
     'M00','M01','M02','M03','M04','M05','M06','M07','M08','M09','M10','M11',
@@ -156,9 +159,49 @@ exports.keywordDocs = {
     sig: '数值1 MOD 数值2',
     doc: '取模运算符，返回数值1 除以 数值2 的余数。'
   },
-  'DIV': {
-    sig: '数值1 DIV 数值2',
-    doc: '整数除法运算符，返回商的整数部分（向下取整）。'
+  ':=': {
+    sig: '变量 := 值',
+    doc: '推荐赋值运算符，将右侧数值写入左侧变量。'
+  },
+  '=': {
+    sig: '数值1 = 数值2',
+    doc: '等于比较运算符。注意：等于比较请使用单独的 =，不支援 ==。'
+  },
+  '<>': {
+    sig: '数值1 <> 数值2',
+    doc: '不等于比较运算符。'
+  },
+  '<': {
+    sig: '数值1 < 数值2',
+    doc: '小于比较运算符。'
+  },
+  '>': {
+    sig: '数值1 > 数值2',
+    doc: '大于比较运算符。'
+  },
+  '<=': {
+    sig: '数值1 <= 数值2',
+    doc: '小于等于比较运算符。'
+  },
+  '>=': {
+    sig: '数值1 >= 数值2',
+    doc: '大于等于比较运算符。'
+  },
+  '+': {
+    sig: '数值1 + 数值2',
+    doc: '加法运算符。'
+  },
+  '-': {
+    sig: '数值1 - 数值2',
+    doc: '减法运算符；也可作为负号使用。'
+  },
+  '*': {
+    sig: '数值1 * 数值2',
+    doc: '乘法运算符。'
+  },
+  '/': {
+    sig: '数值1 / 数值2',
+    doc: '除法运算符。若分子与分母都是整数，所得结果仍为整数；若需小数结果，至少一个操作数需含小数点。'
   },
   '&': {
     sig: '条件1 & 条件2',
@@ -166,28 +209,24 @@ exports.keywordDocs = {
   },
   // 机器人移动指令
   'MOVJ': {
-    sig: 'MOVJ C1=... C2=... C3=... C4=... C5=... C6=... FJ=... PL=...',
-    doc: '关节运动指令，各轴以最高速度独立运动到目标位置。适合大范围移动。'
-  },
-  'MOVJ-II': {
-    sig: 'MOVJ-II X=... Y=... Z=... A=... B=... C=... FJ=... PL=...',
-    doc: '关节运动指令（末端位置输入），指定末端坐标位置进行关节运动。'
+    sig: 'MOVJ C1=... C2=... C3=... C4=... C5=... C6=... A1=... A2=... A3=... A4=... A5=... A6=... FJ... FEJ...\nMOVJ X... Y... Z... A... B... C... A1=... P... Q... FJ... FEJ...',
+    doc: '关节运动指令。第一语法以各关节轴 C1~C6 指定目标；第二语法以末端坐标 X/Y/Z/A/B/C 等参数指定目标。'
   },
   'MOVL': {
-    sig: 'MOVL X=... Y=... Z=... A=... B=... C=... FL=... FR=... PL=...',
-    doc: '直线运动指令，末端沿直线路径运动到目标位置。FL 为直线速度，FR 为角速度。'
+    sig: 'MOVL X... Y... Z... A... B... C... A1=... P... Q... FL... FR... FEJ...',
+    doc: '直线运动指令，末端沿直线路径运动到目标位置。X/Y/Z/A/B/C、P/Q、FL/FR/FEJ 为直接引数值，A1 等扩展姿态引数使用等号。'
   },
   'MOVC': {
-    sig: 'MOVC Xp=... Yp=... Zp=... X=... Y=... Z=... FL=... PL=...',
-    doc: '圆弧运动指令，经过中间点 Xp/Yp/Zp 运动到终点 X/Y/Z。'
+    sig: 'MOVC X... Y... Z... A... B... C... A1=... FL... FR... FEJ... [PL... / PQ... / PR...] ACC... DEC...',
+    doc: '圆弧运动指令，运动到终点 X/Y/Z/A/B/C。X/Y/Z/A/B/C、FL/FR/FEJ、PL/PQ/PR、ACC/DEC 为直接引数值，A1 等扩展姿态引数使用等号。'
   },
   'INCMOVJ': {
-    sig: 'INCMOVJ C1=... C2=... FJ=... PL=...',
-    doc: '增量关节运动指令，以当前位置为基准进行增量移动。'
+    sig: 'INCMOVJ C1=... C2=... C3=... C4=... C5=... C6=... A1=... Q... FJ... FEJ... PL... ACC... DEC... SKIP',
+    doc: '增量关节运动指令，以当前位置为基准进行增量移动。C1~C6 与 A1~A6 使用等号，Q/FJ/FEJ/PL/ACC/DEC 为直接引数值。'
   },
   'INCMOVL': {
-    sig: 'INCMOVL X=... Y=... Z=... FL=... PL=...',
-    doc: '增量直线运动指令，以当前位置为基准沿直线增量移动。'
+    sig: 'INCMOVL P... X... Y... Z... A... B... C... A1=... Q... FL... FR... FEJ... [PL... / PQ... / PR...] ACC... DEC... SKIP',
+    doc: '增量直线运动指令，以当前位置为基准沿直线增量移动。P、X/Y/Z/A/B/C、Q、FL/FR/FEJ、PL/PQ/PR、ACC/DEC 为直接引数值，A1 等扩展姿态引数使用等号。'
   },
   // 坐标系指令
   'USERCOR': {
@@ -207,12 +246,8 @@ exports.keywordDocs = {
     doc: '清除所有工件坐标系叠加。'
   },
   'TOOLCOR': {
-    sig: 'TOOLCOR T1;',
-    doc: '启用工具坐标系。T 指定工具编号。'
-  },
-  'TOOLCORON': {
-    sig: 'TOOLCORON T2;',
-    doc: '启用指定工具坐标系。'
+    sig: 'TOOLCOR P1;',
+    doc: '启用工具坐标系。P 指定工具编号，0=无工具（法兰面坐标系），1~20=使用者自定义工具。'
   },
   'TOOLCOROFF': {
     sig: 'TOOLCOROFF;',
@@ -224,7 +259,7 @@ exports.keywordDocs = {
     doc: '跳脱功能指令，当指定条件满足时跳过当前运动。'
   },
   'SKIP': {
-    sig: 'MOVL X=... SKIP;',
+    sig: 'MOVL X... SKIP;',
     doc: '运动指令的跳脱标记，配合 SKIPCOND 使用。'
   },
   'SWAITSIG': {
@@ -232,8 +267,8 @@ exports.keywordDocs = {
     doc: '等待信号但不减速指令，等待指定信号时保持当前速度。'
   },
   'SYNCOUT': {
-    sig: 'SYNCOUT S1 Q1 P50 R1;',
-    doc: '同步输出指令，在运动过程中同步触发输出信号。'
+    sig: 'SYNCOUT S_ Q_ P_ R_ [L_] [K_];',
+    doc: '同步输出指令，在移动单节途中切换 O/R/A-bit 状态。S=1/O-bit、2/R-bit、3/A-bit；P 为单节长度百分比；L 为输出脉冲持续长度 ms，L0/L#0 可视为省略；K 为触发偏移时间 ms（正数提前、负数延后）。单一移动单节最多 10 个 SYNCOUT。'
   },
   'WEAVEON': {
     sig: 'WEAVEON P1; 或 WEAVEON E... Q... K... L... R...;',
@@ -252,8 +287,8 @@ exports.keywordDocs = {
     doc: '关闭连续脉冲输出功能。'
   },
   'POSEMAP': {
-    sig: 'POSEMAP X=... Y=... Z=... A=... B=... C=... Q1 R1;',
-    doc: '坐标转换指令，将当前坐标系映射到新的位姿。'
+    sig: 'POSEMAP X... Y... Z... A... B... C... Q... R...;',
+    doc: '坐标转换指令，将当前坐标系映射到新的位姿。X/Y/Z/A/B/C/Q/R 均为直接引数值，不使用 =。'
   },
   'SHIFTON': {
     sig: 'SHIFTON P1 X... Y... Z... A... B... C...;',
@@ -263,41 +298,53 @@ exports.keywordDocs = {
     sig: 'SHIFTOFF;',
     doc: '关闭点位偏移功能。'
   },
+  'WAITSYNC': {
+    sig: 'WAITSYNC P... [L...];',
+    doc: '开启履带追踪。P 为追随履带编号 1~4，L 为同期距离。追踪中不支援 MOVJ、切换用户坐标系、G04.1、M 码、SHIFTON。'
+  },
+  'ENDSYNC': {
+    sig: 'ENDSYNC P...;',
+    doc: '关闭指定履带追踪。P 为追随履带编号 1~4。'
+  },
+  'CIRMODE': {
+    sig: 'CIRMODE P...;',
+    doc: '设定 MOVC 圆弧姿态控制模式。P0=沿圆弧路径变化，P1=沿工件坐标变化，P2=经过圆弧中间点。'
+  },
   // 速度与轨迹参数
   'ACC': {
     sig: 'ACC 80;',
-    doc: '设定加速度百分比（0-100）。也可作为运动指令参数：MOVJ ... ACC=80;'
+    doc: '设定加速度百分比（0-100）。也可作为运动指令直接引数：MOVJ ... ACC80;'
   },
   'DEC': {
     sig: 'DEC 90;',
-    doc: '设定减速度百分比（0-100）。也可作为运动指令参数：MOVJ ... DEC=90;'
+    doc: '设定减速度百分比（0-100）。也可作为运动指令直接引数：MOVJ ... DEC90;'
   },
   'FJ': {
-    sig: 'MOVJ ... FJ=50;',
+    sig: 'MOVJ ... FJ50;',
     doc: '关节运动速度参数，单位 %（0-100）。'
   },
   'FEJ': {
-    sig: 'MOVJ ... FEJ=100;',
+    sig: 'MOVJ ... FEJ100;',
     doc: '关节运动末端速度参数。'
   },
   'FL': {
-    sig: 'MOVL ... FL=100.;',
+    sig: 'MOVL ... FL100.;',
     doc: '直线运动速度参数，单位 mm/s 或 inch/min。'
   },
   'FR': {
-    sig: 'MOVL ... FR=10.;',
+    sig: 'MOVL ... FR10.;',
     doc: '直线运动角速度参数，单位 deg/s。'
   },
   'PL': {
-    sig: 'MOVL ... PL=3;',
+    sig: 'MOVL ... PL3;',
     doc: '定位等级参数（0-9），数值越大转角越平滑。'
   },
   'PQ': {
-    sig: 'MOVL ... PQ=5;',
+    sig: 'MOVL ... PQ5;',
     doc: '定位品质参数。'
   },
   'PR': {
-    sig: 'MOVL ... PR=1;',
+    sig: 'MOVL ... PR1;',
     doc: '定位精度参数。'
   }
 };

@@ -1,12 +1,12 @@
 %@MACRO
 
 // ============================================================
-// syntec-macro v2.6.4 syntax coverage demo
+// syntec-macro v2.6.5 syntax coverage demo
 // AI 参考用：覆盖新代 MACRO 常用语法形态；请勿直接上机执行
 // ============================================================
 
 // --- 0. 速查规则 ---
-// 变量：区域 #1~#400；系统 #1000~#31986；公用 @ 依区间开放，最高 @165535。
+// 变量：区域 #1~#400(计算用)；系统 #1000~#31986；公用 @ 依区间开放，最高 @165535。
 // 引数：A=#1 B=#2 C=#3 I=#4 J=#5 K=#6 D=#7 E=#8 F=#9 H=#11 L=#12 M=#13 P=#16 Q=#17 R=#18 S=#19 T=#20 U=#21 V=#22 W=#23 X=#24 Y=#25 Z=#26。
 // 扩充引数如 X1/Y1/A1 使用 GETARG(X1)/GETARG(Y1)/GETARG(A1)。
 // #0/@0 为 VACANT；客制参数 #4001~#4100、#5001~#5500 只读。
@@ -14,10 +14,8 @@
 // 公用变量：@1~@400 Double；@656~@999、@1001~@1999 记忆性 Double；@1000 只读。
 // R 映射：@401~@655 -> R1~R255，@10000~@14095 -> R0~R4095，@100000~@165535 -> R0~R65535。
 // 可写 R 范围：R50~R80、R101~R511、R1024~R4095、R5800~R7999、R10000~R10999、R15000~R65535。
-// @60000~@79999 为扩充公用变量，需配合 No3813，仅 CE 系统。未列区间不可视为可用。
-// Long 与 Double 混合四则运算会转为 Double；需与 G/M 同步时先 WAIT();；子程序以 M99; 返回。
-// 兼容但不推荐：ENDIF/ENDFOR/ENDWHILE/ENDCASE/ENDREPEAT；建议使用 END_IF/END_FOR/END_WHILE/END_CASE/END_REPEAT。
-// 赋值兼容 =，建议使用 :=。
+// @60000~@79999 为扩充公用变量。未列区间不可视为可用。
+// Long 与 Double 混合四则运算会转为 Double；
 
 // --- 1. 变量与赋值 ---
 #1 := 100;                       // 区域变量 / A 引数
@@ -56,7 +54,7 @@ AR[#3] := 789;
 MAR[#3] := 789;
 
 #1000 := 1;                      // 系统变量
-#1080 := 1;                      // 模态 Long，仅整数
+#1080 := 1;                      // 模态 Long，仅整数，断电消失
 #2001 := 1.5;                    // 模态 Double，复位消失
 #3001 := 2.5;                    // 模态 Double，复位消失
 #120 := #4001;                   // 客制参数只读
@@ -87,13 +85,15 @@ REPEAT
   IF #6 > 3 THEN
     EXIT;
   END_IF;
-UNTIL #6 >= 5
-END_REPEAT;
+UNTIL #6 >= 5 END_REPEAT;
 
 CASE #10 OF
-  1: #11 := 100;
-  2, 3: #11 := 200;
-  ELSE: #11 := 0;
+  1:
+    #11 := 100;
+  2, 3:
+    #11 := 200;
+  ELSE
+    #11 := 0;
 END_CASE;
 
 IF #1 = 100 THEN
@@ -117,23 +117,36 @@ N200;
 #32 := 4 * 5;
 #33 := 20 / 4;
 #34 := 100 MOD 7;
-#38 := 100 DIV 7;
-#35 := 1 / 2;
-#36 := 1 / 2.0;
+#35 := 1 / 2; // 整数除法，结果为 0
+#36 := 1 / 2.0; //结果为 0.5
 #37 := 1. / 2;
 
-IF #1 > 50 THEN #40 := 1; END_IF;
-IF #1 >= 100 THEN #41 := 1; END_IF;
-IF #1 < 200 THEN #42 := 1; END_IF;
-IF #1 <= 100 THEN #43 := 1; END_IF;
-IF #1 = 100 THEN #44 := 1; END_IF;
-IF #1 == 100 THEN #451 := 1; END_IF;
-IF #1 <> 200 THEN #45 := 1; END_IF;
-IF (#1 > 10) & (#2 < 50) THEN #46 := 1; END_IF;
-IF (#1 = 100) AND (#2 = 200) THEN #47 := 1; END_IF;
-IF (#1 > 0) OR (#2 > 0) THEN #48 := 1; END_IF;
-IF NOT (#1 = 0) THEN #49 := 1; END_IF;
-IF (#1 > 0) XOR (#2 > 0) THEN #50 := 1; END_IF;
+IF #1 > 50 THEN 
+  #40 := 1;
+ELSEIF #1 >= 20 THEN
+  #40 := 2;
+ELSEIF #1 < 10 THEN
+  #40 := 3;
+ELSEIF #1 <= 5 THEN
+  #40 := 4;
+ELSEIF #1 = 100 THEN
+  #40 := 5;
+ELSEIF #1 <> 300 THEN
+  #40 := 6;
+ELSEIF (#1 > 10) & (#2 < 50) THEN
+  #40 := 7;
+ELSEIF (#1 = 100) AND (#2 = 200) THEN
+  #40 := 8;
+ELSEIF (#1 > 0) OR (#2 > 0) THEN
+  #40 := 9;
+ELSEIF NOT (#1 = 0) THEN
+  #40 := 10;
+ELSEIF (#1 > 0) XOR (#2 > 0) THEN
+  #40 := 11;
+ELSE
+  #40 := 0;
+END_IF;
+
 
 // --- 4. 内置函数 ---
 #60 := ABS(#1 - #2);
@@ -229,37 +242,39 @@ M96 P3000 H1;
 M97;
 
 // --- 6. 机器人与应用指令 ---
-MOVJ C1=0 C2=0 C3=90 C4=0 C5=0 C6=0 FJ=50 PL=5 ACC=80 DEC=90;
-MOVJ C1=10 C2=20 C3=30 C4=40 C5=50 C6=60 FEJ=100 PQ=5 PR=1;
-MOVJ-II X=100. Y=0. Z=50. A=0. B=0. C=0. FJ=50 PL=3;
-MOVL X=200. Y=100. Z=50. FL=100. FR=10. PL=3 ACC=80 DEC=90;
-MOVL X=210. Y=110. Z=55. FL=120. FR=12. PQ=4 PR=2;
-MOVC Xp=150. Yp=50. Zp=0. X=200. Y=100. Z=0. FL=100. PL=3;
-INCMOVJ C1=10. C2=5. FJ=30 PL=2;
-INCMOVL X=50. Y=20. Z=10. FL=80. PL=2;
+MOVJ C1=0 C2=0 C3=90 C4=0 C5=0 C6=0 A1=0 FJ50 FEJ100 PL0 ACC80 DEC90;
+MOVJ C1=10 C2=20 C3=30 C4=40 C5=50 C6=60 A1=0 A2=0 FJ50 FEJ100 PL3 ACC80 DEC90;
+MOVJ X100. Y0. Z50. A0. B0. C0. A1=0 P1 Q1 FJ50 FEJ100 PL10;
+MOVL X200. Y100. Z50. A0. B0. C0. A1=0 P1 Q1 FL100. FR10. FEJ100;
+MOVL X210. Y110. Z55. A0. B0. C0. A1=0 P1 Q1 FL120. FR12. FEJ100;
+MOVC X150. Y50. Z0. A0. B0. C0. A1=0 FL100. FR10. FEJ100 PL3 ACC80 DEC90;
+MOVC X200. Y100. Z0. A0. B0. C0. A1=0 FL100. FR10. FEJ100 PL3 ACC80 DEC90;
+INCMOVJ C1=10. C2=5. C3=0 C4=0 C5=0 C6=0 A1=0 Q1 FJ30 FEJ100 PL2 DEC90;
+INCMOVL P1 X50. Y20. Z10. A0. B0. C0. A1=0 Q1 FL80. FR10. FEJ100 PL2 ACC80;
 
 USERCOR P1;
-G68.18 P1 X10. Y20. Z30. A0. B0. C0.;
+G68.18 P1 R0 X10. Y20. Z30. A0. B0. C0.;
 OBJCORON X5. Y0. Z0. A0. B0. C0.;
 OBJCOROFF;
 OBJCORCLEAR;
-TOOLCOR T1;
-TOOLCORON T2;
+G43.16 P1 X10. Y20. Z30. A0. B0. C0.;
+TOOLCOR P1;
+TOOLCOR P2;
 TOOLCOROFF;
-TOOLCOR CLEAR;
+TOOLCOR P0;
 
 SKIPCOND E1 Q33 R1 P1;
-MOVL X=100. Y=0. Z=0. SKIP;
+MOVL X100. Y0. Z0. SKIP;
 G04.102 I1 X1000;
 SWAITSIG P1 Q33 R1 L100 T5000;
-SYNCOUT S1 Q1 P50 R1;
-SYNCOUT S1 Q1 P100 R0;
+SYNCOUT S1 Q1 P50 R1 K0;
+SYNCOUT S1 Q1 P100 R0 K0;
 WEAVEON P1;
 WEAVEON E2.0 Q1.0 K45 L100 R0;
 WEAVEOFF;
 STITCHON S1 Q100 L50 E10.;
 STITCHOFF;
-POSEMAP X=100. Y=0. Z=50. A=0. B=0. C=0. Q1 R1;
+POSEMAP X100. Y0. Z50. A0. B0. C0. Q1 R1;
 SHIFTON P1 X5. Y0. Z0. A0. B0. C0.;
 SHIFTOFF;
 G192.1 P1 Q100 R1 E5;
@@ -322,10 +337,14 @@ N300;
 #203 := 0;
 WHILE #203 < 10 DO
   CASE #203 OF
-    0: MOVJ C1=#203 C2=0 FJ=50;
-    1: MOVL X=#203 Y=0. Z=0. FL=100;
-    2: INCMOVJ C1=5. FJ=30;
-    ELSE: PAUSE;
+    0:
+      MOVJ C1=#203 C2=0 FJ50;
+    1:
+      MOVL X#203 Y0. Z0. FL100.;
+    2:
+      INCMOVJ C1=5. C2=0 C3=0 C4=0 C5=0 C6=0 FJ30;
+    ELSE
+      PAUSE;
   END_CASE;
   #203 := #203 + 1;
   SLEEP();

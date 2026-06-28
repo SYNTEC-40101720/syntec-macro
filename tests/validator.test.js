@@ -2,6 +2,8 @@
 // 用法: node validator.test.js
 // 测试覆盖: IF/END_IF配对、CASE/END_CASE、REPEAT/UNTIL、中文字符检测、括号匹配、替代关键字、EXIT、GOTO、%@MACRO
 
+const fs = require('fs');
+const path = require('path');
 const { validateDocument } = require('../src/validator');
 
 // 辅助: 宽松比较 - 只比较 [sev, msg片段] 对，忽略 line/col/endCol/重复
@@ -90,12 +92,18 @@ console.log('\n[2] ELSE / ELSEIF');
 // ============================================================
 console.log('\n[3] CASE/END_CASE');
 {
-  eq('CASE OF END_CASE 正确', 'CASE #51 OF\nEND_CASE', []);
-  eq('CASE OF DEFAULT值 END_CASE 正确',
-    'CASE #51 OF\nN10:\nDEFAULT:\nEND_CASE', []);
+  eq('CASE OF END_CASE 正确', 'CASE #51 OF\nEND_CASE;', []);
+  eq('CASE 多值分支和 ELSE 正确',
+    'CASE #51 OF\n1:\n  #1 := 10;\n2,3:\n  #1 := 20;\nELSE\n  #1 := 0;\nEND_CASE;', []);
+  eq('CASE 分支标签后同行陈述支援但不推荐',
+    'CASE #51 OF\n1: #1 := 10;\nEND_CASE;',
+    [['warning', 'CASE 分支标签后同行陈述支援但不推荐']]);
+  eq('CASE 不支持 DEFAULT',
+    'CASE #51 OF\n1: #1 := 10;\nDEFAULT: #1 := 0;\nEND_CASE;',
+    [['warning', 'CASE 分支标签后同行陈述支援但不推荐'], ['error', 'DEFAULT 不支持，请使用 ELSE']]);
   eq('CASE OF 缺少 END_CASE', 'CASE #51 OF',
     [['warning', 'CASE 块缺少对应的 END_']]);
-  eq('CASE 中 ELSE 正确', 'CASE #51 OF\nN10:\nELSE\nEND_CASE', []);
+  eq('CASE 中 ELSE 正确', 'CASE #51 OF\n1:\nELSE\nEND_CASE;', []);
 }
 
 // ============================================================
@@ -306,6 +314,12 @@ console.log('\n[16] 不支持的语法检测');
   eq('ELSIF 报错提示使用 ELSEIF',
     '%@MACRO\nIF #1=1 THEN\nELSIF #1=2 THEN\nEND_IF',
     [['error', 'ELSIF 不支持']]);
+  eq('DIV 不支持，整数除法请使用 /',
+    '%@MACRO\n#1 := 100 DIV 7;',
+    [['error', 'DIV 不支持']]);
+  eq('== 不支持，等于比较请使用 =',
+    '%@MACRO\nIF #1 == 100 THEN\nEND_IF',
+    [['error', '== 不支持']]);
   eq('命名局部变量 #TEMP 报错',
     '%@MACRO\n#TEMP := 1;',
     [['error', '#TEMP 是不支持的命名变量']]);
@@ -314,6 +328,15 @@ console.log('\n[16] 不支持的语法检测');
     [['error', '@TEMP 是不支持的命名变量']]);
   eq('字符串和注释中的命名变量不报错',
     '%@MACRO\nMSG("#TEMP @TEMP")\n// #TEMP\n(* @TEMP *)\n#1 := 1;', []);
+  eq('#0/@0 作为赋值目标 warning',
+    '%@MACRO\n#0 := 1;\n@0 := 2;',
+    [['warning', '#0 为 VACANT'], ['warning', '@0 为 VACANT']]);
+  eq('AR/MAR 直接编号必须为非负整数',
+    '%@MACRO\nAR-1 := 1;\nMAR1.1 := 2;',
+    [['error', 'AR-1 不是合法 APP 变量编号'], ['error', 'MAR1.1 不是合法 APP 变量编号']]);
+  eq('AR/MAR 间接静态编号必须为非负整数',
+    '%@MACRO\nAR[-1] := 1;\nMAR[1.1] := 2;',
+    [['error', 'AR[-1] 不是合法 APP 变量编号'], ['error', 'MAR[1.1] 不是合法 APP 变量编号']]);
 }
 
 // ============================================================
@@ -328,6 +351,120 @@ console.log('\n[17] 风格建议');
     '%@MACRO\nIF #1 = 100 THEN\nEND_IF;', []);
   eq('推荐赋值 := 不触发建议',
     '%@MACRO\n#1 := 100;', []);
+}
+
+// ============================================================
+// 18. 机器人/坐标系旧语法诊断
+// ============================================================
+console.log('\n[18] 机器人/坐标系旧语法诊断');
+{
+  eq('MOVJ-II 不是正式指令写法',
+    '%@MACRO\nMOVJ-II X100.;',
+    [['error', 'MOVJ-II 不是正式指令写法']]);
+  eq('MOVJ 第二语法直接引数不使用 =',
+    '%@MACRO\nMOVJ X=100. Y0. FJ=50;',
+    [['error', 'MOVJ 直接引数不使用 =']]);
+  eq('MOVL 直接引数不使用 =',
+    '%@MACRO\nMOVL X=100. FL=80.;',
+    [['error', 'MOVL 直接引数不使用 =']]);
+  eq('MOVC 直接引数不使用 =',
+    '%@MACRO\nMOVC X=100. FL=80.;\nMOVC X100. Y0.;',
+    [['error', 'MOVC 直接引数不使用 =']]);
+  eq('MOVC 不支持 Xp/Yp/Zp',
+    '%@MACRO\nMOVC Xp=100. Yp=0. Zp=0.;\nMOVC X100. Y0.;',
+    [['error', 'MOVC 不支持 Xp/Yp/Zp']]);
+  eq('INCMOVJ 速度引数不使用 =',
+    '%@MACRO\nINCMOVJ C1=10 FJ=30;',
+    [['error', 'INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数']]);
+  eq('INCMOVL 直接引数不使用 =',
+    '%@MACRO\nINCMOVL P1 X=50. FL=80.;',
+    [['error', 'INCMOVL 直接引数不使用 =']]);
+  eq('TOOLCOR 使用 P 而非 T',
+    '%@MACRO\nTOOLCOR T1;',
+    [['error', 'TOOLCOR/TOOLCORON 使用 P_']]);
+  eq('TOOLCORON 建议改用 TOOLCOR',
+    '%@MACRO\nTOOLCORON P1;',
+    [['warning', 'TOOLCORON 未见官方语法']]);
+  eq('TOOLCOR CLEAR 建议改用 TOOLCOR P0',
+    '%@MACRO\nTOOLCOR CLEAR;',
+    [['warning', 'TOOLCOR CLEAR 未见官方语法']]);
+  eq('OBJCORON 直接引数不使用 =',
+    '%@MACRO\nOBJCORON X=5. Y0.;',
+    [['error', 'OBJCORON 的 X/Y/Z/A/B/C 为直接引数']]);
+  eq('G68.18 直接引数不使用 =',
+    '%@MACRO\nG68.18 P=1 X=10.;',
+    [['error', 'G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数']]);
+  eq('G43.16 直接引数不使用 =',
+    '%@MACRO\nG43.16 P=1 X=10.;',
+    [['error', 'G43.16 的 P/X/Y/Z/A/B/C 为直接引数']]);
+  eq('POSEMAP 直接引数不使用 =',
+    '%@MACRO\nPOSEMAP X=100. Q=1 R=1;',
+    [['error', 'POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数']]);
+  eq('SHIFTON 直接引数不使用 =',
+    '%@MACRO\nSHIFTON P1 X=20.;',
+    [['error', 'SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数']]);
+  eq('SKIPCOND 直接引数不使用 =',
+    '%@MACRO\nSKIPCOND E=1 Q33 R1 P0;',
+    [['error', 'SKIPCOND 的 E/Q/R/P 为直接引数']]);
+  eq('SWAITSIG 直接引数不使用 =',
+    '%@MACRO\nSWAITSIG P=1 Q33 R1;',
+    [['error', 'SWAITSIG 的 P/Q/R/L/T 为直接引数']]);
+  eq('STITCHON L/K 只能择一',
+    '%@MACRO\nSTITCHON S1 Q1 L500 K5. E10.;',
+    [['error', 'STITCHON 的 L/K 只能择一']]);
+  eq('WEAVEON P 不可与细节引数混用',
+    '%@MACRO\nWEAVEON P3 E5.;',
+    [['error', 'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用']]);
+  eq('MOVL 平滑引数互斥',
+    '%@MACRO\nMOVL X10. PL5 PQ10.;',
+    [['error', 'MOVL 单行只能使用 PL/PQ/PR']]);
+  eq('MOVJ 不支持 PQ/PR',
+    '%@MACRO\nMOVJ C1=10. PQ5;',
+    [['error', 'MOVJ 不支持 PQ/PR']]);
+  eq('INCMOVL 缺少 P',
+    '%@MACRO\nINCMOVL X10. Y0.;',
+    [['error', 'INCMOVL 缺少必填 P 引数']]);
+  eq('合法路径扩充引数 C/R/A 不报错',
+    '%@MACRO\nG01 X100. Y100., C10.;\nG01 X100. Y100., R10.;\nG01 X100. Y100., A45.;', []);
+  eq('不支持路径扩充引数 Z 报错',
+    '%@MACRO\nG91 G01 X100. Y100, Z100.;',
+    [['error', '路径扩充引数 ,Z_ 不存在']]);
+}
+
+// ============================================================
+// 19. 跨行机器人/应用诊断
+// ============================================================
+console.log('\n[19] 跨行机器人/应用诊断');
+{
+  eq('MOVC 必须成对出现',
+    '%@MACRO\nMOVC X100. Y0.;\nMOVL X200.;',
+    [['error', 'MOVC 必须成对出现']]);
+  eq('MOVC 成对正确',
+    '%@MACRO\nMOVC X100. Y0.;\nMOVC X200. Y100.;', []);
+  eq('运动单节后多个 SWAITSIG 报错',
+    '%@MACRO\nMOVL X100.;\nSWAITSIG P1 Q1 R1;\nSWAITSIG P1 Q2 R1;',
+    [['error', '运动单节后只能下 1 个 SWAITSIG']]);
+  eq('WAIT 切断 SWAITSIG 运动单节关系',
+    '%@MACRO\nMOVL X100.;\nSWAITSIG P1 Q1 R1;\nWAIT();\nSWAITSIG P1 Q2 R1;', []);
+  eq('同一移动单节超过 10 个 SYNCOUT 报错',
+    '%@MACRO\nMOVL X100.;\n' + Array.from({ length: 11 }, (_, idx) => `SYNCOUT S1 Q${idx + 1} P50 R1;`).join('\n'),
+    [['error', '同一有移动量移动单节最多允许 10 个 SYNCOUT']]);
+  eq('STITCHON 区间禁止 MOVJ',
+    '%@MACRO\nSTITCHON S1 Q1 L500 E10.;\nMOVJ C1=0;\nSTITCHOFF;',
+    [['error', 'STITCHON 生效范围内不支持此指令']]);
+  eq('WEAVEON 区间禁止 STITCHON',
+    '%@MACRO\nWEAVEON E5. Q1.0 K30. L200;\nSTITCHON S1 Q1 L500 E10.;\nWEAVEOFF;',
+    [['error', 'WEAVEON 生效范围内不支持此指令']]);
+}
+
+// ============================================================
+// 20. 参考范例回归
+// ============================================================
+console.log('\n[20] 参考范例回归');
+{
+  const demoPath = path.join(__dirname, '..', 'test-demo.nc');
+  const demoText = fs.readFileSync(demoPath, 'utf8');
+  eq('test-demo.nc 无诊断', demoText, []);
 }
 
 // ============================================================

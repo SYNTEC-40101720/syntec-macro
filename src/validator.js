@@ -120,7 +120,7 @@ function getKeywordPositions(line, isClean = false) {
     'GOTO'
   ];
   // 检测不支持的语法
-  const unsupportedKws = ['ELSIF'];
+  const unsupportedKws = ['ELSIF', 'DEFAULT', 'DIV'];
   for (const kw of unsupportedKws) {
     const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp('\\b' + escaped + '\\b', 'g');
@@ -309,6 +309,50 @@ function validateNamedVariables(_raw, lineNum, _lineStartInBlock, cleanLine) {
   return diagnostics;
 }
 
+function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+
+  const vacantAssignRe = /(^|[^\w])([#@]0)\s*(?::=|=(?!=))/g;
+  let match;
+  while ((match = vacantAssignRe.exec(clean)) !== null) {
+    const col = match.index + match[1].length;
+    diagnostics.push({
+      line: lineNum,
+      col,
+      endCol: col + match[2].length,
+      msg: `${match[2]} 为 VACANT，只读，不建议作为赋值目标`,
+      severity: 'warning'
+    });
+  }
+
+  const directBadAppVarRe = /\b(?:AR|MAR)(?:-\d+(?:\.\d*)?|\d+\.\d+)\b/ig;
+  while ((match = directBadAppVarRe.exec(clean)) !== null) {
+    diagnostics.push({
+      line: lineNum,
+      col: match.index,
+      endCol: match.index + match[0].length,
+      msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 直接编号必须为非负整数`,
+      severity: 'error'
+    });
+  }
+
+  const indirectBadAppVarRe = /\b(?:AR|MAR)\[\s*(-\d+(?:\.\d*)?|\d+\.\d+)\s*\]/ig;
+  while ((match = indirectBadAppVarRe.exec(clean)) !== null) {
+    diagnostics.push({
+      line: lineNum,
+      col: match.index,
+      endCol: match.index + match[0].length,
+      msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 间接静态编号必须为非负整数`,
+      severity: 'error'
+    });
+  }
+
+  return diagnostics;
+}
+
 // 风格建议：保留兼容语法，但推荐生成更一致的标准写法
 function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
@@ -342,6 +386,275 @@ function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
   return diagnostics;
 }
 
+function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+  let match;
+  const equalityRe = /==/g;
+  while ((match = equalityRe.exec(clean)) !== null) {
+    diagnostics.push({
+      line: lineNum,
+      col: match.index,
+      endCol: match.index + 2,
+      msg: '== 不支持；等于比较请使用单独的 =',
+      severity: 'error'
+    });
+  }
+
+  return diagnostics;
+}
+
+function validateRobotSyntaxPreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+  const rules = [
+    {
+      re: /\bMOVJ-II\b/,
+      msg: 'MOVJ-II 不是正式指令写法；请使用 MOVJ 第二语法'
+    },
+    {
+      re: /\bMOVJ\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
+      msg: 'MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法'
+    },
+    {
+      re: /\bMOVL\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+      msg: 'MOVL 直接引数不使用 =；请使用 X100. / P1 / FL100. 等写法'
+    },
+    {
+      re: /\bMOVC\b(?=[^;]*\b(?:X|Y|Z|A|B|C|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+      msg: 'MOVC 直接引数不使用 =；请使用 X100. / FL100. / PL3 等写法'
+    },
+    {
+      re: /\bMOVC\b(?=[^;]*\b(?:Xp|Yp|Zp)\s*=)/,
+      msg: 'MOVC 不支持 Xp/Yp/Zp 通过点写法；请使用成对 MOVC 的 X/Y/Z/A/B/C 直接引数'
+    },
+    {
+      re: /\bINCMOVJ\b(?=[^;]*\b(?:Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
+      msg: 'INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数；请使用 Q1 / FJ30 等写法'
+    },
+    {
+      re: /\bINCMOVL\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+      msg: 'INCMOVL 直接引数不使用 =；请使用 P1 / X50. / FL80. 等写法'
+    },
+    {
+      re: /\b(?:TOOLCOR|TOOLCORON)\s+T(?=\d|#|@|\[|=)/,
+      msg: 'TOOLCOR/TOOLCORON 使用 P_ 指定工具编号；请勿使用 T_'
+    },
+    {
+      re: /\bTOOLCORON\b/,
+      msg: 'TOOLCORON 未见官方语法；建议改用 TOOLCOR P_'
+    },
+    {
+      re: /\bTOOLCOR\s+CLEAR\b/,
+      msg: 'TOOLCOR CLEAR 未见官方语法；建议改用 TOOLCOR P0'
+    },
+    {
+      re: /\bOBJCORON\b(?=[^;]*\b(?:X|Y|Z|A|B|C)\s*=)/,
+      msg: 'OBJCORON 的 X/Y/Z/A/B/C 为直接引数；请使用 X5. 而非 X=5.'
+    },
+    {
+      re: /\bG68\.18\b(?=[^;]*\b(?:P|R|X|Y|Z|A|B|C)\s*=)/,
+      msg: 'G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数；请使用 P1 / R0 / X10. 等写法'
+    },
+    {
+      re: /\bG43\.16\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
+      msg: 'G43.16 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X10. 等写法'
+    },
+    {
+      re: /\bPOSEMAP\b(?=[^;]*\b(?:X|Y|Z|A|B|C|Q|R)\s*=)/,
+      msg: 'POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数；请使用 X100. / Q1 / R1 等写法'
+    },
+    {
+      re: /\bSHIFTON\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
+      msg: 'SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X20. 等写法'
+    },
+    {
+      re: /\bSKIPCOND\b(?=[^;]*\b(?:E|Q|R|P)\s*=)/,
+      msg: 'SKIPCOND 的 E/Q/R/P 为直接引数；请使用 E1 / Q33 / R1 / P0 等写法'
+    },
+    {
+      re: /\bSWAITSIG\b(?=[^;]*\b(?:P|Q|R|L|T)\s*=)/,
+      msg: 'SWAITSIG 的 P/Q/R/L/T 为直接引数；请使用 P1 / Q33 / R1 等写法'
+    },
+    {
+      re: /\bSTITCHON\b(?=[^;]*\b(?:S|Q|L|K|E)\s*=)/,
+      msg: 'STITCHON 的 S/Q/L/K/E 为直接引数；请使用 S1 / Q1 / L500 / E10. 等写法'
+    },
+    {
+      re: /\bWEAVEON\b(?=[^;]*\b(?:P|E|Q|K|L|R|I)\s*=)/,
+      msg: 'WEAVEON 的 P/E/Q/K/L/R/I 为直接引数；请使用 P3 或 E5. Q1.0 K30. 等写法'
+    }
+  ];
+
+  for (const rule of rules) {
+    const match = clean.match(rule.re);
+    if (match) {
+      diagnostics.push({
+        line: lineNum,
+        col: match.index,
+        endCol: match.index + match[0].length,
+        msg: rule.msg,
+        severity: rule.msg.includes('建议改用') ? 'warning' : 'error'
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+function getCommand(cleanLine) {
+  const trimmed = cleanLine.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(G\d+(?:\.\d+)?|M\d+|[A-Z][A-Z0-9_.-]*)\b/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function hasDirectArg(cleanLine, argName) {
+  return new RegExp('\\b' + argName + '(?=[#@+\\-]?(?:\\d|\\.|\\(|#|@))', 'i').test(cleanLine);
+}
+
+function getStaticDirectArgNumber(cleanLine, argName) {
+  const match = cleanLine.match(new RegExp('\\b' + argName + '([+-]?\\d+(?:\\.\\d*)?)', 'i'));
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+function countSmoothArgs(cleanLine) {
+  return ['PL', 'PQ', 'PR'].filter(arg => hasDirectArg(cleanLine, arg)).length;
+}
+
+function isMovementCommand(command) {
+  return ['MOVJ', 'MOVL', 'MOVC', 'INCMOVJ', 'INCMOVL'].includes(command);
+}
+
+function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+  const command = getCommand(clean);
+
+  if (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && countSmoothArgs(clean) > 1) {
+    diagnostics.push({
+      line: lineNum, col: clean.search(/\b(?:PL|PQ|PR)/i), endCol: clean.length,
+      msg: `${command} 单行只能使用 PL/PQ/PR 其中一个平滑引数`,
+      severity: 'error'
+    });
+  }
+
+  if (['MOVJ', 'INCMOVJ'].includes(command) && (hasDirectArg(clean, 'PQ') || hasDirectArg(clean, 'PR'))) {
+    diagnostics.push({
+      line: lineNum, col: clean.search(/\b(?:PQ|PR)/i), endCol: clean.length,
+      msg: `${command} 不支持 PQ/PR；请使用 PL`,
+      severity: 'error'
+    });
+  }
+
+  if (command === 'MOVJ' && hasDirectArg(clean, 'P') && !hasDirectArg(clean, 'X')) {
+    diagnostics.push({
+      line: lineNum, col: clean.search(/\bP/i), endCol: clean.length,
+      msg: 'MOVJ 第一语法不支持 P 引数',
+      severity: 'error'
+    });
+  }
+
+  if (command === 'INCMOVL' && !hasDirectArg(clean, 'P')) {
+    diagnostics.push({
+      line: lineNum, col: clean.search(/\bINCMOVL\b/i), endCol: clean.search(/\bINCMOVL\b/i) + 'INCMOVL'.length,
+      msg: 'INCMOVL 缺少必填 P 引数',
+      severity: 'error'
+    });
+  }
+
+  if (command === 'STITCHON') {
+    const hasL = hasDirectArg(clean, 'L');
+    const hasK = hasDirectArg(clean, 'K');
+    if (hasL && hasK) {
+      diagnostics.push({ line: lineNum, col: clean.search(/\b(?:L|K)/i), endCol: clean.length, msg: 'STITCHON 的 L/K 只能择一输入', severity: 'error' });
+    } else if (!hasL && !hasK) {
+      diagnostics.push({ line: lineNum, col: clean.search(/\bSTITCHON\b/i), endCol: clean.length, msg: 'STITCHON 需指定 L 或 K 其中一个', severity: 'warning' });
+    }
+    const lValue = getStaticDirectArgNumber(clean, 'L');
+    if (lValue !== null && !Number.isInteger(lValue)) {
+      diagnostics.push({ line: lineNum, col: clean.search(/\bL/i), endCol: clean.length, msg: 'STITCHON 的 L 引数不可带小数点', severity: 'error' });
+    }
+  }
+
+  if (command === 'WEAVEON') {
+    const hasP = hasDirectArg(clean, 'P');
+    const detailArgs = ['E', 'Q', 'K', 'L', 'R', 'I'].filter(arg => hasDirectArg(clean, arg));
+    if (hasP && detailArgs.length > 0) {
+      diagnostics.push({ line: lineNum, col: clean.search(/\bWEAVEON\b/i), endCol: clean.length, msg: 'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用', severity: 'error' });
+    }
+    const qMatch = clean.match(/\bQ([+-]?\d+)(?!\.)/i);
+    if (!hasP && qMatch) {
+      diagnostics.push({ line: lineNum, col: qMatch.index, endCol: qMatch.index + qMatch[0].length, msg: 'WEAVEON 的 Q 频率建议使用小数形式，例如 Q1.0', severity: 'warning' });
+    }
+  }
+
+  return diagnostics;
+}
+
+function validatePathExtensionArgs(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const diagnostics = [];
+  const allowed = new Set(['C', 'R', 'A']);
+  const pathExtensionRe = /,\s*([A-Z]+)(?=[#@+\-]?(?:\d|\.|\(|#|@))/ig;
+  let match;
+  while ((match = pathExtensionRe.exec(clean)) !== null) {
+    const arg = match[1].toUpperCase();
+    if (!allowed.has(arg)) {
+      diagnostics.push({
+        line: lineNum,
+        col: match.index,
+        endCol: match.index + match[0].length,
+        msg: `路径扩充引数 ,${arg}_ 不存在；仅确认支持 ,C_ / ,R_ / ,A_`,
+        severity: 'error'
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+function validateCaseLineStyle(cleanLine, lineNum, stack) {
+  const diagnostics = [];
+  const top = stack[stack.length - 1];
+  if (!top || top.keyword !== 'CASE') return diagnostics;
+
+  if (/^\s*DEFAULT\s*:/i.test(cleanLine)) return diagnostics;
+
+  const branchMatch = cleanLine.match(/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:(?!=)\s*(\S.*)$/);
+  if (branchMatch) {
+    diagnostics.push({
+      line: lineNum,
+      col: cleanLine.indexOf(branchMatch[1]),
+      endCol: cleanLine.length,
+      msg: 'CASE 分支标签后同行陈述支援但不推荐；建议换行缩排陈述列表',
+      severity: 'warning'
+    });
+  }
+
+  const elseMatch = cleanLine.match(/^\s*ELSE\s+(\S.*)$/);
+  if (elseMatch) {
+    diagnostics.push({
+      line: lineNum,
+      col: cleanLine.indexOf(elseMatch[1]),
+      endCol: cleanLine.length,
+      msg: 'CASE ELSE 后同行陈述支援但不推荐；建议换行缩排陈述列表',
+      severity: 'warning'
+    });
+  }
+
+  return diagnostics;
+}
+
 // 控制流关键字验证：处理单个关键字的栈操作和错误报告
 function validateControlFlowKeyword(pos, lineNum, positions, stack, untiledRepeats, diagnostics) {
   const kw = pos.keyword;
@@ -350,6 +663,8 @@ function validateControlFlowKeyword(pos, lineNum, positions, stack, untiledRepea
   if (pos.unsupported) {
     let msg = '';
     if (kw === 'ELSIF') msg = 'ELSIF 不支持，请使用 ELSEIF';
+    else if (kw === 'DEFAULT') msg = 'DEFAULT 不支持，请使用 ELSE';
+    else if (kw === 'DIV') msg = 'DIV 不支持；整数除法请使用 /，分子与分母皆为整数时结果仍为整数';
     else msg = `${kw} 是不支持的语法`;
     diagnostics.push({
       line: lineNum, col: pos.col, endCol: pos.endCol,
@@ -531,6 +846,11 @@ const LINE_VALIDATORS = [
   validateChineseCharacters,
   validateParentheses,
   validateNamedVariables,
+  validateVariableAccess,
+  validateUnsupportedOperators,
+  validateRobotSyntaxPreferences,
+  validateConfirmedSingleLineSyntax,
+  validatePathExtensionArgs,
   validateStylePreferences
 ];
 
@@ -540,6 +860,12 @@ function validateDocument(content) {
   const stack = []; // 控制流块栈 [{line, keyword, hasElse}]
   const untiledRepeats = []; // 栈：记录已被 UNTIL 关闭但尚未遇到 END_REPEAT 的 REPEAT 行号
   const gotoRefs = []; // GOTO 引用 [{line, target}]
+  let pendingMovcLine = 0;
+  let currentMovementLine = 0;
+  let swaitsigCount = 0;
+  let syncoutCount = 0;
+  let inStitchOn = false;
+  let inWeaveOn = false;
   let inBlockComment = false; // 跨行块注释状态追踪
 
   // === 第一遍：收集 N标签 + 检查 %@MACRO ===
@@ -555,6 +881,95 @@ function validateDocument(content) {
     const clean = stripped.text;
     inBlockComment = stripped.inBlockComment;
     const positions = getKeywordPositions(clean, true);
+    const command = getCommand(clean);
+
+    if (command) {
+      if (pendingMovcLine > 0 && command !== 'MOVC' && isMovementCommand(command)) {
+        diagnostics.push({
+          line: pendingMovcLine, col: 0, endCol: 0,
+          msg: 'MOVC 必须成对出现：第一行为中间点，第二行为结束点',
+          severity: 'error'
+        });
+        pendingMovcLine = 0;
+      }
+
+      if (command === 'MOVC') {
+        pendingMovcLine = pendingMovcLine > 0 ? 0 : lineNum;
+      }
+
+      if (isMovementCommand(command)) {
+        currentMovementLine = lineNum;
+        swaitsigCount = 0;
+        syncoutCount = 0;
+      }
+
+      if (command === 'WAIT') {
+        currentMovementLine = 0;
+        swaitsigCount = 0;
+        syncoutCount = 0;
+      }
+
+      if (command === 'SWAITSIG' && currentMovementLine > 0) {
+        swaitsigCount++;
+        if (swaitsigCount > 1) {
+          diagnostics.push({
+            line: lineNum, col: clean.search(/\bSWAITSIG\b/i), endCol: clean.length,
+            msg: '运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用 G4.16',
+            severity: 'error'
+          });
+        }
+      }
+
+      if (command === 'SYNCOUT' && currentMovementLine > 0) {
+        syncoutCount++;
+        if (syncoutCount > 10) {
+          diagnostics.push({
+            line: lineNum, col: clean.search(/\bSYNCOUT\b/i), endCol: clean.length,
+            msg: '同一有移动量移动单节最多允许 10 个 SYNCOUT',
+            severity: 'error'
+          });
+        }
+      }
+
+      if (inStitchOn && command !== 'STITCHOFF') {
+        const stitchForbidden = ['MOVJ', 'USERCOR', 'SHIFTON', 'SHIFTOFF', 'OBJCORON', 'OBJCOROFF', 'OBJCORCLEAR', 'SYNCOUT', 'WEAVEON', 'WEAVEOFF'];
+        if (stitchForbidden.includes(command) || (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && /\bSKIP\b/i.test(clean))) {
+          diagnostics.push({
+            line: lineNum, col: clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), endCol: clean.length,
+            msg: 'STITCHON 生效范围内不支持此指令',
+            severity: 'error'
+          });
+        } else if (command === 'M96') {
+          diagnostics.push({
+            line: lineNum, col: clean.search(/\bM96\b/i), endCol: clean.length,
+            msg: 'STITCHON 生效范围内 M96 中断型副程序触发无效',
+            severity: 'warning'
+          });
+        }
+      }
+
+      if (inWeaveOn && command !== 'WEAVEOFF') {
+        if (['MOVJ', 'STITCHON', 'STITCHOFF'].includes(command)) {
+          diagnostics.push({
+            line: lineNum, col: clean.search(new RegExp('\\b' + command + '\\b', 'i')), endCol: clean.length,
+            msg: 'WEAVEON 生效范围内不支持此指令',
+            severity: 'error'
+          });
+        } else if (command === 'M96') {
+          diagnostics.push({
+            line: lineNum, col: clean.search(/\bM96\b/i), endCol: clean.length,
+            msg: 'WEAVEON 生效范围内 M96 中断型副程序触发无效',
+            severity: 'warning'
+          });
+        }
+      }
+
+      if (command === 'STITCHON' && !inWeaveOn) inStitchOn = true;
+      else if (command === 'STITCHOFF') inStitchOn = false;
+
+      if (command === 'WEAVEON' && !inStitchOn) inWeaveOn = true;
+      else if (command === 'WEAVEOFF') inWeaveOn = false;
+    }
 
     // GOTO 目标引用
     const gotoTarget = extractGotoTarget(clean, true);
@@ -569,6 +984,8 @@ function validateDocument(content) {
       diagnostics.push(...results);
     }
 
+    diagnostics.push(...validateCaseLineStyle(clean, lineNum, stack));
+
     // 控制流验证：逐个处理关键字
     for (const pos of positions) {
       validateControlFlowKeyword(pos, lineNum, positions, stack, untiledRepeats, diagnostics);
@@ -577,6 +994,14 @@ function validateDocument(content) {
 
   // === 文件结束时未关闭的块 ===
   diagnostics.push(...validateUnclosedBlocks(stack));
+
+  if (pendingMovcLine > 0) {
+    diagnostics.push({
+      line: pendingMovcLine, col: 0, endCol: 0,
+      msg: 'MOVC 必须成对出现：第一行为中间点，第二行为结束点',
+      severity: 'error'
+    });
+  }
 
   // === GOTO 标签引用验证 ===
   diagnostics.push(...validateGotoReferences(gotoRefs, nLabels));

@@ -28,10 +28,17 @@
           "syntec-macro"
         ],
         "extensions": [
-          ".macro",
-          ".scp",
-          ".G",
-          ".nc"
+          ".nc",
+          ".cnc",
+          ".tap",
+          ".prt",
+          ".mpf",
+          ".ptp",
+          ".pim",
+          ".anc",
+          ".bj",
+          ".edit",
+          ".demo"
         ],
         "firstLine": "^%@MACRO"
       }

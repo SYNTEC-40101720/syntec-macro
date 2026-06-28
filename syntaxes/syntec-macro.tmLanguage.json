@@ -44,15 +44,15 @@
       "name": "keyword.control.flow.syntec-macro"
     },
     {
-      "match": "\\b(MOVJ|MOVJ-II|MOVL|MOVC|INCMOVJ|INCMOVL)\\b",
+      "match": "\\b(MOVJ|MOVL|MOVC|INCMOVJ|INCMOVL)(?!-)\\b",
       "name": "keyword.control.robot-move.syntec-macro"
     },
     {
-      "match": "\\b(USERCOR|OBJCORON|OBJCOROFF|OBJCORCLEAR|TOOLCOR|TOOLCORON|TOOLCOROFF)\\b",
+      "match": "\\b(USERCOR|OBJCORON|OBJCOROFF|OBJCORCLEAR|TOOLCOR|TOOLCOROFF)\\b",
       "name": "keyword.control.robot-coord.syntec-macro"
     },
     {
-      "match": "\\b(SKIPCOND|SKIP|SWAITSIG|SYNCOUT|WEAVEON|WEAVEOFF|STITCHON|STITCHOFF|POSEMAP|SHIFTON|SHIFTOFF|PAUSE)\\b",
+      "match": "\\b(SKIPCOND|SKIP|SWAITSIG|SYNCOUT|WEAVEON|WEAVEOFF|STITCHON|STITCHOFF|POSEMAP|SHIFTON|SHIFTOFF|WAITSYNC|ENDSYNC|CIRMODE|PAUSE)\\b",
       "name": "keyword.control.robot-app.syntec-macro"
     },
     {
@@ -64,7 +64,7 @@
       "name": "keyword.operator.logical.syntec-macro"
     },
     {
-      "match": "\\b(MOD|DIV)\\b",
+      "match": "\\bMOD\\b",
       "name": "keyword.operator.arithmetic.syntec-macro"
     },
     {
@@ -72,7 +72,7 @@
       "name": "keyword.operator.assignment.syntec-macro"
     },
     {
-      "match": "==|<>|<=|>=|=|<|>",
+      "match": "<>|<=|>=|(?<![:=])=(?!=)|<|>",
       "name": "keyword.operator.comparison.syntec-macro"
     },
     {

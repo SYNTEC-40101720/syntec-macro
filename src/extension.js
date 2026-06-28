@@ -7,6 +7,7 @@ const path = require('path');
 const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
+const { normalizeProgramName, buildFileCandidates } = require('./fileResolver');
 const packageJson = require('../package.json');
 
 const LANG_ID = 'syntec-macro';
@@ -14,6 +15,7 @@ const RECURSIVE_SEARCH_DEPTH = 5;
 const VARIABLE_COMPLETION_COUNT = 20;
 const DIAGNOSTIC_DEBOUNCE_MS = 300;
 const BIG_VARIABLES = [100, 500, 1000, 2000, 9901, 9902, 9903, 9904, 9905, 9906];
+const SYMBOL_OPERATORS = [':=', '<>', '<=', '>=', '&', '=', '<', '>', '+', '-', '*', '/'];
 
 const functionIndex = buildFunctionIndex();
 
@@ -42,6 +44,38 @@ function getRegexRangeAtPosition(document, position, regex) {
     }
   }
   return null;
+}
+
+function getSymbolOperatorRangeAtPosition(document, position) {
+  const line = document.lineAt(position.line).text;
+  for (const operator of SYMBOL_OPERATORS) {
+    let index = line.indexOf(operator);
+    while (index >= 0) {
+      const end = index + operator.length;
+      if (operator === '=' && (line[index - 1] === ':' || line[index - 1] === '=' || line[end] === '=')) {
+        index = line.indexOf(operator, index + 1);
+        continue;
+      }
+      if (operator === '/' && (line[index - 1] === '/' || line[end] === '/')) {
+        index = line.indexOf(operator, index + 1);
+        continue;
+      }
+      if (position.character >= index && position.character <= end) {
+        return { operator, range: new vscode.Range(position.line, index, position.line, end) };
+      }
+      index = line.indexOf(operator, index + 1);
+    }
+  }
+  return null;
+}
+
+function createKeywordHover(keyword, range) {
+  const kwDoc = getKeywordDoc(keyword);
+  if (!kwDoc) return null;
+  const md = new vscode.MarkdownString();
+  md.appendCodeblock(kwDoc.sig, 'syntec-macro');
+  md.appendMarkdown('\n' + kwDoc.doc);
+  return new vscode.Hover(md, range);
 }
 
 // =====================
@@ -142,6 +176,32 @@ function provideCompletionItems(document, position) {
 function provideHover(document, position) {
   if (!isFeatureEnabled(document.uri, 'enableHover')) return null;
 
+  const dynamicMCodeRange = getRegexRangeAtPosition(document, position, /\bM#\d+\b/g);
+  if (dynamicMCodeRange) {
+    const code = document.getText(dynamicMCodeRange).toUpperCase();
+    return new vscode.Hover(new vscode.MarkdownString('**动态 M 代码**: ' + code), dynamicMCodeRange);
+  }
+
+  const appVariableRange = getRegexRangeAtPosition(document, position, /\b(?:AR|MAR)(?:\d+|\[[^\]]+\])/g);
+  if (appVariableRange) {
+    const variable = document.getText(appVariableRange).toUpperCase();
+    return new vscode.Hover(new vscode.MarkdownString('**应用变量**: ' + variable), appVariableRange);
+  }
+
+  const axisGroupRange = getRegexRangeAtPosition(document, position, /\$[1-4]\b/g);
+  if (axisGroupRange) {
+    const axisGroup = document.getText(axisGroupRange).toUpperCase();
+    return new vscode.Hover(new vscode.MarkdownString('**轴群识别**: ' + axisGroup), axisGroupRange);
+  }
+
+  const g10L1805Range = getRegexRangeAtPosition(document, position, /\bG10\s+L1805\b/g);
+  if (g10L1805Range) {
+    const md = new vscode.MarkdownString();
+    md.appendCodeblock('G10 L1805 I_ Q_ R_ [J_];', 'syntec-macro');
+    md.appendMarkdown('\nO/R/A-bit 脉冲输出。I=1/R-bit、2/O-bit、3/A-bit；R=0/LOW、1/HIGH；J 为讯号维持时间 ms，可省略，省略视为 0。');
+    return new vscode.Hover(md, g10L1805Range);
+  }
+
   const variableRange = getRegexRangeAtPosition(document, position, /#\[[^\]]+\]|#[1-9]\d*|@\[[^\]]+\]|@\d+/g);
   if (variableRange) {
     const variable = document.getText(variableRange).toUpperCase();
@@ -156,6 +216,12 @@ function provideHover(document, position) {
     }
     const desc = getMCodeDesc(code);
     return new vscode.Hover(new vscode.MarkdownString('**M代码**: ' + code + '\n' + desc), codeRange);
+  }
+
+  const symbolOperator = getSymbolOperatorRangeAtPosition(document, position);
+  if (symbolOperator) {
+    const hover = createKeywordHover(symbolOperator.operator, symbolOperator.range);
+    if (hover) return hover;
   }
 
   const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
@@ -177,10 +243,7 @@ function provideHover(document, position) {
   if (allKw.includes(word)) {
     const kwDoc = getKeywordDoc(word);
     if (kwDoc) {
-      const md = new vscode.MarkdownString();
-      md.appendCodeblock(kwDoc.sig, 'syntec-macro');
-      md.appendMarkdown('\n' + kwDoc.doc);
-      return new vscode.Hover(md, range);
+      return createKeywordHover(word, range);
     }
     const md = new vscode.MarkdownString('**关键字**: ' + word);
     return new vscode.Hover(md, range);
@@ -243,25 +306,6 @@ function provideDefinition(document, position) {
   return [];
 }
 
-function normalizeProgramName(progNo) {
-  let fileName = progNo;
-  if (/^\d+$/.test(fileName)) {
-    fileName = 'G' + fileName.padStart(4, '0');
-  } else if (/^G?\d+$/i.test(fileName)) {
-    fileName = 'G' + fileName.replace(/^G/i, '').padStart(4, '0');
-  }
-  return fileName;
-}
-
-function buildFileCandidates(dir, fileName) {
-  return [
-    path.join(dir, fileName),
-    path.join(dir, fileName + '.macro'),
-    path.join(dir, fileName + '.G'),
-    path.join(dir, fileName + '.scp')
-  ];
-}
-
 // 在工作区查找宏程序文件
 function findMacroFile(document, progNo) {
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
@@ -276,12 +320,8 @@ function findMacroFile(document, progNo) {
     try { if (fs.existsSync(c)) return c; } catch {}
   }
 
-  const recursiveCandidates = [
-    fileName,
-    fileName + '.macro',
-    fileName + '.G',
-    fileName + '.scp'
-  ].map(name => name.toUpperCase());
+  const recursiveCandidates = buildFileCandidates('', fileName)
+    .map(candidate => path.basename(candidate).toUpperCase());
 
   let found = findFileRecursive(dir, new Set(recursiveCandidates), RECURSIVE_SEARCH_DEPTH);
   if (found) return found;
