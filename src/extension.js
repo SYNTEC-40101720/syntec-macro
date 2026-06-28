@@ -394,7 +394,13 @@ function refreshDiagnostics(document) {
   }
 
   const text = document.getText();
-  const problems = validateDocument(text);
+  const seenProblems = new Set();
+  const problems = validateDocument(text).filter(p => {
+    const key = [p.line, p.col, p.endCol || p.col + 1, p.severity, p.msg].join('|');
+    if (seenProblems.has(key)) return false;
+    seenProblems.add(key);
+    return true;
+  });
 
   const diagnostics = problems.map(p => {
     const d = new vscode.Diagnostic(

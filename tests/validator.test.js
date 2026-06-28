@@ -354,9 +354,28 @@ console.log('\n[17] 风格建议');
 }
 
 // ============================================================
-// 18. 机器人/坐标系旧语法诊断
+// 18. 函数静态诊断
 // ============================================================
-console.log('\n[18] 机器人/坐标系旧语法诊断');
+console.log('\n[18] 函数静态诊断');
+{
+  eq('数学函数静态域检查',
+    '%@MACRO\n#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);',
+    [['error', 'ATAN2(0,0)'], ['error', 'POW 基底不可为负值'], ['error', 'LN 引数需为正数']]);
+  eq('I/O 函数范围检查',
+    '%@MACRO\n#1 := READDI(512);\nSETDO(3, 2);\n#2 := READRREGBIT(70000, 32);',
+    [['error', 'READDI 点编号范围为 0~511'], ['error', 'SETDO 写入值应为 0 或 1'], ['error', 'READRREGBIT 的 R 值编号范围为 0~65535'], ['error', 'READRREGBIT 的 bit 范围为 0~31']]);
+  eq('ALARM MSG PARAM CHKINF 静态参数检查',
+    '%@MACRO\nALARM(70000);\nMSG(70000, "Hi");\n#1 := PARAM(1.2);\n#2 := CHKINF(6, "A");',
+    [['error', 'ALARM ID 范围为 0~65535'], ['error', 'MSG ID 范围为 0~65535'], ['error', 'PARAM 引数需为整数'], ['error', 'CHKINF 类别范围为 1~5']]);
+  eq('OPEN COM1 提示普通文件名',
+    '%@MACRO\nOPEN("COM1");',
+    [['warning', 'OPEN("COM1") 会按普通文件名处理']]);
+}
+
+// ============================================================
+// 19. 机器人/坐标系旧语法诊断
+// ============================================================
+console.log('\n[19] 机器人/坐标系旧语法诊断');
 {
   eq('MOVJ-II 不是正式指令写法',
     '%@MACRO\nMOVJ-II X100.;',
@@ -432,15 +451,17 @@ console.log('\n[18] 机器人/坐标系旧语法诊断');
 }
 
 // ============================================================
-// 19. 跨行机器人/应用诊断
+// 20. 跨行机器人/应用诊断
 // ============================================================
-console.log('\n[19] 跨行机器人/应用诊断');
+console.log('\n[20] 跨行机器人/应用诊断');
 {
   eq('MOVC 必须成对出现',
     '%@MACRO\nMOVC X100. Y0.;\nMOVL X200.;',
     [['error', 'MOVC 必须成对出现']]);
   eq('MOVC 成对正确',
     '%@MACRO\nMOVC X100. Y0.;\nMOVC X200. Y100.;', []);
+  eq('MOVC 单行新版写法不需要成对',
+    '%@MACRO\nMOVC X1=100. Y1=0. Z1=0., X2=200. Y2=100. Z2=0. FL100.;', []);
   eq('运动单节后多个 SWAITSIG 报错',
     '%@MACRO\nMOVL X100.;\nSWAITSIG P1 Q1 R1;\nSWAITSIG P1 Q2 R1;',
     [['error', '运动单节后只能下 1 个 SWAITSIG']]);
@@ -455,12 +476,24 @@ console.log('\n[19] 跨行机器人/应用诊断');
   eq('WEAVEON 区间禁止 STITCHON',
     '%@MACRO\nWEAVEON E5. Q1.0 K30. L200;\nSTITCHON S1 Q1 L500 E10.;\nWEAVEOFF;',
     [['error', 'WEAVEON 生效范围内不支持此指令']]);
+  eq('STITCHON 区间禁止 WAITSYNC',
+    '%@MACRO\nSTITCHON S1 Q1 K5. E10.;\nWAITSYNC P1;\nSTITCHOFF;',
+    [['error', 'STITCHON 生效范围内不支持此指令']]);
+  eq('WEAVEON 区间禁止 WAITSYNC',
+    '%@MACRO\nWEAVEON E2. Q1.0 K30. L100;\nWAITSYNC P1;\nWEAVEOFF;',
+    [['error', 'WEAVEON 生效范围内不支持此指令']]);
+  eq('WAITSYNC 区间禁止 MOVJ 与 M码',
+    '%@MACRO\nWAITSYNC P1;\nMOVJ C1=0.;\nM10;\nENDSYNC P1;',
+    [['error', 'WAITSYNC 生效范围内不支持此指令'], ['error', 'WAITSYNC 生效范围内不支持此指令']]);
+  eq('G192.1 区间禁止 MOVJ 与 SYNCOUT',
+    '%@MACRO\nG192.1 P1 Q100 R1;\nMOVJ C1=0.;\nSYNCOUT S1 Q1 P50 R1;\nG192.2;',
+    [['error', 'G192.1 末端跟踪生效范围内不支持此指令'], ['error', 'G192.1 末端跟踪生效范围内不支持此指令']]);
 }
 
 // ============================================================
-// 20. 参考范例回归
+// 21. 参考范例回归
 // ============================================================
-console.log('\n[20] 参考范例回归');
+console.log('\n[21] 参考范例回归');
 {
   const demoPath = path.join(__dirname, '..', 'test-demo.nc');
   const demoText = fs.readFileSync(demoPath, 'utf8');

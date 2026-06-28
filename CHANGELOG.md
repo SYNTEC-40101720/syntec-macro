@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-06-28
+
+### Added
+- **单一语法真源手册**: 新增并扩充 `docs/新代MACRO语法规范手册.md`，覆盖文件格式、变量、运算子、控制流、宏呼叫、登录 G/M/T 码、函数、机器人 LTP 指令、预解流程和撰写规范。
+- **宏文件识别策略**: 支援常见加工档后缀 `.nc/.cnc/.tap/.prt/.mpf/.ptp/.pim/.anc/.bj/.edit/.demo`，并以 `%@MACRO` 首行作为内容识别依据。
+- **纯文件解析工具**: 新增 `src/fileResolver.js`，统一宏程序文件名标准化和候选文件搜索逻辑。
+- **机器人 LTP 补全与高亮**: 新增 `WAITSYNC`、`ENDSYNC`、`CIRMODE`，以及 `G01.101/102`、`G04.101/102/103`、`G10.101`、`G11.101/102/103`、`G12.101`、`G52.101`、`G53.101/102`、`G141.2`、`G142.*`、`G143.1`、`G144.*`、`G145.*`、`G192.*` 等机器人替代 G 码。
+- **路径扩充引数诊断**: 识别 `,C_`、`,R_`、`,A_`，并对未确认路径扩充引数如 `,Z_` 提示 `COR-034` 风险。
+- **变量基础诊断**: 对 `#0` / `@0` 作为赋值目标提示 VACANT 只读；对 AR/MAR 负数或小数静态编号报错。
+- **函数静态诊断**: 对 `ATAN2(0,0)`、`POW` 负基底、`LN` 非正数、I/O 范围、`ALARM/MSG` ID、`PARAM/CHKINF` 参数与 `OPEN("COM1")` 提供静态提示。
+- **MOVC 单行写法**: 支援新版 `MOVC X1=... X2=...` 单行写法，不再误判为缺少第二行 MOVC。
+- **机器人区间互斥诊断**: 补齐 `WAITSYNC/ENDSYNC`、`G192.1/G192.2` 与 `STITCHON/WEAVEON` 区间禁用规则。
+- **回归测试**: 增加机器人关键字、替代 G 码、路径扩充引数、VACANT 赋值和 AR/MAR 编号诊断测试。
+
+### Changed
+- **扩充 G/O 程序策略**: 扩充 G 码与 O 码副程序优先按无后缀文件处理，跳转搜索优先查无后缀候选。
+- **文件关联收紧**: 移除 `.macro`、`.scp`、`.G` 的默认全局关联，仅通过 `%@MACRO` 首行或手动切换语言识别。
+- **MOVJ 第二语法口径**: `MOVJ-II` / `INCMOVJ-II` 仅作为文档中的第二语法称呼，不作为正式指令补全或高亮；诊断提示改为使用 `MOVJ` / `INCMOVJ` 第二语法。
+- **README 更新**: 更新机器人指令能力、文件识别策略和 VSIX 版本说明。
+
+### Fixed
+- **测试隔离**: 将纯文件解析逻辑从 `extension.js` 拆出，避免 Node 单元测试直接加载 VS Code API。
+- **递归跳转候选一致性**: 递归搜索与 includePath 搜索统一使用 `fileResolver` 后缀策略。
+
 ## [2.6.5] - 2026-06-27
 
 ### Added

@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.6.5-blue)
+![Version](https://img.shields.io/badge/version-2.7.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -35,7 +35,7 @@
 | **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
 | **代码片段** | 50+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
-| **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令 | ✅ 新增 v2.6.0 |
+| **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令、替代 G 码 | ✅ 增强 v2.7.0 |
 | **诊断防抖** | 300ms 防抖，打字时不再卡顿 | 🆕 v2.0.0 |
 | **includePath** | 配置额外搜索路径，G65 跳转支持多目录 | 🆕 v2.0.0 |
 
@@ -45,7 +45,7 @@
 
 ### 方法 1：从 VSIX 文件安装（推荐）
 
-1. 下载 `syntec-macro-2.6.5.vsix`
+1. 下载 `syntec-macro-2.7.0.vsix`
 2. 在 VS Code 中按 `Ctrl+Shift+P`
 3. 输入 `Install from VSIX...`
 4. 选择下载的 `.vsix` 文件
@@ -74,7 +74,7 @@ npm install
 npm run package
 
 # 安装生成的 .vsix 文件
-code --install-extension syntec-macro-2.6.5.vsix
+code --install-extension syntec-macro-2.7.0.vsix
 ```
 
 ---
@@ -351,14 +351,15 @@ N100；  (* 错误：中文分号 *)
 
 ## 🤖 机器人指令
 
-本扩展支持新代控制器的机器人指令语法高亮和补全：
+本扩展支持新代控制器的机器人指令语法高亮、补全、悬停说明和部分静态诊断：
 
 | 类别 | 指令 | 说明 |
 |------|------|------|
 | **移动指令** | MOVJ, MOVL, MOVC, INCMOVJ, INCMOVL | 关节/直线/圆弧运动 |
 | **坐标系** | USERCOR, OBJCORON/OFF/CLEAR, TOOLCOR/ON/OFF | 用户/工件/工具坐标系 |
-| **应用指令** | SKIPCOND, SKIP, SWAITSIG, SYNCOUT, WEAVEON/OFF, STITCHON/OFF, POSEMAP, SHIFTON/OFF, PAUSE | 跳脱/等待/摆动/偏移 |
+| **应用指令** | SKIPCOND, SKIP, SWAITSIG, SYNCOUT, WEAVEON/OFF, STITCHON/OFF, POSEMAP, SHIFTON/OFF, WAITSYNC/ENDSYNC, CIRMODE, PAUSE | 跳脱/等待/摆动/偏移/追踪 |
 | **速度参数** | ACC, DEC, FJ, FEJ, FL, FR, PL, PQ, PR | 加减速/速度/平滑 |
+| **替代 G 码** | G01.101/102, G04.101/102/103, G11.101/102/103, G53.101/102, G142.*, G144.*, G192.* | LTP 机器人替代语法 |
 
 ### 范例
 
@@ -393,7 +394,8 @@ G43.16 P1 X10. Y20. Z30. A0. B0. C0.;
 详见 [控制器语法规则](#控制器语法规则)
 
 ### 5. 机器人指令限制
-- 机器人指令的参数验证尚未实现，仅提供高亮和补全
+- 已实现部分静态诊断（旧式 `=`、平滑参数互斥、MOVC 成对、SWAITSIG/SYNCOUT 数量、STITCHON/WEAVEON 区间禁用、路径扩充引数等）
+- 尚未实现完整版本化诊断、全部 RBT 警报规则和 APP 路径解析
 
 ---
 
