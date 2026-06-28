@@ -367,16 +367,8 @@ exports.getAllKeywords = function() {
 };
 
 exports.getMCodeDesc = function(code) {
-  const descs = {
-    'M99': '子程序返回 / 宏程序结束',
-    'M30': '程序结束并复位',
-    'M65': '宏程序调用',
-    'M98': '呼叫子程序',
-    'M198': '呼叫子程序（另一路径）',
-    'M96': '启用中断程序',
-    'M97': '取消中断程序'
-  };
-  return descs[code] || 'M代码';
+  const { getCodeShortDescription } = require('./codeDocs');
+  return getCodeShortDescription(code) || 'M代码';
 };
 
 /**

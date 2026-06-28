@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-06-28
+
+### Added
+- **后续路线图**: 新增 `ROADMAP.md`，记录 validator 拆分、VS Code 集成测试、formatter 评估和跳转能力扩展等后续待办。
+- **补全回归测试**: 增加函数补全 snippet 测试，覆盖无参函数、普通函数和 `STKTOP[index]` 方括号签名。
+- **VS Code 集成测试**: 新增 `npm run test:integration`，覆盖扩展激活、补全、悬停、GOTO 跳转、大纲符号和诊断配置开关。
+- **保守 formatter**: 新增格式化 Provider，仅调整缩进并移除尾随空白，不重排或改写宏语句。
+- **扩展跳转覆盖**: 支持 `G66/G66.1 P_` 跳转 G 宏程序、`M98/M198 P_` 跳转 O 副程序，以及 `G65/G66/G66.1 P"Name"` 静态字符串宏名跳转。
+- **G/M 代码 Hover 数据表**: 新增 `src/codeDocs.js`，为常用 G/M 代码提供签名和说明，并用于 Hover 与 M 码补全说明。
+
+### Changed
+- **VSIX 打包工具链**: 固定 `@vscode/vsce` 为本地 devDependency，`npm run package` 使用本地 `vsce`。
+- **README 功能口径**: 移除尚未实现的格式化文档操作说明。
+- **validator 模块拆分**: 将函数静态参数诊断拆到 `src/functionArgumentValidator.js`，将机器人/LTP 单行与跨行状态诊断拆到 `src/robotValidator.js`，将控制流栈诊断拆到 `src/controlFlowValidator.js`。
+
+### Fixed
+- **函数补全 snippet**: 无参函数如 `SLEEP()` / `WAIT()` 不再被补成带占位参数的调用；`STKTOP[index]` 使用方括号 snippet。
+- **配置贡献结构**: `package.json` 直接贡献 `syntecMacro.*` 设置键，与 README 和代码读取口径保持一致。
+- **DocumentSymbol Provider**: 修复 VS Code 大纲 Provider 方法名，避免集成测试宿主报 `provideDocumentSymbols is not a function`。
+
 ## [2.7.0] - 2026-06-28
 
 ### Added

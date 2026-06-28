@@ -7,7 +7,10 @@ const path = require('path');
 const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
-const { normalizeProgramName, buildFileCandidates } = require('./fileResolver');
+const { normalizeProgramName, normalizeSubprogramName, buildFileCandidates } = require('./fileResolver');
+const { buildFunctionSnippet } = require('./completionSnippets');
+const { formatSyntecMacroDocument } = require('./formatter');
+const { getCodeDoc } = require('./codeDocs');
 const packageJson = require('../package.json');
 
 const LANG_ID = 'syntec-macro';
@@ -78,6 +81,18 @@ function createKeywordHover(keyword, range) {
   return new vscode.Hover(md, range);
 }
 
+function createCodeHover(code, range) {
+  const codeDoc = getCodeDoc(code);
+  if (!codeDoc) {
+    return new vscode.Hover(new vscode.MarkdownString(code.startsWith('G') ? '**G代码**: ' + code : '**M代码**: ' + code), range);
+  }
+
+  const md = new vscode.MarkdownString();
+  md.appendCodeblock(codeDoc.sig, 'syntec-macro');
+  md.appendMarkdown('\n' + codeDoc.doc);
+  return new vscode.Hover(md, range);
+}
+
 // =====================
 // 1. Completion Provider
 // =====================
@@ -88,7 +103,7 @@ function provideFunctionCompletions(prefix, items) {
       const item = new vscode.CompletionItem(fn.name, vscode.CompletionItemKind.Function);
       item.detail = fn.sig;
       item.documentation = new vscode.MarkdownString('`syntec-macro\n' + fn.sig + '\n`\n\n' + fn.doc);
-      item.insertText = new vscode.SnippetString(fn.name + '(${1})');
+      item.insertText = new vscode.SnippetString(buildFunctionSnippet(fn));
       items.push(item);
     }
   }
@@ -211,11 +226,7 @@ function provideHover(document, position) {
   const codeRange = getRegexRangeAtPosition(document, position, /\b[GM]\d+(?:\.\d+)?\b/g);
   if (codeRange) {
     const code = document.getText(codeRange).toUpperCase();
-    if (code.startsWith('G')) {
-      return new vscode.Hover(new vscode.MarkdownString('**G代码**: ' + code), codeRange);
-    }
-    const desc = getMCodeDesc(code);
-    return new vscode.Hover(new vscode.MarkdownString('**M代码**: ' + code + '\n' + desc), codeRange);
+    return createCodeHover(code, codeRange);
   }
 
   const symbolOperator = getSymbolOperatorRangeAtPosition(document, position);
@@ -255,16 +266,18 @@ function provideHover(document, position) {
 // =====================
 // 3. Go-to Definition
 // =====================
-function getTargetMatchAtPosition(document, position, regex) {
+function getTargetMatchAtPosition(document, position, regex, targetGroupIndex = 2) {
   const line = document.lineAt(position).text;
   let match;
   regex.lastIndex = 0;
   while ((match = regex.exec(line)) !== null) {
-    const targetStart = match.index + match[1].length;
-    const targetEnd = targetStart + match[2].length;
+    const prefix = match.slice(1, targetGroupIndex).join('');
+    const target = match[targetGroupIndex];
+    const targetStart = match.index + prefix.length;
+    const targetEnd = targetStart + target.length;
     if (position.character >= targetStart && position.character <= targetEnd) {
       return {
-        text: match[2],
+        text: target,
         range: new vscode.Range(position.line, targetStart, position.line, targetEnd)
       };
     }
@@ -292,12 +305,31 @@ function provideDefinition(document, position) {
     return targets;
   }
 
-  // G65 Pxxx → 跳转到宏程序（文件名约定 G0xxx）
-  const g65Target = getTargetMatchAtPosition(document, position, /\b(G65(?:\.1)?\s+)(P\w+)/ig);
-  if (g65Target) {
-    const progNo = g65Target.text.substring(1).toUpperCase();
+  // G65/G66/G66.1 Pxxx → 跳转到宏程序（文件名约定 G0xxx）
+  const macroCallTarget = getTargetMatchAtPosition(document, position, /\b(G6[56](?:\.1)?\s+)(P\w+)/ig);
+  if (macroCallTarget) {
+    const progNo = macroCallTarget.text.substring(1).toUpperCase();
     // 尝试在当前工作区找同名文件
-    const targetFile = findMacroFile(document, progNo);
+    const targetFile = findMacroFile(document, progNo, normalizeProgramName);
+    if (targetFile) {
+      return [new vscode.Location(vscode.Uri.file(targetFile), new vscode.Position(0, 0))];
+    }
+  }
+
+  // G65/G66/G66.1 P"Name" → 跳转到同名宏程序文件（静态字符串字面量）
+  const stringMacroCallTarget = getTargetMatchAtPosition(document, position, /\b(G6[56](?:\.1)?\s+)(P")([^"]+)(")/ig, 3);
+  if (stringMacroCallTarget) {
+    const targetFile = findMacroFile(document, stringMacroCallTarget.text, name => name);
+    if (targetFile) {
+      return [new vscode.Location(vscode.Uri.file(targetFile), new vscode.Position(0, 0))];
+    }
+  }
+
+  // M98/M198 Pxxx → 跳转到 O 副程序（文件名约定 O0xxx）
+  const subprogramCallTarget = getTargetMatchAtPosition(document, position, /\b(M(?:98|198)\s+)(P\w+)/ig);
+  if (subprogramCallTarget) {
+    const progNo = subprogramCallTarget.text.substring(1).toUpperCase();
+    const targetFile = findMacroFile(document, progNo, normalizeSubprogramName);
     if (targetFile) {
       return [new vscode.Location(vscode.Uri.file(targetFile), new vscode.Position(0, 0))];
     }
@@ -307,12 +339,12 @@ function provideDefinition(document, position) {
 }
 
 // 在工作区查找宏程序文件
-function findMacroFile(document, progNo) {
+function findMacroFile(document, progNo, normalizeName = normalizeProgramName) {
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (!folder) return null;
 
   const dir = folder.uri.fsPath;
-  const fileName = normalizeProgramName(progNo);
+  const fileName = normalizeName(progNo);
 
   const candidates = buildFileCandidates(dir, fileName);
 
@@ -454,6 +486,17 @@ function provideDocumentSymbol(document) {
 }
 
 // =====================
+// 6. Formatting
+// =====================
+function provideDocumentFormattingEdits(document, options) {
+  const formatted = formatSyntecMacroDocument(document.getText(), options);
+  if (formatted === document.getText()) return [];
+  const lastLine = document.lineAt(document.lineCount - 1);
+  const fullRange = new vscode.Range(0, 0, document.lineCount - 1, lastLine.text.length);
+  return [vscode.TextEdit.replace(fullRange, formatted)];
+}
+
+// =====================
 // 扩展激活
 // =====================
 function activate(context) {
@@ -482,7 +525,12 @@ function activate(context) {
 
   // Document Symbols
   context.subscriptions.push(
-    vscode.languages.registerDocumentSymbolProvider(selector, { provideDocumentSymbol })
+    vscode.languages.registerDocumentSymbolProvider(selector, { provideDocumentSymbols: provideDocumentSymbol })
+  );
+
+  // Formatting
+  context.subscriptions.push(
+    vscode.languages.registerDocumentFormattingEditProvider(selector, { provideDocumentFormattingEdits })
   );
 
   // Diagnostics

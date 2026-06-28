@@ -17,6 +17,7 @@ desktop.ini
 
 # ==================== IDE & Editor ====================
 .vscode/
+.vscode-test/
 *.swp
 *.swo
 *~

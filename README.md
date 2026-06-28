@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.7.0-blue)
+![Version](https://img.shields.io/badge/version-2.8.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -31,7 +31,7 @@
 | **语法高亮** | `%@MACRO`、控制流、60+ 函数、G/M 代码、变量、字符串 | ✅ |
 | **智能补全** | 输入函数名 → 自动弹出含签名参数的补全列表 | ✅ 增强 v2.0.0 |
 | **悬停文档** | 悬停函数名/G/M 代码 → 显示完整说明、参数解释、使用示例 | ✅ |
-| **代码跳转** | Ctrl+点击 N 标签 → 跳转到定义行；G65 Pxxx → 跳转宏程序 | ✅ |
+| **代码跳转** | Ctrl+点击 N 标签、G65/G66 Pxxx、M98/M198 Pxxx → 跳转定义 | ✅ |
 | **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
 | **代码片段** | 50+ 模板（IF/FOR/DB/IO/报警等） | ✅ |
@@ -43,39 +43,10 @@
 
 ## 📦 安装
 
-### 方法 1：从 VSIX 文件安装（推荐）
-
-1. 下载 `syntec-macro-2.7.0.vsix`
-2. 在 VS Code 中按 `Ctrl+Shift+P`
-3. 输入 `Install from VSIX...`
-4. 选择下载的 `.vsix` 文件
-5. 重新加载窗口
-
-### 方法 2：从 VS Code 市场安装（待发布）
-
-```
-1. 打开 VS Code
-2. 进入扩展市场（Ctrl+Shift+X）
-3. 搜索 "SYNTEC 宏程序"
-4. 点击安装
-```
-
-### 方法 3：从源代码构建
-
-```bash
-# 克隆仓库
-git clone https://github.com/SYNTEC-40101720/syntec-macro-vscode.git
-cd syntec-macro-vscode
-
-# 安装依赖
-npm install
-
-# 打包
-npm run package
-
-# 安装生成的 .vsix 文件
-code --install-extension syntec-macro-2.7.0.vsix
-```
+1. 打开 [GitHub Releases](https://github.com/SYNTEC-40101720/syntec-macro/releases)。
+2. 下载最新发布版本中的 `syntec-macro-*.vsix` 文件。
+3. 在 VS Code 中按 `Ctrl+Shift+P`，执行 `Extensions: Install from VSIX...`。
+4. 选择下载的 `.vsix` 文件，安装完成后重新加载窗口。
 
 ---
 
@@ -114,7 +85,7 @@ M99;  // 子程序返回
 | 查看文档 | 悬停函数名 | 显示完整说明和示例 |
 | 跳转到定义 | `Ctrl+Click` | 点击 N 标签或 G65 Pxxx |
 | 查看大纲 | `Ctrl+Shift+O` | 显示所有 N 标签 |
-| 格式化文档 | 右键 → 格式化 | 自动缩进（需配置） |
+| 格式化文档 | 右键 → 格式化文档 | 调整缩进并移除尾随空白 |
 
 ---
 
@@ -195,7 +166,7 @@ END_CASE;
 |------|--------------|
 | 函数 | 函数签名 + 完整说明 + 使用示例 |
 | 变量 | 变量类型和名称 |
-| G/M 代码 | 代码含义和说明 |
+| G/M 代码 | 签名 + 代码含义和说明 |
 | 关键字 | 关键字说明 |
 
 **示例**：
@@ -211,8 +182,15 @@ ABS(num) -> 数值
 悬停 `M99`：
 
 ```
-M代码: M99
-子程序返回 / 宏程序结束
+M99;
+子程序返回 / 宏程序结束。
+```
+
+悬停 `G65`：
+
+```macro
+G65 P_ L_ ...;
+非模态宏程序呼叫，P 指定宏程序编号，参数映射到 #1~#26。
 ```
 
 ### 4. 代码跳转
@@ -227,16 +205,27 @@ GOTO 100;  (* Ctrl+Click "100" → 跳转到 N100; *)
 N100;  (* 目标标签 *)
 ```
 
-#### b) G65 宏程序跳转
+#### b) G65/G66/G66.1 宏程序跳转
 
 ```macro
 G65 P1000;  (* Ctrl+Click "P1000" → 打开 G1000 *)
+G66 P1000;  (* Ctrl+Click "P1000" → 打开 G1000 *)
+G65 P"NamedMacro";  (* Ctrl+Click "NamedMacro" → 打开 NamedMacro *)
+```
+
+#### c) M98/M198 副程序跳转
+
+```macro
+M98 P8000;   (* Ctrl+Click "P8000" → 打开 O8000 *)
+M198 P8000;  (* Ctrl+Click "P8000" → 打开 O8000 *)
 ```
 
 **搜索规则**（按优先级）：
-1. 工作区根目录：`G1000` 或 `G1000.nc`
+1. 工作区根目录：`G1000` / `O8000` 或对应常见加工档后缀
 2. 工作区子目录（递归搜索深度 5）
 3. `includePath` 配置中的额外路径（v2.0.0 新增）
+
+> 仅静态数字编号和静态字符串宏名可跳转；变量、表达式或运行期生成的目标不会静态跳转。
 
 **配置 includePath**（v2.0.0 新增）：
 
@@ -345,7 +334,7 @@ N100；  (* 错误：中文分号 *)
 
 ### 完整片段列表
 
-详见 [`snippets/syntec-macro.json`](https://github.com/SYNTEC-40101720/syntec-macro-vscode/blob/main/snippets/syntec-macro.json)
+详见 [`snippets/syntec-macro.json`](https://github.com/SYNTEC-40101720/syntec-macro/blob/main/snippets/syntec-macro.json)
 
 ---
 
@@ -480,8 +469,8 @@ G43.16 P1 X10. Y20. Z30. A0. B0. C0.;
 
 ```bash
 # 点击 GitHub 上的 Fork 按钮
-git clone https://github.com/<your-username>/syntec-macro-vscode.git
-cd syntec-macro-vscode
+git clone https://github.com/<your-username>/syntec-macro.git
+cd syntec-macro
 ```
 
 ### 2. 创建分支
@@ -501,7 +490,11 @@ npm install
 # 调试：按 F5 启动扩展开发宿主
 
 # 运行 ESLint 检查
-npx eslint src/
+npm run lint
+
+# 运行单元测试与 VS Code 集成测试
+npm test
+npm run test:integration
 
 # 打包测试
 npm run package
@@ -555,8 +548,8 @@ Copyright (c) 2026 SYNTEC Team
 
 ## 📧 联系
 
-- **Issue Tracker**: [GitHub Issues](https://github.com/SYNTEC-40101720/syntec-macro-vscode/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/SYNTEC-40101720/syntec-macro-vscode/discussions)
+- **Issue Tracker**: [GitHub Issues](https://github.com/SYNTEC-40101720/syntec-macro/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/SYNTEC-40101720/syntec-macro/discussions)
 
 ---
 

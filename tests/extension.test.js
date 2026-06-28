@@ -78,6 +78,15 @@ test('Language associations include common machining extensions', () => {
   assert.ok(!language.extensions.includes('.txt'), '.txt should not be globally associated');
 });
 
+test('Configuration contribution exposes documented setting keys', () => {
+  const packageJson = require('../package.json');
+  const properties = packageJson.contributes.configuration.properties;
+  for (const key of ['syntecMacro.enableDiagnostics', 'syntecMacro.enableCompletions', 'syntecMacro.enableHover', 'syntecMacro.includePath']) {
+    assert.ok(properties[key], `${key} should be contributed as a setting`);
+  }
+  assert.strictEqual(properties.syntecMacro, undefined, 'syntecMacro should not be contributed as a nested object setting');
+});
+
 test('Macro file candidates prefer extensionless file then known macro suffixes', () => {
   const { buildFileCandidates } = require('../src/fileResolver');
   const candidates = buildFileCandidates('C:\\MACRO', 'G0200');
@@ -91,9 +100,28 @@ test('Macro file candidates prefer extensionless file then known macro suffixes'
   assert.ok(!candidates.includes('C:\\MACRO\\G0200.txt'));
 });
 
+test('Program name normalization supports G macros and O subprograms', () => {
+  const { normalizeProgramName, normalizeSubprogramName } = require('../src/fileResolver');
+  assert.strictEqual(normalizeProgramName('200'), 'G0200');
+  assert.strictEqual(normalizeProgramName('G200'), 'G0200');
+  assert.strictEqual(normalizeSubprogramName('200'), 'O0200');
+  assert.strictEqual(normalizeSubprogramName('O200'), 'O0200');
+});
+
 test('M198 exists in mcodes array', () => {
   const { keywords } = require('../src/keywords');
   assert.ok(keywords.mcodes.includes('M198'), 'M198 should be in mcodes');
+});
+
+test('G and M code hover docs include signatures and descriptions', () => {
+  const { getCodeDoc } = require('../src/codeDocs');
+  const g65 = getCodeDoc('G65');
+  assert.ok(g65.sig.includes('G65'), 'G65 hover doc should include signature');
+  assert.ok(g65.doc.includes('非模态宏程序呼叫'), 'G65 hover doc should describe macro call');
+
+  const m98 = getCodeDoc('M98');
+  assert.ok(m98.sig.includes('M98'), 'M98 hover doc should include signature');
+  assert.ok(m98.doc.includes('O 副程序'), 'M98 hover doc should describe O subprogram call');
 });
 
 test('PAUSE exists in flow keywords', () => {
@@ -127,6 +155,27 @@ test('SLEEP takes no parameters', () => {
   const sleep = functions.find(f => f.name === 'SLEEP');
   assert.ok(sleep, 'SLEEP function should exist');
   assert.strictEqual(sleep.sig, 'SLEEP()', 'SLEEP should have no parameters');
+});
+
+test('Function completion snippets match function signatures', () => {
+  const { buildFunctionSnippet } = require('../src/completionSnippets');
+  assert.strictEqual(buildFunctionSnippet({ name: 'ABS', sig: 'ABS(num)' }), 'ABS(${1})');
+  assert.strictEqual(buildFunctionSnippet({ name: 'SLEEP', sig: 'SLEEP()' }), 'SLEEP()');
+  assert.strictEqual(buildFunctionSnippet({ name: 'WAIT', sig: 'WAIT()' }), 'WAIT()');
+  assert.strictEqual(buildFunctionSnippet({ name: 'STKTOP', sig: 'STKTOP[index]' }), 'STKTOP[${1}]');
+});
+
+test('Formatter adjusts indentation without rewriting statements', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = '%@MACRO\nIF #1 = 1 THEN   \n#2 := ABS(-1);\nELSE\n#2 := 0;\nEND_IF;';
+  const expected = '%@MACRO\nIF #1 = 1 THEN\n    #2 := ABS(-1);\nELSE\n    #2 := 0;\nEND_IF;';
+  assert.strictEqual(formatSyntecMacroDocument(input, { insertSpaces: true, tabSize: 4 }), expected);
+});
+
+test('Formatter ignores keywords inside comments and strings', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = '%@MACRO\nMSG("END_IF")\n// IF #1 THEN\n#1 := 1;';
+  assert.strictEqual(formatSyntecMacroDocument(input, { insertSpaces: true, tabSize: 4 }), input);
 });
 
 test('Snippets match function definitions (no stale parameters)', () => {

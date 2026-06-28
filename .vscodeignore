@@ -24,7 +24,9 @@ node_modules/
 # OS & IDE
 .DS_Store
 Thumbs.db
+*.log
 .vscode/
+.vscode-test/
 
 # Git
 .git/

@@ -15,6 +15,16 @@ function normalizeProgramName(progNo) {
   return fileName;
 }
 
+function normalizeSubprogramName(progNo) {
+  let fileName = progNo;
+  if (/^\d+$/.test(fileName)) {
+    fileName = 'O' + fileName.padStart(4, '0');
+  } else if (/^O?\d+$/i.test(fileName)) {
+    fileName = 'O' + fileName.replace(/^O/i, '').padStart(4, '0');
+  }
+  return fileName;
+}
+
 function buildFileCandidates(dir, fileName) {
   return [path.join(dir, fileName), ...MACRO_FILE_EXTENSIONS.map(ext => path.join(dir, fileName + ext))];
 }
@@ -22,5 +32,6 @@ function buildFileCandidates(dir, fileName) {
 module.exports = {
   MACRO_FILE_EXTENSIONS,
   normalizeProgramName,
+  normalizeSubprogramName,
   buildFileCandidates
 };

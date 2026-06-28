@@ -2,11 +2,11 @@
   "name": "syntec-macro",
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SYNTEC-40101720/syntec-macro-vscode"
+    "url": "https://github.com/SYNTEC-40101720/syntec-macro"
   },
   "engines": {
     "vscode": "^1.60.0"
@@ -67,32 +67,29 @@
       }
     },
     "configuration": {
-      "syntecMacro": {
-        "type": "object",
-        "title": "Syntec 宏程序设置",
-        "properties": {
-          "enableDiagnostics": {
-            "type": "boolean",
-            "default": true,
-            "description": "启用语法诊断（IF/END_IF 配对、括号匹配）"
-          },
-          "enableCompletions": {
-            "type": "boolean",
-            "default": true,
-            "description": "启用函数和关键字补全"
-          },
-          "enableHover": {
-            "type": "boolean",
-            "default": true,
-            "description": "启用悬停文档"
-          },
-          "includePath": {
-            "type": "array",
-            "default": [],
-            "description": "G65 宏程序文件额外搜索路径（绝对路径）",
-            "items": {
-              "type": "string"
-            }
+      "title": "Syntec 宏程序设置",
+      "properties": {
+        "syntecMacro.enableDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用语法诊断（IF/END_IF 配对、括号匹配）"
+        },
+        "syntecMacro.enableCompletions": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用函数和关键字补全"
+        },
+        "syntecMacro.enableHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用悬停文档"
+        },
+        "syntecMacro.includePath": {
+          "type": "array",
+          "default": [],
+          "description": "G65 宏程序文件额外搜索路径（绝对路径）",
+          "items": {
+            "type": "string"
           }
         }
       }
@@ -100,10 +97,13 @@
   },
   "scripts": {
     "test": "node tests/validator.test.js && node --test tests/extension.test.js",
-    "package": "npx vsce package --allow-star-activation",
+    "test:integration": "node tests/integration/runTest.js",
+    "package": "vsce package --allow-star-activation",
     "lint": "npx eslint src/ tests/"
   },
   "devDependencies": {
+    "@vscode/test-electron": "3.0.0",
+    "@vscode/vsce": "3.9.2",
     "eslint": "^10.4.0"
   }
 }
