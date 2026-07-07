@@ -12,6 +12,7 @@
 - [功能特性](#功能特性)
 - [安装](#安装)
 - [快速开始](#快速开始)
+- [Copilot 技能复用](#copilot-技能复用)
 - [详细功能](#详细功能)
 - [配置选项](#配置选项)
 - [代码片段](#代码片段)
@@ -22,6 +23,15 @@
 - [故障排除](#故障排除)
 - [贡献](#贡献)
 - [许可证](#许可证)
+
+---
+
+## Copilot 技能复用
+
+仓库内已提供两个可复用的 SYNTEC 技能定义，便于后续在其他环境导入：
+
+- `.copilot/skills/syntec-packaging/SKILL.md`
+- `.copilot/skills/syntec-release-checklist/SKILL.md`
 
 ---
 
