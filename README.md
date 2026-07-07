@@ -28,10 +28,10 @@
 
 ## Copilot 技能复用
 
-仓库内已提供两个可复用的 SYNTEC 技能定义，便于后续在其他环境导入：
+仓库内已提供一份主技能和一份辅助 prompt，便于后续在其他环境导入：
 
-- `.copilot/skills/syntec-packaging/SKILL.md`
-- `.copilot/skills/syntec-release-checklist/SKILL.md`
+- `.copilot/skills/syntec-packaging/SKILL.md`（主规则源）
+- `.copilot/prompts/syntec-release-checklist.prompt.md`（清单生成入口）
 
 ---
 

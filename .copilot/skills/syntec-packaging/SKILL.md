@@ -1,64 +1,55 @@
 ---
 name: syntec-packaging
-description: "Use when: 新代/SYNTEC 域控环境部署、打包 exe、发布 C#/.NET 或 Python 程序、配置版本信息、排查 exe 无法打开、验证 CompanyName/LegalCopyright/SYNTEC 命名、PyInstaller --noupx/windowed、dotnet publish self-contained。"
-argument-hint: "说明应用类型、入口项目/文件、目标名称和输出目录"
+description: "Use when: 新代/SYNTEC 域控环境打包与发布（domain-controlled packaging for Python/C#），包含命名规范、版本信息、PyInstaller 与 dotnet publish、故障排查与发布清单。"
+argument-hint: "说明项目类型、入口文件/项目、目标 exe 名称、版本号、输出目录"
 ---
 
-# SYNTEC Packaging
+# SYNTEC 域控打包技能
 
-## When to Use
+## 适用场景
 
-Use this skill for SYNTEC domain-controlled Windows environments when the user needs to:
+当用户要在 SYNTEC 域控环境部署程序时，使用本技能统一处理：
 
-- Package a Python application with PyInstaller.
-- Publish a C#/.NET desktop application as an exe.
-- Configure executable version metadata so domain policy allows execution.
-- Rename or validate release artifacts that must start with `SYNTEC`.
-- Diagnose packaged exe startup failures in the SYNTEC environment.
-- Create a release checklist or packaging command for deployment.
+- Python 程序 PyInstaller 打包。
+- C#/.NET 程序发布 exe。
+- 域控阻断项检查（文件名、版本信息、语言代码、UPX、ctypes）。
+- 发布前检查清单生成与审查。
 
-## Core Rules
+## 阻断规则（未满足即不可发布）
 
-Treat these as blocking requirements unless the user explicitly says the target is not a SYNTEC domain-controlled environment.
+1. 最终 exe 文件名必须以 `SYNTEC` 开头。
+2. 版本信息中公司和版权必须包含 `SYNTEC`。
+3. 版本号必须是四段数字（如 `1.0.0.0`）。
+4. Python 打包必须禁用 UPX（`--noupx` 或 `upx=False`）。
+5. Python 代码禁止使用 `ctypes` 调用 Windows API（如 `windll` / `ShowWindow`）。
+6. Python 版本资源必须使用中性语言：`StringTable`=`000004B0`，`Translation`=`[0, 1200]`。
+7. Python 打包路径必须为纯英文路径（无中文、空格、特殊字符）。
+8. Python one-dir 产物必须验证 `_internal` 关键文件存在。
 
-1. The final executable file name must start with `SYNTEC` exactly, such as `SYNTEC-OpenPoll.exe` or `SYNTEC_OpenPoll.exe`.
-2. Version metadata must include `SYNTEC` in company and copyright fields.
-3. Copyright metadata must use the release year, such as `Copyright © SYNTEC 2026`.
-4. Version numbers must use four numeric parts, such as `1.0.0.0`.
-5. Python packages must disable UPX compression and avoid `ctypes` Windows API calls.
-6. Python PyInstaller version resources must use neutral language metadata: `StringTable` `000004B0` and `Translation` `[0, 1200]`.
-7. Python packaging must run from a pure English path without spaces, Chinese characters, or special characters.
+## 关键输入信息
 
-## Information to Gather
+执行前优先确认：
 
-Before editing or running packaging commands, identify:
+- 项目类型：Python 或 C#/.NET。
+- 入口：`.py` / `.csproj` / `.sln`。
+- 输出 exe 名称（需以 `SYNTEC` 开头）。
+- 版本号（默认 `1.0.0.0`）。
+- 发布年份（默认当前年份）。
+- 输出目录和目标运行时（默认 `win-x64`）。
 
-- Application type: Python, C#/.NET, Avalonia, WinForms, WPF, console, or GUI.
-- Entry point: `.py`, `.csproj`, `.sln`, or specific project folder.
-- Target executable name, ensuring it starts with `SYNTEC`.
-- Version number, defaulting to `1.0.0.0` if the user has no preference.
-- Release year for copyright metadata, defaulting to the current year.
-- Output directory and runtime target, usually `win-x64` for Windows deployment.
-- Whether the app should show a console window.
+若缺失关键信息且无法推断，只问最少必要问题。
 
-If any blocking detail is missing and cannot be inferred from the project, ask a concise clarifying question.
+## 标准执行流程
 
-## Workflow
+### 1. 选择打包路径
 
-### 1. Classify the Packaging Path
+- Python GUI：`--onedir --windowed --noupx --clean`。
+- Python CLI：`--onedir --noupx --clean`。
+- C#/.NET：配置 `.csproj` 元数据后 `dotnet publish`。
 
-Choose the smallest valid path:
+### 2. 配置版本信息
 
-- Python GUI app: PyInstaller `--onedir --windowed --noupx --clean` with a version file.
-- Python console app: PyInstaller `--onedir --noupx --clean` with a version file.
-- C#/.NET app: project metadata in `.csproj`, then `dotnet publish` for `win-x64`.
-- Existing published output: validate and rename only if metadata is already correct.
-
-Do not apply Python-only requirements to C# builds except the SYNTEC file name and metadata intent.
-
-### 2. Prepare Metadata
-
-For C#/.NET, ensure the project file contains equivalent metadata. Replace `YYYY` with the release year:
+C#/.NET `.csproj` 关键字段：
 
 ```xml
 <Company>SYNTEC</Company>
@@ -69,105 +60,86 @@ For C#/.NET, ensure the project file contains equivalent metadata. Replace `YYYY
 <Version>1.0.0.0</Version>
 ```
 
-Use application-specific values for `Description` and `Product`, but keep `SYNTEC` present.
+Python `version_info.txt` 关键点：
 
-For Python, create or update `version_info.txt` with neutral language metadata. Replace `YYYY` with the release year:
+- `StringTable('000004B0', ...)`
+- `VarStruct('Translation', [0, 1200])`
+- `CompanyName` 与 `LegalCopyright` 含 `SYNTEC`
 
-```python
-VSVersionInfo(
-  ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
-    mask=0x3f,
-    flags=0x0,
-    OS=0x4,
-    fileType=0x1,
-    subtype=0x0,
-    date=(0, 0)
-    ),
-  kids=[
-    StringFileInfo(
-      [
-      StringTable(
-        u'000004B0',
-        [StringStruct(u'CompanyName', u'SYNTEC'),
-        StringStruct(u'FileDescription', u'SYNTEC-应用程序'),
-        StringStruct(u'FileVersion', u'1.0.0.0'),
-        StringStruct(u'ProductName', u'SYNTEC-产品'),
-        StringStruct(u'ProductVersion', u'1.0.0.0'),
-        StringStruct(u'LegalCopyright', u'Copyright © SYNTEC YYYY')])
-      ]),
-    VarFileInfo([VarStruct(u'Translation', [0, 1200])])
-  ]
-)
-```
+### 3. 打包命令模板
 
-### 3. Package
-
-For Python, use:
+Python：
 
 ```powershell
 py -m PyInstaller --onedir --windowed --version-file version_info.txt --name "SYNTEC-应用名" --noupx --clean app.py
 ```
 
-For a Python console app, remove `--windowed` only when a console is required.
-
-For C#/.NET, use:
+C#/.NET：
 
 ```powershell
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o "输出目录"
 ```
 
-If the output exe does not start with `SYNTEC`, rename the final artifact. Prefer configuring the project assembly name when practical so the published name is correct by default.
+### 4. 验证命令模板
 
-### 4. Validate
+Python：
 
-Always include a validation step before declaring the package ready.
+```powershell
+$exe = ".\dist\SYNTEC-应用名\SYNTEC-应用名.exe"
+(Get-Item $exe).VersionInfo | Format-List CompanyName, LegalCopyright, FileVersion, ProductVersion, Language
+Test-Path ".\dist\SYNTEC-应用名\_internal\python311.dll"
+Test-Path ".\dist\SYNTEC-应用名\_internal\_ctypes.pyd"
+```
 
-For C#/.NET:
+C#/.NET：
 
 ```powershell
 $exe = ".\输出目录\SYNTEC-应用名.exe"
 (Get-Item $exe).VersionInfo | Format-List CompanyName, LegalCopyright, FileVersion, ProductVersion, ProductName, FileDescription
 ```
 
-For Python one-dir output:
+## 故障排查优先级
 
+1. Python 打包路径是否纯英文。
+2. exe 名称是否以 `SYNTEC` 开头。
+3. `CompanyName/Company` 与 `LegalCopyright/Copyright` 是否含 `SYNTEC`。
+4. Python 语言代码是否 `000004B0` + `[0, 1200]`。
+5. 是否存在 `ctypes` / `windll` / `ShowWindow`。
+6. 是否已使用 `--noupx` 或 `upx=False`。
+7. one-dir `_internal` 是否包含核心 DLL/PYD。
+
+## 输出格式（发布检查清单）
+
+当用户要求“生成/审查发布清单”时，使用以下结构输出：
+
+````markdown
+# SYNTEC 发布前检查清单
+
+## 项目信息
+- 类型：
+- 入口：
+- 输出 exe：
+- 版本：
+- 发布年份：
+
+## 阻断项
+- [ ] ...
+
+## 打包命令
 ```powershell
-$exe = ".\dist\SYNTEC-应用名\SYNTEC-应用名.exe"
-(Get-Item $exe).VersionInfo | Format-List CompanyName, LegalCopyright, FileVersion, ProductVersion, ProductName, FileDescription, Language
-Test-Path ".\dist\SYNTEC-应用名\_internal\python311.dll"
-Test-Path ".\dist\SYNTEC-应用名\_internal\_ctypes.pyd"
+...
 ```
 
-Validation passes only when:
+## 验证命令
+```powershell
+...
+```
 
-- The executable exists and starts with `SYNTEC`.
-- Company and copyright metadata contain `SYNTEC`.
-- Version fields use four numeric components.
-- Python `_internal` dependencies exist for one-dir builds.
-- The app launches locally, or the user confirms a local launch test when GUI launch cannot be automated.
+## 人工验收
+- [ ] 双击启动
+- [ ] 常用 GUI/CLI 冒烟
+- [ ] 目标域控环境试运行
 
-### 5. Diagnose Failures
-
-Use this order for SYNTEC domain failures:
-
-1. Check whether the packaging path contains non-English characters, spaces, or special characters for Python builds.
-2. Check whether the exe file name starts with `SYNTEC`.
-3. Check `CompanyName`/`Company` and `LegalCopyright`/`Copyright` for `SYNTEC`.
-4. For Python, check neutral language metadata: `000004B0` and `[0, 1200]`.
-5. For Python, search for `ctypes`, `windll`, `ShowWindow`, or direct Windows API calls.
-6. Confirm PyInstaller used `--noupx` or the spec file has `upx=False`.
-7. Confirm Python one-dir `_internal` includes core DLL/PYD files.
-8. Consider antivirus, code-signing, or domain whitelist only after the above checks pass.
-
-## Quality Bar
-
-A good answer or edit from this skill should produce one of these outcomes:
-
-- A ready-to-run packaging command with SYNTEC-compliant naming and metadata.
-- A corrected project/version metadata file.
-- A release checklist tailored to the project type.
-- A focused diagnosis explaining which SYNTEC requirement failed and how to fix it.
-
-When modifying files, keep changes narrow: metadata, packaging scripts, version resources, or documentation directly related to SYNTEC deployment.
+## 风险和待确认
+- ...
+````
