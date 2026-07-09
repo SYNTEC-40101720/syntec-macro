@@ -405,6 +405,17 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
     });
   }
 
+  const inequalityRe = /!=/g;
+  while ((match = inequalityRe.exec(clean)) !== null) {
+    diagnostics.push({
+      line: lineNum,
+      col: match.index,
+      endCol: match.index + 2,
+      msg: '!= 不支持；不等于比较请使用 <>',
+      severity: 'error'
+    });
+  }
+
   return diagnostics;
 }
 

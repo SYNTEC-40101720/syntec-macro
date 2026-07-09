@@ -264,7 +264,9 @@ test('Grammar highlights documented operators and variable forms', () => {
   assert.match('MOD', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
   assert.doesNotMatch('DIV', new RegExp(patternByName['keyword.operator.arithmetic.syntec-macro']));
   assert.match('=', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
+  assert.match('<>', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
   assert.doesNotMatch('==', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
+  assert.doesNotMatch('!=', new RegExp(patternByName['keyword.operator.comparison.syntec-macro']));
   assert.match('#123', new RegExp(patternByName['variable.language.local.syntec-macro']));
   assert.match('#[10+#3]', new RegExp(patternByName['variable.language.local.syntec-macro']));
   assert.doesNotMatch('#TEMP', new RegExp(patternByName['variable.language.local.syntec-macro']));

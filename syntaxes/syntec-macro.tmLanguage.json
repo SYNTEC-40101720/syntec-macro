@@ -76,7 +76,7 @@
       "name": "keyword.operator.assignment.syntec-macro"
     },
     {
-      "match": "<>|<=|>=|(?<![:=])=(?!=)|<|>",
+      "match": "<>|<=|>=|(?<![:=!])=(?!=)|<|>",
       "name": "keyword.operator.comparison.syntec-macro"
     },
     {

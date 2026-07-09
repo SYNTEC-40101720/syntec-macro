@@ -320,6 +320,9 @@ console.log('\n[16] 不支持的语法检测');
   eq('== 不支持，等于比较请使用 =',
     '%@MACRO\nIF #1 == 100 THEN\nEND_IF',
     [['error', '== 不支持']]);
+  eq('!= 不支持，不等于比较请使用 <>',
+    '%@MACRO\nIF #1 != 100 THEN\nEND_IF',
+    [['error', '!= 不支持']]);
   eq('命名局部变量 #TEMP 报错',
     '%@MACRO\n#TEMP := 1;',
     [['error', '#TEMP 是不支持的命名变量']]);
