@@ -12,7 +12,6 @@
 - [功能特性](#功能特性)
 - [安装](#安装)
 - [快速开始](#快速开始)
-- [Copilot 技能复用](#copilot-技能复用)
 - [详细功能](#详细功能)
 - [配置选项](#配置选项)
 - [代码片段](#代码片段)
@@ -23,15 +22,6 @@
 - [故障排除](#故障排除)
 - [贡献](#贡献)
 - [许可证](#许可证)
-
----
-
-## Copilot 技能复用
-
-仓库内已提供一份主技能和一份辅助 prompt，便于后续在其他环境导入：
-
-- `.copilot/skills/syntec-packaging/SKILL.md`（主规则源）
-- `.copilot/prompts/syntec-release-checklist.prompt.md`（清单生成入口）
 
 ---
 

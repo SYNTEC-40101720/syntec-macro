@@ -9,7 +9,6 @@ Macro/
 test-demo.nc
 
 # Development files
-.copilot/
 .github/
 .trae/
 config/
