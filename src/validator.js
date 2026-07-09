@@ -20,15 +20,6 @@ const {
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
 
-// 支援但不推荐的替代结束关键字
-const PREFERRED_CLOSERS = {
-  'ENDIF': 'END_IF',
-  'ENDFOR': 'END_FOR',
-  'ENDWHILE': 'END_WHILE',
-  'ENDCASE': 'END_CASE',
-  'ENDREPEAT': 'END_REPEAT'
-};
-
 // ============================================================
 // 工具函数
 // ============================================================
@@ -362,18 +353,6 @@ function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
 
   const diagnostics = [];
 
-  const closerRe = /\b(ENDIF|ENDFOR|ENDWHILE|ENDCASE|ENDREPEAT)\b/g;
-  let match;
-  while ((match = closerRe.exec(clean)) !== null) {
-    const keyword = match[1];
-    const preferred = PREFERRED_CLOSERS[keyword];
-    diagnostics.push({
-      line: lineNum, col: match.index, endCol: match.index + keyword.length,
-      msg: `${keyword} 支援但不推荐；建议使用 ${preferred}`,
-      severity: 'warning'
-    });
-  }
-
   const assignmentRe = /^\s*(?:[#@](?:\d+|\[[^\]]+\])|(?:AR|MAR)(?:\d+|\[[^\]]+\]))\s*=(?!=)/;
   const assignmentMatch = clean.match(assignmentRe);
   if (assignmentMatch) {
@@ -390,7 +369,7 @@ function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
 
 function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
-  if (!clean.trim()) return [];
+  if (!clean.trim() || isMacroHeaderLine(clean.trim())) return [];
 
   const diagnostics = [];
   let match;
@@ -412,6 +391,59 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
       col: match.index,
       endCol: match.index + 2,
       msg: '!= 不支持；不等于比较请使用 <>',
+      severity: 'error'
+    });
+  }
+
+  const unsupportedOperators = [
+    { re: /&&/g, msg: '&& 不支持；逻辑且请使用 AND 或 &' },
+    { re: /\|\|/g, msg: '|| 不支持；逻辑或请使用 OR' },
+    { re: /\+=/g, msg: '+= 不支持；请写成 #1 := #1 + 1 这类完整赋值' },
+    { re: /\+\+/g, msg: '++ 不支持；请写成 #1 := #1 + 1 这类完整赋值' },
+    { re: /(?<=\S)\s*%(?!=)\s*(?=\S)/g, msg: '% 不支持；取模请使用 MOD，且仅适用于 Long 型态' },
+    { re: /!(?!=)/g, msg: '! 不支持；NOT 是补数运算，逻辑条件请写成明确比较' }
+  ];
+  for (const rule of unsupportedOperators) {
+    while ((match = rule.re.exec(clean)) !== null) {
+      diagnostics.push({
+        line: lineNum,
+        col: match.index,
+        endCol: match.index + match[0].length,
+        msg: rule.msg,
+        severity: 'error'
+      });
+    }
+  }
+
+  const staticModRe = /((?:\d+\.\d*|\.\d+)|\d+)\s+MOD\s+((?:\d+\.\d*|\.\d+)|\d+)/ig;
+  while ((match = staticModRe.exec(clean)) !== null) {
+    if (match[1].includes('.') || match[2].includes('.')) {
+      diagnostics.push({
+        line: lineNum,
+        col: match.index,
+        endCol: match.index + match[0].length,
+        msg: 'MOD 仅适用于 Long 型态；静态数字操作数不可带小数点',
+        severity: 'error'
+      });
+    }
+  }
+
+  const fanucComparisonRe = /\b(EQ|NE|GT|GE|LT|LE)\b/g;
+  const fanucReplacement = {
+    EQ: '=',
+    NE: '<>',
+    GT: '>',
+    GE: '>=',
+    LT: '<',
+    LE: '<='
+  };
+  while ((match = fanucComparisonRe.exec(clean)) !== null) {
+    const keyword = match[1];
+    diagnostics.push({
+      line: lineNum,
+      col: match.index,
+      endCol: match.index + keyword.length,
+      msg: `${keyword} 不支持；请使用 ${fanucReplacement[keyword]}`,
       severity: 'error'
     });
   }

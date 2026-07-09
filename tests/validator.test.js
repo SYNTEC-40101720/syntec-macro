@@ -257,19 +257,14 @@ console.log('\n[12] GOTO 标签');
 // ============================================================
 console.log('\n[13] 替代关键字（不带下划线）');
 {
-  eq('ENDIF 等效于 END_IF，但建议 END_IF', 'IF #1=1 THEN\nENDIF',
-    [['warning', 'ENDIF 支援但不推荐']]);
-  eq('ENDFOR 等效于 END_FOR，但建议 END_FOR', 'FOR #1=1 TO 10 DO\nENDFOR',
-    [['warning', 'ENDFOR 支援但不推荐']]);
-  eq('ENDCASE 等效于 END_CASE，但建议 END_CASE', 'CASE #51 OF\nENDCASE',
-    [['warning', 'ENDCASE 支援但不推荐']]);
-  eq('ENDWHILE 等效于 END_WHILE，但建议 END_WHILE', 'WHILE #1=1 DO\nENDWHILE',
-    [['warning', 'ENDWHILE 支援但不推荐']]);
-  eq('ENDREPEAT 等效于 END_REPEAT，但建议 END_REPEAT', 'REPEAT\nUNTIL #1=1 ENDREPEAT',
-    [['warning', 'ENDREPEAT 支援但不推荐']]);
+  eq('ENDIF 等效于 END_IF，正式支援', 'IF #1=1 THEN\nENDIF', []);
+  eq('ENDFOR 等效于 END_FOR，正式支援', 'FOR #1=1 TO 10 DO\nENDFOR', []);
+  eq('ENDCASE 等效于 END_CASE，正式支援', 'CASE #51 OF\nENDCASE', []);
+  eq('ENDWHILE 等效于 END_WHILE，正式支援', 'WHILE #1=1 DO\nENDWHILE', []);
+  eq('ENDREPEAT 等效于 END_REPEAT，正式支援', 'REPEAT\nUNTIL #1=1 ENDREPEAT', []);
   eq('混用标准与替代形式 正确',
     'IF #1=1 THEN\nFOR #2=1 TO 10 DO\nENDFOR\nENDIF',
-    [['warning', 'ENDFOR 支援但不推荐'], ['warning', 'ENDIF 支援但不推荐']]);
+    []);
 }
 
 // ============================================================
@@ -323,6 +318,34 @@ console.log('\n[16] 不支持的语法检测');
   eq('!= 不支持，不等于比较请使用 <>',
     '%@MACRO\nIF #1 != 100 THEN\nEND_IF',
     [['error', '!= 不支持']]);
+  eq('% 不支持，取模请使用 MOD',
+    '%@MACRO\n#1 := 10 % 3;',
+    [['error', '% 不支持']]);
+  eq('&& 不支持，逻辑且请使用 AND 或 &',
+    '%@MACRO\nIF (#1 > 0) && (#2 < 10) THEN\nEND_IF',
+    [['error', '&& 不支持']]);
+  eq('|| 不支持，逻辑或请使用 OR',
+    '%@MACRO\nIF (#1 = 1) || (#1 = 2) THEN\nEND_IF',
+    [['error', '|| 不支持']]);
+  eq('! 不支持，NOT 是补数而非 C 风格逻辑非',
+    '%@MACRO\nIF !#1 THEN\nEND_IF',
+    [['error', '! 不支持']]);
+  eq('MOD 静态小数操作数不支援',
+    '%@MACRO\n#1 := 10.0 MOD 3;\n#2 := 10 MOD 3.0;\n#3 := .5 MOD 2;',
+    [['error', 'MOD 仅适用于 Long'], ['error', 'MOD 仅适用于 Long'], ['error', 'MOD 仅适用于 Long']]);
+  eq('MOD 静态整数操作数支援',
+    '%@MACRO\n#1 := 10 MOD 3;', []);
+  eq('+= 不支持，需使用完整赋值',
+    '%@MACRO\n#1 += 1;',
+    [['error', '+= 不支持']]);
+  eq('++ 不支持，无自增语法',
+    '%@MACRO\n#1++;',
+    [['error', '++ 不支持']]);
+  eq('FANUC 比较关键字不支持',
+    '%@MACRO\nIF #1 EQ 1 THEN\nEND_IF\nIF #2 NE 0 THEN\nEND_IF\nIF #3 GT 0 THEN\nEND_IF\nIF #4 GE 0 THEN\nEND_IF\nIF #5 LT 0 THEN\nEND_IF\nIF #6 LE 0 THEN\nEND_IF',
+    [['error', 'EQ 不支持'], ['error', 'NE 不支持'], ['error', 'GT 不支持'], ['error', 'GE 不支持'], ['error', 'LT 不支持'], ['error', 'LE 不支持']]);
+  eq('不支持运算子在字符串和注释中不报错',
+    '%@MACRO\nMSG("% && || ! += ++ EQ NE GT GE LT LE")\n// % && || ! += ++ EQ\n(* NE GT GE LT LE *)\n#1 := 10 MOD 3;', []);
   eq('命名局部变量 #TEMP 报错',
     '%@MACRO\n#TEMP := 1;',
     [['error', '#TEMP 是不支持的命名变量']]);

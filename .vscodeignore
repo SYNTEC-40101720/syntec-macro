@@ -1,12 +1,15 @@
 # Documentation (not needed in VSIX)
 README.md
 docs/
+ROADMAP.md
 release-notes-*.md
 
 # Local reference samples
 Macro/
+test-demo.nc
 
 # Development files
+.copilot/
 .github/
 .trae/
 config/
