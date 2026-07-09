@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.2] - 2026-07-09
+
+### Added
+- **新代宏程序知识图谱**: 新增 `docs/新代宏程序知识图谱.md`，并从 README 链接，便于快速理解语法与能力边界。
+- **Copilot 复用资料**: 新增 `.copilot/skills/syntec-packaging/SKILL.md` 与 `.copilot/prompts/syntec-release-checklist.prompt.md`，沉淀 SYNTEC 发布检查资料。
+
+### Changed
+- **语法高亮**: 补充不等号 `<>` 的运算子高亮。
+- **VSIX 打包内容**: 更新 `.vscodeignore`，排除 `.copilot` 资料与 `.vscode` 本地配置。
+
+### Fixed
+- **语法诊断**: 对不支持的 `DIV`、`==` 与 `!=` 运算子提供明确报错与替代写法提示。
+- **语法诊断**: 支援合法不等号 `<>`，避免被误判为不支持语法。
+
 ## [2.8.1] - 2026-06-28
 
 ### Added
