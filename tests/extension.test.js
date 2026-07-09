@@ -88,16 +88,17 @@ test('Configuration contribution exposes documented setting keys', () => {
 });
 
 test('Macro file candidates prefer extensionless file then known macro suffixes', () => {
+  const path = require('path');
   const { buildFileCandidates } = require('../src/fileResolver');
   const candidates = buildFileCandidates('C:\\MACRO', 'G0200');
-  assert.strictEqual(candidates[0], 'C:\\MACRO\\G0200');
-  assert.ok(candidates.includes('C:\\MACRO\\G0200.nc'));
-  assert.ok(candidates.includes('C:\\MACRO\\G0200.cnc'));
-  assert.ok(candidates.includes('C:\\MACRO\\G0200.demo'));
-  assert.ok(!candidates.includes('C:\\MACRO\\G0200.macro'));
-  assert.ok(!candidates.includes('C:\\MACRO\\G0200.scp'));
-  assert.ok(!candidates.includes('C:\\MACRO\\G0200.G'));
-  assert.ok(!candidates.includes('C:\\MACRO\\G0200.txt'));
+  assert.strictEqual(candidates[0], path.join('C:\\MACRO', 'G0200'));
+  assert.ok(candidates.includes(path.join('C:\\MACRO', 'G0200.nc')));
+  assert.ok(candidates.includes(path.join('C:\\MACRO', 'G0200.cnc')));
+  assert.ok(candidates.includes(path.join('C:\\MACRO', 'G0200.demo')));
+  assert.ok(!candidates.includes(path.join('C:\\MACRO', 'G0200.macro')));
+  assert.ok(!candidates.includes(path.join('C:\\MACRO', 'G0200.scp')));
+  assert.ok(!candidates.includes(path.join('C:\\MACRO', 'G0200.G')));
+  assert.ok(!candidates.includes(path.join('C:\\MACRO', 'G0200.txt')));
 });
 
 test('Program name normalization supports G macros and O subprograms', () => {
