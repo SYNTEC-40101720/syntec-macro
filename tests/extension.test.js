@@ -373,3 +373,30 @@ test('Validator diagnostics expose stable codes for static function arguments', 
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
   }
 });
+
+test('Validator diagnostics expose stable codes for robot syntax issues', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;');
+  for (const code of [
+    DiagnosticCode.ROBOT_DEPRECATED_MOVJ_II,
+    DiagnosticCode.ROBOT_DIRECT_ARG_EQUALS,
+    DiagnosticCode.ROBOT_UNSUPPORTED_MOVC_POINT_ARG,
+    DiagnosticCode.ROBOT_TOOLCOR_T_ARG,
+    DiagnosticCode.ROBOT_TOOLCORON_DEPRECATED,
+    DiagnosticCode.ROBOT_TOOLCOR_CLEAR,
+    DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT,
+    DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG,
+    DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG,
+    DiagnosticCode.ROBOT_STITCH_ARG_CONFLICT,
+    DiagnosticCode.ROBOT_STITCH_MISSING_ARG,
+    DiagnosticCode.ROBOT_STITCH_L_INTEGER,
+    DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS,
+    DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL,
+    DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED,
+    DiagnosticCode.ROBOT_SWAITSIG_LIMIT
+  ]) {
+    assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
+  }
+});

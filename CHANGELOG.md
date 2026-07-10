@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.10] - 2026-07-11
+
+### Added
+- **机器人/LTP 诊断 code**: 为机器人直接引数误用 `=`、旧式/非正式写法、平滑引数冲突、MOVC 成对规则、同步输出限制与特殊区间禁用等诊断提供稳定 code。
+- **机器人/LTP Quick Fix**: 为安全可判定的写法提供自动修复，包括移除直接引数 `=`、`MOVJ-II` 改为 `MOVJ`、`TOOLCORON` 改为 `TOOLCOR`、`T_` 改为 `P_`、`TOOLCOR CLEAR` 改为 `TOOLCOR P0`。
+- **机器人/LTP 集成测试**: 覆盖机器人语法 Quick Fix 在 VS Code 宿主中的实际应用结果。
+
 ## [2.8.9] - 2026-07-11
 
 ### Added

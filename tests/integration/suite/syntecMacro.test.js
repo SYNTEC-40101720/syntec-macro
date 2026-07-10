@@ -406,6 +406,43 @@ const tests = [
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }
     }
+  },
+  {
+    name: 'robot syntax quick fixes replace safe forms',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\nMOVJ X=100. FJ50;\nMOVJ-II X100.;\nTOOLCORON P1;\nTOOLCOR T1;\nTOOLCOR CLEAR;');
+
+      async function applyFirstFixFor(code, title) {
+        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === code));
+        const diagnostic = diagnostics.find(d => d.code === code);
+        assert.ok(diagnostic, `${code} diagnostic should be emitted`);
+        const actions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          diagnostic.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const action = actions.find(item => item.title === title);
+        assert.ok(action, `${title} quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}`);
+        await vscode.workspace.applyEdit(action.edit);
+        await new Promise(resolve => setTimeout(resolve, 450));
+      }
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        await applyFirstFixFor('SYNTEC_ROBOT_DIRECT_ARG_EQUALS', '移除直接引数 =');
+        await applyFirstFixFor('SYNTEC_ROBOT_DEPRECATED_MOVJ_II', '改为 MOVJ');
+        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCORON_DEPRECATED', '改为 TOOLCOR');
+        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCOR_T_ARG', '改为 P 引数');
+        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCOR_CLEAR', '改为 TOOLCOR P0');
+
+        assert.strictEqual(document.getText(), '%@MACRO\nMOVJ X100. FJ50;\nMOVJ X100.;\nTOOLCOR P1;\nTOOLCOR P1;\nTOOLCOR P0;');
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
   }
 ];
 
