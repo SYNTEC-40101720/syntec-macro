@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.9] - 2026-07-11
+
+### Added
+- **函数静态诊断 code**: 为数学函数定义域、I/O 点位范围、I/O 写入值、R 寄存器/bit 范围、ALARM/MSG ID、整数参数、CHKINF 类别与 OPEN COM 口径提供稳定诊断 code。
+- **函数诊断说明 action**: 对无法安全自动修复的函数静态参数问题提供规则说明 Quick Fix。
+- **函数诊断集成测试**: 覆盖函数静态诊断说明 action 在 VS Code 宿主中的行为。
+
 ## [2.8.8] - 2026-07-11
 
 ### Added

@@ -353,3 +353,23 @@ test('Validator diagnostics expose stable codes for variable issues', () => {
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
   }
 });
+
+test('Validator diagnostics expose stable codes for static function arguments', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\n#1 := ATAN2(0, 0);\n#2 := READDI(512);\nSETDO(3, 2);\n#3 := READRREGBIT(70000, 32);\nALARM(70000);\n#4 := PARAM(1.2);\n#5 := CHKINF(6, "A");\nOPEN("COM1");');
+  for (const code of [
+    DiagnosticCode.FUNCTION_MATH_DOMAIN,
+    DiagnosticCode.FUNCTION_IO_POINT_RANGE,
+    DiagnosticCode.FUNCTION_IO_VALUE_RANGE,
+    DiagnosticCode.FUNCTION_R_REGISTER_RANGE,
+    DiagnosticCode.FUNCTION_R_BIT_RANGE,
+    DiagnosticCode.FUNCTION_ID_RANGE,
+    DiagnosticCode.FUNCTION_INTEGER_ARGUMENT,
+    DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE,
+    DiagnosticCode.FUNCTION_OPEN_COM_PORT
+  ]) {
+    assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
+  }
+});

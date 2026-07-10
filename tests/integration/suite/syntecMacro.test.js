@@ -369,6 +369,43 @@ const tests = [
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }
     }
+  },
+  {
+    name: 'static function diagnostics expose help actions',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\n#1 := ATAN2(0, 0);\n#2 := READDI(512);\nSETDO(3, 2);\nOPEN("COM1");');
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        const diagnostics = await waitForDiagnostics(document.uri, items =>
+          items.some(d => d.code === 'SYNTEC_FUNCTION_MATH_DOMAIN') &&
+          items.some(d => d.code === 'SYNTEC_FUNCTION_IO_POINT_RANGE') &&
+          items.some(d => d.code === 'SYNTEC_FUNCTION_IO_VALUE_RANGE') &&
+          items.some(d => d.code === 'SYNTEC_FUNCTION_OPEN_COM_PORT')
+        );
+
+        const expected = [
+          ['SYNTEC_FUNCTION_MATH_DOMAIN', '查看函数定义域说明'],
+          ['SYNTEC_FUNCTION_IO_POINT_RANGE', '查看 I/O 点位范围说明'],
+          ['SYNTEC_FUNCTION_IO_VALUE_RANGE', '查看 I/O 写入值说明'],
+          ['SYNTEC_FUNCTION_OPEN_COM_PORT', '查看 OPEN COM 说明']
+        ];
+        for (const [code, title] of expected) {
+          const diagnostic = diagnostics.find(d => d.code === code);
+          const actions = await vscode.commands.executeCommand(
+            'vscode.executeCodeActionProvider',
+            document.uri,
+            diagnostic.range,
+            vscode.CodeActionKind.QuickFix.value
+          );
+          assert.ok(actions.some(action => action.title === title), `${code} should provide ${title}`);
+        }
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
   }
 ];
 

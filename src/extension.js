@@ -525,7 +525,16 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.NAMED_LOCAL_VARIABLE]: '新代 MACRO 局部变量使用数字编号，例如 #1、#100 或 #[表达式]；#TEMP 这类命名局部变量不支持，需改为规划好的数字变量。',
   [DiagnosticCode.NAMED_GLOBAL_VARIABLE]: '新代 MACRO 公用变量使用数字编号，例如 @1、@1000 或 @[表达式]；@TEMP 这类命名公用变量不支持，需改为规划好的数字变量。',
   [DiagnosticCode.VACANT_ASSIGNMENT]: '#0/@0 为 VACANT，只读并表示空值；请不要作为赋值目标，可改用可写的数字变量。',
-  [DiagnosticCode.INVALID_APP_VARIABLE_NUMBER]: 'AR/MAR APP 变量编号必须为非负整数；请使用 AR0、MAR53、AR[#1] 这类合法编号形式。'
+  [DiagnosticCode.INVALID_APP_VARIABLE_NUMBER]: 'AR/MAR APP 变量编号必须为非负整数；请使用 AR0、MAR53、AR[#1] 这类合法编号形式。',
+  [DiagnosticCode.FUNCTION_MATH_DOMAIN]: { title: '查看函数定义域说明', message: '该数学函数的静态参数落在控制器定义域外；请调整为控制器允许的数值范围，避免运行时 COR 运算域错误。' },
+  [DiagnosticCode.FUNCTION_IO_POINT_RANGE]: { title: '查看 I/O 点位范围说明', message: 'READ/SET I/O 点编号需为静态整数且落在控制器支持范围内；常见 DI/DO/A 点编号范围为 0~511。' },
+  [DiagnosticCode.FUNCTION_IO_VALUE_RANGE]: { title: '查看 I/O 写入值说明', message: 'SETDO、SETABIT、SETRREGBIT 的写入值需为 0 或 1；请根据实际开/关意图调整。' },
+  [DiagnosticCode.FUNCTION_R_REGISTER_RANGE]: { title: '查看 R 寄存器范围说明', message: 'READRREGBIT/SETRREGBIT 的 R 编号需为 0~65535 的整数。' },
+  [DiagnosticCode.FUNCTION_R_BIT_RANGE]: { title: '查看 R bit 范围说明', message: 'READRREGBIT/SETRREGBIT 的 bit 编号需为 0~31 的整数。' },
+  [DiagnosticCode.FUNCTION_ID_RANGE]: { title: '查看 ID 范围说明', message: 'ALARM/MSG 的静态 ID 需为 0~65535 的整数。' },
+  [DiagnosticCode.FUNCTION_INTEGER_ARGUMENT]: { title: '查看整数参数说明', message: '该函数的静态参数需为整数；请移除小数点或改用运行期变量表达式。' },
+  [DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE]: { title: '查看 CHKINF 类别说明', message: 'CHKINF 类别编号需为 1~5 的整数。' },
+  [DiagnosticCode.FUNCTION_OPEN_COM_PORT]: { title: '查看 OPEN COM 说明', message: '串口传输埠语法为 OPEN("COM")；OPEN("COM1") 会按普通文件名处理。' }
 };
 
 function getDiagnosticText(document, diagnostic) {
@@ -551,6 +560,11 @@ function createDiagnosticHelpAction(diagnostic, title, message) {
   };
   action.diagnostics = [diagnostic];
   return action;
+}
+
+function getDiagnosticHelpAction(diagnostic, entry) {
+  if (typeof entry === 'string') return createDiagnosticHelpAction(diagnostic, '查看变量规则说明', entry);
+  return createDiagnosticHelpAction(diagnostic, entry.title, entry.message);
 }
 
 function getDiagnosticCode(diagnostic) {
@@ -630,7 +644,7 @@ function provideCodeActions(document, _range, context) {
       const replacement = DIAGNOSTIC_REPLACEMENTS[code];
       if (replacement) actions.push(createReplacementAction(document, diagnostic, replacement.title, replacement.text));
     } else if (Object.prototype.hasOwnProperty.call(DIAGNOSTIC_HELP, code)) {
-      actions.push(createDiagnosticHelpAction(diagnostic, '查看变量规则说明', DIAGNOSTIC_HELP[code]));
+      actions.push(getDiagnosticHelpAction(diagnostic, DIAGNOSTIC_HELP[code]));
     }
   }
   return actions;
