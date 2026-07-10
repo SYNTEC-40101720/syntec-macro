@@ -16,7 +16,7 @@ const {
 const {
   createControlFlowState,
   validateCaseLineStyle,
-  validateControlFlowKeyword,
+  validateControlFlowLine,
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
 
@@ -77,6 +77,50 @@ function stripCommentsAndStringsWithState(line, lineStartInBlock = false) {
 
 function stripCommentsAndStrings(line) {
   return stripCommentsAndStringsWithState(line).text;
+}
+
+function getStatementTerminatorInfo(cleanLine) {
+  return {
+    hasSemicolon: /;\s*$/.test(cleanLine),
+    endCol: cleanLine.search(/\s*$/)
+  };
+}
+
+function classifyStatement(cleanLine) {
+  const trimmed = cleanLine.trim();
+  if (!trimmed) return 'blank';
+  if (isMacroHeaderLine(trimmed)) return 'macroHeader';
+  if (/^%$/.test(trimmed)) return 'programDelimiter';
+
+  const statement = trimmed.replace(/;\s*$/, '').trim();
+  if (/^(?:IF|ELSEIF|ELSIF)\b.*\bTHEN\b/i.test(statement) ||
+      /^FOR\b.*\bDO\b/i.test(statement) ||
+      /^WHILE\b.*\bDO\b/i.test(statement) ||
+      /^CASE\b.*\bOF\b/i.test(statement) ||
+      /^REPEAT\b\s*$/i.test(statement)) {
+    return 'blockHeader';
+  }
+  if (/^ELSE\b\s*$/i.test(statement)) return 'branch';
+  if (/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*$/.test(statement)) {
+    return 'caseLabel';
+  }
+  if (/^[#@\[(+\-.\d].*(?:<>|<=|>=|<|>)/.test(statement)) return 'danglingComparison';
+  return 'statement';
+}
+
+function createLineContext(raw, lineStartInBlock) {
+  const stripped = stripCommentsAndStringsWithState(raw, lineStartInBlock);
+  const clean = stripped.text;
+  return {
+    raw,
+    clean,
+    trimmed: clean.trim(),
+    statementKind: classifyStatement(clean),
+    terminator: getStatementTerminatorInfo(clean),
+    positions: getKeywordPositions(clean, true).sort((a, b) => a.col - b.col),
+    command: getCommand(clean),
+    inBlockComment: stripped.inBlockComment
+  };
 }
 
 // 获取关键字在行中的位置（防止 ENDREPEAT/REPEAT 等子串冲突）
@@ -482,19 +526,27 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
 
   const diagnostics = [];
   if (/^%$/.test(trimmed) || /[；：，。！？【】《》（）""''、]/.test(trimmed)) return diagnostics;
-  if (/;\s*$/.test(clean)) return diagnostics;
-
-  const controlStructureRe = /^\s*(?:IF|ELSEIF|ELSIF|ELSE|FOR|WHILE|REPEAT|UNTIL|CASE|END_IF|END_FOR|END_WHILE|END_CASE|END_REPEAT|ENDIF|ENDFOR|ENDWHILE|ENDCASE|ENDREPEAT)\b/i;
-  const emptyCaseBranchRe = /^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*$/;
-  const danglingComparisonRe = /^[#@\[(+\-.\d].*(?:<>|<=|>=|<|>)/;
-  if (controlStructureRe.test(clean) || emptyCaseBranchRe.test(clean) || danglingComparisonRe.test(trimmed)) return diagnostics;
-
-  if (/\S/.test(clean)) {
-    const endCol = clean.search(/\s*$/);
+  const terminator = getStatementTerminatorInfo(clean);
+  const kind = classifyStatement(clean);
+  if (terminator.hasSemicolon && ['blockHeader', 'branch', 'caseLabel'].includes(kind)) {
     diagnostics.push({
       line: lineNum,
-      col: Math.max(0, endCol),
-      endCol: Math.max(0, endCol + 1),
+      col: Math.max(0, terminator.endCol),
+      endCol: Math.max(0, terminator.endCol + 1),
+      msg: '控制结构行不应以 ; 结尾',
+      severity: 'error'
+    });
+    return diagnostics;
+  }
+  if (terminator.hasSemicolon) return diagnostics;
+
+  if (['blockHeader', 'branch', 'caseLabel', 'danglingComparison'].includes(kind)) return diagnostics;
+
+  if (/\S/.test(clean)) {
+    diagnostics.push({
+      line: lineNum,
+      col: Math.max(0, terminator.endCol),
+      endCol: Math.max(0, terminator.endCol + 1),
       msg: '语句应以 ; 结尾',
       severity: 'error'
     });
@@ -577,35 +629,25 @@ function validateDocument(content) {
   // === 主循环：逐行处理关键字 ===
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
-    const raw = lines[i];
     const lineStartInBlock = inBlockComment;
-    const stripped = stripCommentsAndStringsWithState(raw, lineStartInBlock);
-    const clean = stripped.text;
-    inBlockComment = stripped.inBlockComment;
-    const positions = getKeywordPositions(clean, true);
-    const command = getCommand(clean);
+    const line = createLineContext(lines[i], lineStartInBlock);
+    inBlockComment = line.inBlockComment;
 
-    diagnostics.push(...validateRobotLineState(robotState, clean, command, lineNum));
+    diagnostics.push(...validateRobotLineState(robotState, line.clean, line.command, lineNum));
 
     // GOTO 目标引用
-    const gotoTarget = extractGotoTarget(clean, true);
+    const gotoTarget = extractGotoTarget(line.clean, true);
     if (gotoTarget) gotoRefs.push({ line: lineNum, target: gotoTarget });
-
-    // 按字符位置排序（同行中按从左到右顺序处理关键字）
-    positions.sort((a, b) => a.col - b.col);
 
     // 执行行级验证策略
     for (const validator of LINE_VALIDATORS) {
-      const results = validator(raw, lineNum, lineStartInBlock, clean);
+      const results = validator(line.raw, lineNum, lineStartInBlock, line.clean);
       diagnostics.push(...results);
     }
 
-    diagnostics.push(...validateCaseLineStyle(clean, lineNum, controlFlowState.stack));
+    diagnostics.push(...validateCaseLineStyle(line.clean, lineNum, controlFlowState.stack));
 
-    // 控制流验证：逐个处理关键字
-    for (const pos of positions) {
-      validateControlFlowKeyword(pos, lineNum, positions, controlFlowState, diagnostics);
-    }
+    validateControlFlowLine(line, lineNum, controlFlowState, diagnostics);
   }
 
   // === 文件结束时未关闭的块 ===

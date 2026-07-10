@@ -2,8 +2,6 @@
 // 用法: node validator.test.js
 // 测试覆盖: IF/END_IF配对、CASE/END_CASE、REPEAT/UNTIL、中文字符检测、括号匹配、替代关键字、EXIT、GOTO、%@MACRO
 
-const fs = require('fs');
-const path = require('path');
 const { validateDocument } = require('../src/validator');
 
 // 辅助: 宽松比较 - 只比较 [sev, msg片段] 对，忽略 line/col/endCol/重复
@@ -48,18 +46,18 @@ function eq(name, text, expected) {
 console.log('\n[1] IF/END_IF 配对');
 {
   eq('正确嵌套 IF/END_IF 无报错',
-    'IF #1=1 THEN\nEND_IF', []);
+    'IF #1=1 THEN\nEND_IF;', []);
 
   eq('单行 IF 无 END_IF → warning',
     'IF #1=1 THEN',
     [['warning', 'IF 块缺少对应的 END_']]);
 
   eq('多余 END_IF 报 error',
-    'END_IF',
+    'END_IF;',
     [['error', 'END_IF 没有匹配的 IF']]);
 
   eq('IF 嵌套两层，内层 END_IF 闭合，外层仍缺 → warning',
-    'IF #1=1 THEN\n  IF #2=1 THEN\nEND_IF',
+    'IF #1=1 THEN\n  IF #2=1 THEN\nEND_IF;',
     [['warning', 'IF 块缺少对应的 END_']]);
 
   eq('IF 嵌套两层，两层都缺 END_IF → 两条 warning',
@@ -72,8 +70,8 @@ console.log('\n[1] IF/END_IF 配对');
 // ============================================================
 console.log('\n[2] ELSE / ELSEIF');
 {
-  eq('IF+ELSE+END_IF 正确', 'IF #1=1 THEN\nELSE\nEND_IF', []);
-  eq('IF+ELSEIF+ELSE+END_IF 正确', 'IF #1=1 THEN\nELSEIF #2=1 THEN\nELSE\nEND_IF', []);
+  eq('IF+ELSE+END_IF 正确', 'IF #1=1 THEN\nELSE\nEND_IF;', []);
+  eq('IF+ELSEIF+ELSE+END_IF 正确', 'IF #1=1 THEN\nELSEIF #2=1 THEN\nELSE\nEND_IF;', []);
   eq('ELSE 无匹配 IF', 'ELSE',
     [['error', 'ELSE 没有匹配的 IF 或 CASE']]);
   eq('ELSEIF 无匹配 IF', 'ELSEIF #1=1 THEN',
@@ -84,7 +82,7 @@ console.log('\n[2] ELSE / ELSEIF');
   eq('IF+ELSE+ELSEIF（非法）→ 两层警告',
     'IF #1=1 THEN\nELSE\nELSEIF #2=1 THEN',
     [['warning', 'IF 块缺少对应的 END_'], ['error', 'IF 块已有 ELSE']]);
-  eq('IF+ELSEIF+END_IF（无ELSE）正确', 'IF #1=1 THEN\nELSEIF #2=1 THEN\nEND_IF', []);
+  eq('IF+ELSEIF+END_IF（无ELSE）正确', 'IF #1=1 THEN\nELSEIF #2=1 THEN\nEND_IF;', []);
 }
 
 // ============================================================
@@ -111,12 +109,12 @@ console.log('\n[3] CASE/END_CASE');
 // ============================================================
 console.log('\n[4] FOR/END_FOR');
 {
-  eq('FOR TO DO END_FOR 正确', 'FOR #1=1 TO 10 DO\nEND_FOR', []);
-  eq('FOR TO BY DO END_FOR 正确', 'FOR #1=1 TO 10 BY 2 DO\nEND_FOR', []);
+  eq('FOR TO DO END_FOR 正确', 'FOR #1=1 TO 10 DO\nEND_FOR;', []);
+  eq('FOR TO BY DO END_FOR 正确', 'FOR #1=1 TO 10 BY 2 DO\nEND_FOR;', []);
   eq('FOR 缺少 END_FOR', 'FOR #1=1 TO 10 DO',
     [['warning', 'FOR 块缺少对应的 END_']]);
   eq('END_FOR 无匹配', 'END_FOR',
-    [['error', 'END_FOR 没有匹配的 FOR']]);
+    [['error', '语句应以 ; 结尾'], ['error', 'END_FOR 没有匹配的 FOR']]);
 }
 
 // ============================================================
@@ -124,7 +122,9 @@ console.log('\n[4] FOR/END_FOR');
 // ============================================================
 console.log('\n[5] WHILE/DO/END_WHILE');
 {
-  eq('WHILE DO END_WHILE 正确', 'WHILE #1=1 DO\nEND_WHILE', []);
+  eq('WHILE DO END_WHILE; 正确', 'WHILE #1=1 DO\nEND_WHILE;', []);
+  eq('END_WHILE 缺少分号报错', 'WHILE #1=1 DO\nEND_WHILE',
+    [['error', '语句应以 ; 结尾']]);
   eq('WHILE 缺少 END_WHILE', 'WHILE #1=1 DO',
     [['warning', 'WHILE 块缺少对应的 END_']]);
 }
@@ -134,10 +134,12 @@ console.log('\n[5] WHILE/DO/END_WHILE');
 // ============================================================
 console.log('\n[6] REPEAT/UNTIL');
 {
-  eq('REPEAT UNTIL 正确', 'REPEAT\nUNTIL #1=1', []);
+  eq('REPEAT UNTIL END_REPEAT; 正确', 'REPEAT\nUNTIL #1=1 END_REPEAT;', []);
+  eq('UNTIL 缺少分号报错', 'REPEAT\nUNTIL #1=1 END_REPEAT',
+    [['error', '语句应以 ; 结尾']]);
   eq('REPEAT 缺少 UNTIL', 'REPEAT',
     [['warning', 'REPEAT 块缺少对应的 END_']]);
-  eq('UNTIL 无匹配 REPEAT', 'UNTIL #1=1',
+  eq('UNTIL 无匹配 REPEAT', 'UNTIL #1=1;',
     [['error', 'UNTIL 没有匹配的 REPEAT']]);
 }
 
@@ -147,15 +149,15 @@ console.log('\n[6] REPEAT/UNTIL');
 console.log('\n[7] 混嵌');
 {
   eq('IF 内嵌 CASE，外层正确闭合',
-    'IF #1=1 THEN\n  CASE #51 OF\n  END_CASE\nELSE\nEND_IF', []);
+    'IF #1=1 THEN\n  CASE #51 OF\n  END_CASE;\nELSE\nEND_IF;', []);
 
   eq('IF 内嵌 FOR，先遇到 END_IF → 报嵌套顺序错误',
-    'IF #1=1 THEN\n  FOR #1=1 TO 10 DO\nEND_IF',
+    'IF #1=1 THEN\n  FOR #1=1 TO 10 DO\nEND_IF;',
     [['error', 'END_IF 嵌套顺序错误']]);
 
   eq('WHILE 内嵌 REPEAT，先遇到 END_WHILE → 报嵌套顺序错误',
     'WHILE #1=1 DO\n  REPEAT\nEND_WHILE',
-    [['error', 'END_WHILE 嵌套顺序错误']]);
+    [['error', '语句应以 ; 结尾'], ['error', 'END_WHILE 嵌套顺序错误']]);
 }
 
 // ============================================================
@@ -205,7 +207,7 @@ console.log('\n[10] 括号匹配');
     'IF ABS(#1-#2)=1 THEN',
     [['warning', 'IF 块缺少对应的 END_']]);
   eq('IF 带完整 END_IF，括号正确 → 无括号警告',
-    'IF ABS(#1-#2)=1 THEN\nEND_IF', []);
+    'IF ABS(#1-#2)=1 THEN\nEND_IF;', []);
   eq('多余右括号', 'IF #1=1 THEN)',
     [['warning', 'IF 块缺少对应的 END_'], ['warning', '括号不匹配：多余的右括号']]);
   // 缺少右括号时，报缺少右括号
@@ -213,9 +215,9 @@ console.log('\n[10] 括号匹配');
     [['warning', 'IF 块缺少对应的 END_（文件结束）'], ['warning', '括号不匹配：缺少 1 个右括号']]);
   eq('注释内括号不触发', '// IF ( #1=1 THEN', []);
   eq('字符串内括号不触发', 'MSG("(");', []);
-  eq('IF 带 END_IF，括号正确', 'IF ABS(SIN(#1))=1 THEN\nEND_IF', []);
+  eq('IF 带 END_IF，括号正确', 'IF ABS(SIN(#1))=1 THEN\nEND_IF;', []);
   eq('IF 带 END_IF，括号正确（多级嵌套）',
-    'IF ABS(SIN(#1))=1 THEN\nEND_IF', []);
+    'IF ABS(SIN(#1))=1 THEN\nEND_IF;', []);
 }
 
 // ============================================================
@@ -235,7 +237,7 @@ console.log('\n[11] 分号结尾关键字');
 console.log('\n[12] GOTO 标签');
 {
   eq('GOTO 不影响 IF 配对（目标N100存在，IF正常闭合）',
-    'IF #1=1 THEN\nGOTO 100;\nEND_IF\nN100;',
+    'IF #1=1 THEN\nGOTO 100;\nEND_IF;\nN100;',
     []);
   eq('GOTO #变量 为运行期目标，不做静态标签存在性校验',
     'N10;\nGOTO #10;\nN20;',
@@ -257,13 +259,13 @@ console.log('\n[12] GOTO 标签');
 // ============================================================
 console.log('\n[13] 替代关键字（不带下划线）');
 {
-  eq('ENDIF 等效于 END_IF，正式支援', 'IF #1=1 THEN\nENDIF', []);
-  eq('ENDFOR 等效于 END_FOR，正式支援', 'FOR #1=1 TO 10 DO\nENDFOR', []);
-  eq('ENDCASE 等效于 END_CASE，正式支援', 'CASE #51 OF\nENDCASE', []);
-  eq('ENDWHILE 等效于 END_WHILE，正式支援', 'WHILE #1=1 DO\nENDWHILE', []);
-  eq('ENDREPEAT 等效于 END_REPEAT，正式支援', 'REPEAT\nUNTIL #1=1 ENDREPEAT', []);
+  eq('ENDIF; 等效于 END_IF;，正式支援', 'IF #1=1 THEN\nENDIF;', []);
+  eq('ENDFOR; 等效于 END_FOR;，正式支援', 'FOR #1=1 TO 10 DO\nENDFOR;', []);
+  eq('ENDCASE; 等效于 END_CASE;，正式支援', 'CASE #51 OF\nENDCASE;', []);
+  eq('ENDWHILE; 等效于 END_WHILE;，正式支援', 'WHILE #1=1 DO\nENDWHILE;', []);
+  eq('ENDREPEAT; 等效于 END_REPEAT;，正式支援', 'REPEAT\nUNTIL #1=1 ENDREPEAT;', []);
   eq('混用标准与替代形式 正确',
-    'IF #1=1 THEN\nFOR #2=1 TO 10 DO\nENDFOR\nENDIF',
+    'IF #1=1 THEN\nFOR #2=1 TO 10 DO\nENDFOR;\nENDIF;',
     []);
 }
 
@@ -273,13 +275,13 @@ console.log('\n[13] 替代关键字（不带下划线）');
 console.log('\n[14] EXIT 跳出');
 {
   eq('EXIT 在 FOR 内不影响块栈匹配（FOR...EXIT...ENDFOR 正确配对）',
-    'FOR #1=1 TO 10 DO\nIF #1=5 THEN\nEXIT;\nEND_IF\nEND_FOR',
+    'FOR #1=1 TO 10 DO\nIF #1=5 THEN\nEXIT;\nEND_IF;\nEND_FOR;',
     []);
   eq('EXIT 在 WHILE 内不影响块栈匹配（WHILE...EXIT...END_WHILE 正确配对）',
-    'WHILE #1=1 DO\nEXIT;\nEND_WHILE',
+    'WHILE #1=1 DO\nEXIT;\nEND_WHILE;',
     []);
   eq('EXIT 在 REPEAT 内不影响块栈匹配（REPEAT...EXIT...UNTIL...END_REPEAT 正确配对）',
-    'REPEAT\nEXIT;\nUNTIL #1=1 END_REPEAT',
+    'REPEAT\nEXIT;\nUNTIL #1=1 END_REPEAT;',
     []);
   eq('EXIT 单独出现 不报错（允许在最外层使用）',
     'EXIT;', []);
@@ -291,12 +293,12 @@ console.log('\n[14] EXIT 跳出');
 console.log('\n[15] %@MACRO 文件头检查');
 {
   eq('有 %@MACRO 不报 warning',
-    '%@MACRO\nIF #1=1 THEN\nEND_IF', []);
+    '%@MACRO\nIF #1=1 THEN\nEND_IF;', []);
   eq('仅有 % 无 %@MACRO 报 warning',
     '%\nG01 X100.;',
     [['warning', '此文件缺少 %@MACRO 文件头']]);
   eq('注释行后出现 %@MACRO 不报错',
-    '// 这是一个MACRO程序\n%@MACRO\nIF #1=1 THEN\nEND_IF', []);
+    '// 这是一个MACRO程序\n%@MACRO\nIF #1=1 THEN\nEND_IF;', []);
   eq('ISO格式文件不强制要求 %@MACRO',
     'G01 X100.;\nM30;', []);
 }
@@ -307,16 +309,16 @@ console.log('\n[15] %@MACRO 文件头检查');
 console.log('\n[16] 不支持的语法检测');
 {
   eq('ELSIF 报错提示使用 ELSEIF',
-    '%@MACRO\nIF #1=1 THEN\nELSIF #1=2 THEN\nEND_IF',
+    '%@MACRO\nIF #1=1 THEN\nELSIF #1=2 THEN\nEND_IF;',
     [['error', 'ELSIF 不支持']]);
   eq('DIV 不支持，整数除法请使用 /',
     '%@MACRO\n#1 := 100 DIV 7;',
     [['error', 'DIV 不支持']]);
   eq('== 不支持，等于比较请使用 =',
-    '%@MACRO\nIF #1 == 100 THEN\nEND_IF',
+    '%@MACRO\nIF #1 == 100 THEN\nEND_IF;',
     [['error', '== 不支持']]);
   eq('!= 不支持，不等于比较请使用 <>',
-    '%@MACRO\nIF #1 != 100 THEN\nEND_IF',
+    '%@MACRO\nIF #1 != 100 THEN\nEND_IF;',
     [['error', '!= 不支持']]);
   eq('比较表达式不能单独成行',
     '%@MACRO\n@1 <> 2\nM99;',
@@ -327,19 +329,25 @@ console.log('\n[16] 不支持的语法检测');
   eq('一般指令缺少分号报错',
     '%@MACRO\nG01 X100.\nWAIT()\nM99;',
     [['error', '语句应以 ; 结尾'], ['error', '语句应以 ; 结尾']]);
-  eq('控制结构行和 CASE 空分支标签可不加分号',
-    '%@MACRO\nWHILE #1 < 10 DO\nCASE #1 OF\n1:\nELSE\nEND_CASE\nEND_WHILE\nM99;', []);
+  eq('控制结构开头行和 CASE 空分支标签可不加分号，结束语句需加分号',
+    '%@MACRO\nWHILE #1 < 10 DO\nCASE #1 OF\n1:\nELSE\nEND_CASE;\nEND_WHILE;\nM99;', []);
+  eq('控制结构开头行误加分号报错',
+    '%@MACRO\nWHILE #203 < 10 DO;\n  CASE #203 OF;\n  0:;\n  ELSE;\n  END_CASE;\nEND_WHILE;\nM99;',
+    [['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾']]);
+  eq('所有控制结构开头和分支行误加分号都报错',
+    '%@MACRO\nIF #1 > 50 THEN;\nELSEIF #1 > 20 THEN;\nELSE;\nEND_IF;\nFOR #1 := 1 TO 10 BY 2 DO;\nEND_FOR;\nREPEAT;\nUNTIL #1 > 10 END_REPEAT;\nCASE #10 OF;\n1:;\nEND_CASE;\nWHILE #1 > 0 DO;\nEND_WHILE;\nM99;',
+    [['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾']]);
   eq('% 不支持，取模请使用 MOD',
     '%@MACRO\n#1 := 10 % 3;',
     [['error', '% 不支持']]);
   eq('&& 不支持，逻辑且请使用 AND 或 &',
-    '%@MACRO\nIF (#1 > 0) && (#2 < 10) THEN\nEND_IF',
+    '%@MACRO\nIF (#1 > 0) && (#2 < 10) THEN\nEND_IF;',
     [['error', '&& 不支持']]);
   eq('|| 不支持，逻辑或请使用 OR',
-    '%@MACRO\nIF (#1 = 1) || (#1 = 2) THEN\nEND_IF',
+    '%@MACRO\nIF (#1 = 1) || (#1 = 2) THEN\nEND_IF;',
     [['error', '|| 不支持']]);
   eq('! 不支持，NOT 是补数而非 C 风格逻辑非',
-    '%@MACRO\nIF !#1 THEN\nEND_IF',
+    '%@MACRO\nIF !#1 THEN\nEND_IF;',
     [['error', '! 不支持']]);
   eq('MOD 静态小数操作数不支援',
     '%@MACRO\n#1 := 10.0 MOD 3;\n#2 := 10 MOD 3.0;\n#3 := .5 MOD 2;',
@@ -353,7 +361,7 @@ console.log('\n[16] 不支持的语法检测');
     '%@MACRO\n#1++;',
     [['error', '++ 不支持']]);
   eq('FANUC 比较关键字不支持',
-    '%@MACRO\nIF #1 EQ 1 THEN\nEND_IF\nIF #2 NE 0 THEN\nEND_IF\nIF #3 GT 0 THEN\nEND_IF\nIF #4 GE 0 THEN\nEND_IF\nIF #5 LT 0 THEN\nEND_IF\nIF #6 LE 0 THEN\nEND_IF',
+    '%@MACRO\nIF #1 EQ 1 THEN\nEND_IF;\nIF #2 NE 0 THEN\nEND_IF;\nIF #3 GT 0 THEN\nEND_IF;\nIF #4 GE 0 THEN\nEND_IF;\nIF #5 LT 0 THEN\nEND_IF;\nIF #6 LE 0 THEN\nEND_IF;',
     [['error', 'EQ 不支持'], ['error', 'NE 不支持'], ['error', 'GT 不支持'], ['error', 'GE 不支持'], ['error', 'LT 不支持'], ['error', 'LE 不支持']]);
   eq('不支持运算子在字符串和注释中不报错',
     '%@MACRO\nMSG("% && || ! += ++ EQ NE GT GE LT LE");\n// % && || ! += ++ EQ\n(* NE GT GE LT LE *)\n#1 := 10 MOD 3;', []);
@@ -532,9 +540,9 @@ console.log('\n[20] 跨行机器人/应用诊断');
 // ============================================================
 console.log('\n[21] 参考范例回归');
 {
-  const demoPath = path.join(__dirname, '..', 'test-demo.nc');
-  const demoText = fs.readFileSync(demoPath, 'utf8');
-  eq('test-demo.nc 可诊断语句缺少分号', demoText, [['error', '语句应以 ; 结尾']]);
+  eq('综合场景可诊断赋值和 END_WHILE 缺少分号',
+    '%@MACRO\nWHILE #203 < 10 DO\n  #203 := #203 + 1\n  SLEEP();\nEND_WHILE\nM99;',
+    [['error', '语句应以 ; 结尾'], ['error', '语句应以 ; 结尾']]);
 }
 
 // ============================================================

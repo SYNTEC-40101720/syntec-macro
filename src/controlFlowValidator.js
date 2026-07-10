@@ -14,7 +14,16 @@ const LOOP_OPENERS = new Set(['FOR', 'WHILE', 'REPEAT']);
 function createControlFlowState() {
   return {
     stack: [],
-    untiledRepeats: []
+    untilClosedRepeats: []
+  };
+}
+
+function getControlFlowLineFacts(lineContext) {
+  return {
+    hasUntil: lineContext.positions.some(p => p.keyword === 'UNTIL'),
+    hasEndRepeat: lineContext.positions.some(p =>
+      p.keyword === 'END_REPEAT' || p.keyword === 'ENDREPEAT'
+    )
   };
 }
 
@@ -24,6 +33,7 @@ function validateCaseLineStyle(cleanLine, lineNum, stack) {
   if (!top || top.keyword !== 'CASE') return diagnostics;
 
   if (/^\s*DEFAULT\s*:/i.test(cleanLine)) return diagnostics;
+  if (/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*;\s*$/i.test(cleanLine)) return diagnostics;
 
   const branchMatch = cleanLine.match(/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:(?!=)\s*(\S.*)$/);
   if (branchMatch) {
@@ -50,10 +60,10 @@ function validateCaseLineStyle(cleanLine, lineNum, stack) {
   return diagnostics;
 }
 
-function validateControlFlowKeyword(pos, lineNum, positions, state, diagnostics) {
+function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics) {
   const kw = pos.keyword;
   const stack = state.stack;
-  const untiledRepeats = state.untiledRepeats;
+  const untilClosedRepeats = state.untilClosedRepeats;
 
   if (pos.unsupported) {
     let msg = '';
@@ -76,10 +86,10 @@ function validateControlFlowKeyword(pos, lineNum, positions, state, diagnostics)
   if (kw in CLOSER_TO_OPENER) {
     let skipThisKw = false;
     if (kw === 'END_REPEAT' || kw === 'ENDREPEAT') {
-      if (positions.some(p => p.keyword === 'UNTIL')) {
+      if (lineFacts.hasUntil) {
         skipThisKw = true;
-      } else if (untiledRepeats.length > 0) {
-        untiledRepeats.pop();
+      } else if (untilClosedRepeats.length > 0) {
+        untilClosedRepeats.pop();
         skipThisKw = true;
       }
     }
@@ -159,11 +169,8 @@ function validateControlFlowKeyword(pos, lineNum, positions, state, diagnostics)
         msg: 'UNTIL 没有匹配的 REPEAT', severity: 'error'
       });
     } else {
-      const hasEndRepeatOnSameLine = positions.some(p =>
-        p.keyword === 'END_REPEAT' || p.keyword === 'ENDREPEAT'
-      );
-      if (!hasEndRepeatOnSameLine) {
-        untiledRepeats.push(stack[ni].line);
+      if (!lineFacts.hasEndRepeat) {
+        untilClosedRepeats.push(stack[ni].line);
       }
       stack.splice(ni, 1);
     }
@@ -184,6 +191,13 @@ function validateControlFlowKeyword(pos, lineNum, positions, state, diagnostics)
   }
 }
 
+function validateControlFlowLine(lineContext, lineNum, state, diagnostics) {
+  const lineFacts = getControlFlowLineFacts(lineContext);
+  for (const pos of lineContext.positions) {
+    validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics);
+  }
+}
+
 function validateUnclosedBlocks(stack) {
   const diagnostics = [];
   for (const block of stack) {
@@ -201,5 +215,6 @@ module.exports = {
   createControlFlowState,
   validateCaseLineStyle,
   validateControlFlowKeyword,
+  validateControlFlowLine,
   validateUnclosedBlocks
 };

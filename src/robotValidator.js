@@ -1,90 +1,94 @@
 // Robot/LTP syntax and stateful range validation.
 
+const ROBOT_SYNTAX_PREFERENCE_RULES = [
+  {
+    re: /\bMOVJ-II\b/,
+    msg: 'MOVJ-II 不是正式指令写法；请使用 MOVJ 第二语法'
+  },
+  {
+    re: /\bMOVJ\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
+    msg: 'MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法'
+  },
+  {
+    re: /\bMOVL\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+    msg: 'MOVL 直接引数不使用 =；请使用 X100. / P1 / FL100. 等写法'
+  },
+  {
+    re: /\bMOVC\b(?=[^;]*\b(?:X|Y|Z|A|B|C|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+    msg: 'MOVC 直接引数不使用 =；请使用 X100. / FL100. / PL3 等写法'
+  },
+  {
+    re: /\bMOVC\b(?=[^;]*\b(?:Xp|Yp|Zp)\s*=)/,
+    msg: 'MOVC 不支持 Xp/Yp/Zp 通过点写法；请使用成对 MOVC 的 X/Y/Z/A/B/C 直接引数'
+  },
+  {
+    re: /\bINCMOVJ\b(?=[^;]*\b(?:Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
+    msg: 'INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数；请使用 Q1 / FJ30 等写法'
+  },
+  {
+    re: /\bINCMOVL\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
+    msg: 'INCMOVL 直接引数不使用 =；请使用 P1 / X50. / FL80. 等写法'
+  },
+  {
+    re: /\b(?:TOOLCOR|TOOLCORON)\s+T(?=\d|#|@|\[|=)/,
+    msg: 'TOOLCOR/TOOLCORON 使用 P_ 指定工具编号；请勿使用 T_'
+  },
+  {
+    re: /\bTOOLCORON\b/,
+    msg: 'TOOLCORON 未见官方语法；建议改用 TOOLCOR P_'
+  },
+  {
+    re: /\bTOOLCOR\s+CLEAR\b/,
+    msg: 'TOOLCOR CLEAR 未见官方语法；建议改用 TOOLCOR P0'
+  },
+  {
+    re: /\bOBJCORON\b(?=[^;]*\b(?:X|Y|Z|A|B|C)\s*=)/,
+    msg: 'OBJCORON 的 X/Y/Z/A/B/C 为直接引数；请使用 X5. 而非 X=5.'
+  },
+  {
+    re: /\bG68\.18\b(?=[^;]*\b(?:P|R|X|Y|Z|A|B|C)\s*=)/,
+    msg: 'G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数；请使用 P1 / R0 / X10. 等写法'
+  },
+  {
+    re: /\bG43\.16\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
+    msg: 'G43.16 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X10. 等写法'
+  },
+  {
+    re: /\bPOSEMAP\b(?=[^;]*\b(?:X|Y|Z|A|B|C|Q|R)\s*=)/,
+    msg: 'POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数；请使用 X100. / Q1 / R1 等写法'
+  },
+  {
+    re: /\bSHIFTON\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
+    msg: 'SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X20. 等写法'
+  },
+  {
+    re: /\bSKIPCOND\b(?=[^;]*\b(?:E|Q|R|P)\s*=)/,
+    msg: 'SKIPCOND 的 E/Q/R/P 为直接引数；请使用 E1 / Q33 / R1 / P0 等写法'
+  },
+  {
+    re: /\bSWAITSIG\b(?=[^;]*\b(?:P|Q|R|L|T)\s*=)/,
+    msg: 'SWAITSIG 的 P/Q/R/L/T 为直接引数；请使用 P1 / Q33 / R1 等写法'
+  },
+  {
+    re: /\bSTITCHON\b(?=[^;]*\b(?:S|Q|L|K|E)\s*=)/,
+    msg: 'STITCHON 的 S/Q/L/K/E 为直接引数；请使用 S1 / Q1 / L500 / E10. 等写法'
+  },
+  {
+    re: /\bWEAVEON\b(?=[^;]*\b(?:P|E|Q|K|L|R|I)\s*=)/,
+    msg: 'WEAVEON 的 P/E/Q/K/L/R/I 为直接引数；请使用 P3 或 E5. Q1.0 K30. 等写法'
+  }
+];
+
+function getPreferenceRuleSeverity(rule) {
+  return rule.msg.includes('建议改用') ? 'warning' : 'error';
+}
+
 function validateRobotSyntaxPreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
   if (!clean.trim()) return [];
 
   const diagnostics = [];
-  const rules = [
-    {
-      re: /\bMOVJ-II\b/,
-      msg: 'MOVJ-II 不是正式指令写法；请使用 MOVJ 第二语法'
-    },
-    {
-      re: /\bMOVJ\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
-      msg: 'MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法'
-    },
-    {
-      re: /\bMOVL\b(?=[^;]*\b(?:X|Y|Z|A|B|C|P|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
-      msg: 'MOVL 直接引数不使用 =；请使用 X100. / P1 / FL100. 等写法'
-    },
-    {
-      re: /\bMOVC\b(?=[^;]*\b(?:X|Y|Z|A|B|C|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
-      msg: 'MOVC 直接引数不使用 =；请使用 X100. / FL100. / PL3 等写法'
-    },
-    {
-      re: /\bMOVC\b(?=[^;]*\b(?:Xp|Yp|Zp)\s*=)/,
-      msg: 'MOVC 不支持 Xp/Yp/Zp 通过点写法；请使用成对 MOVC 的 X/Y/Z/A/B/C 直接引数'
-    },
-    {
-      re: /\bINCMOVJ\b(?=[^;]*\b(?:Q|FJ|FEJ|PL|ACC|DEC)\s*=)/,
-      msg: 'INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数；请使用 Q1 / FJ30 等写法'
-    },
-    {
-      re: /\bINCMOVL\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C|Q|FL|FR|FEJ|PL|PQ|PR|ACC|DEC)\s*=)/,
-      msg: 'INCMOVL 直接引数不使用 =；请使用 P1 / X50. / FL80. 等写法'
-    },
-    {
-      re: /\b(?:TOOLCOR|TOOLCORON)\s+T(?=\d|#|@|\[|=)/,
-      msg: 'TOOLCOR/TOOLCORON 使用 P_ 指定工具编号；请勿使用 T_'
-    },
-    {
-      re: /\bTOOLCORON\b/,
-      msg: 'TOOLCORON 未见官方语法；建议改用 TOOLCOR P_'
-    },
-    {
-      re: /\bTOOLCOR\s+CLEAR\b/,
-      msg: 'TOOLCOR CLEAR 未见官方语法；建议改用 TOOLCOR P0'
-    },
-    {
-      re: /\bOBJCORON\b(?=[^;]*\b(?:X|Y|Z|A|B|C)\s*=)/,
-      msg: 'OBJCORON 的 X/Y/Z/A/B/C 为直接引数；请使用 X5. 而非 X=5.'
-    },
-    {
-      re: /\bG68\.18\b(?=[^;]*\b(?:P|R|X|Y|Z|A|B|C)\s*=)/,
-      msg: 'G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数；请使用 P1 / R0 / X10. 等写法'
-    },
-    {
-      re: /\bG43\.16\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
-      msg: 'G43.16 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X10. 等写法'
-    },
-    {
-      re: /\bPOSEMAP\b(?=[^;]*\b(?:X|Y|Z|A|B|C|Q|R)\s*=)/,
-      msg: 'POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数；请使用 X100. / Q1 / R1 等写法'
-    },
-    {
-      re: /\bSHIFTON\b(?=[^;]*\b(?:P|X|Y|Z|A|B|C)\s*=)/,
-      msg: 'SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X20. 等写法'
-    },
-    {
-      re: /\bSKIPCOND\b(?=[^;]*\b(?:E|Q|R|P)\s*=)/,
-      msg: 'SKIPCOND 的 E/Q/R/P 为直接引数；请使用 E1 / Q33 / R1 / P0 等写法'
-    },
-    {
-      re: /\bSWAITSIG\b(?=[^;]*\b(?:P|Q|R|L|T)\s*=)/,
-      msg: 'SWAITSIG 的 P/Q/R/L/T 为直接引数；请使用 P1 / Q33 / R1 等写法'
-    },
-    {
-      re: /\bSTITCHON\b(?=[^;]*\b(?:S|Q|L|K|E)\s*=)/,
-      msg: 'STITCHON 的 S/Q/L/K/E 为直接引数；请使用 S1 / Q1 / L500 / E10. 等写法'
-    },
-    {
-      re: /\bWEAVEON\b(?=[^;]*\b(?:P|E|Q|K|L|R|I)\s*=)/,
-      msg: 'WEAVEON 的 P/E/Q/K/L/R/I 为直接引数；请使用 P3 或 E5. Q1.0 K30. 等写法'
-    }
-  ];
-
-  for (const rule of rules) {
+  for (const rule of ROBOT_SYNTAX_PREFERENCE_RULES) {
     const match = clean.match(rule.re);
     if (match) {
       diagnostics.push({
@@ -92,7 +96,7 @@ function validateRobotSyntaxPreferences(_raw, lineNum, _lineStartInBlock, cleanL
         col: match.index,
         endCol: match.index + match[0].length,
         msg: rule.msg,
-        severity: rule.msg.includes('建议改用') ? 'warning' : 'error'
+        severity: getPreferenceRuleSeverity(rule)
       });
     }
   }
