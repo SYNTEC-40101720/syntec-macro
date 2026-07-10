@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.14] - 2026-07-11
+
+### Changed
+- **诊断对象工厂推广**: 将 `controlFlowValidator`、`functionArgumentValidator` 与 `robotValidator` 的诊断对象创建统一迁移到 `diagnosticFactory`，进一步收敛诊断结构。
+
 ## [2.8.13] - 2026-07-11
 
 ### Changed

@@ -1,6 +1,7 @@
 // Robot/LTP syntax and stateful range validation.
 
 const { DiagnosticCode } = require('./diagnosticCodes');
+const { createDiagnostic } = require('./diagnosticFactory');
 
 const DIRECT_ARG_RULES = {
   MOVJ: { args: ['X', 'Y', 'Z', 'A', 'B', 'C', 'P', 'Q', 'FJ', 'FEJ', 'PL', 'ACC', 'DEC'], msg: 'MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法' },
@@ -20,7 +21,7 @@ const DIRECT_ARG_RULES = {
 };
 
 function addRobotDiagnostic(diagnostics, lineNum, col, endCol, msg, severity, code) {
-  diagnostics.push({ line: lineNum, col, endCol, msg, severity, code });
+  diagnostics.push(createDiagnostic(lineNum, col, endCol, msg, severity, { code }));
 }
 
 function findDirectArgEquals(clean, command) {
@@ -118,52 +119,40 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
   const command = getCommand(clean);
 
   if (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && countSmoothArgs(clean) > 1) {
-    diagnostics.push({
-      line: lineNum, col: clean.search(/\b(?:PL|PQ|PR)/i), endCol: clean.length,
-      msg: `${command} 单行只能使用 PL/PQ/PR 其中一个平滑引数`,
-      severity: 'error',
-      code: DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT
-    });
+    addRobotDiagnostic(diagnostics, lineNum, clean.search(/\b(?:PL|PQ|PR)/i), clean.length,
+      `${command} 单行只能使用 PL/PQ/PR 其中一个平滑引数`, 'error', DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT);
   }
 
   if (['MOVJ', 'INCMOVJ'].includes(command) && (hasDirectArg(clean, 'PQ') || hasDirectArg(clean, 'PR'))) {
-    diagnostics.push({
-      line: lineNum, col: clean.search(/\b(?:PQ|PR)/i), endCol: clean.length,
-      msg: `${command} 不支持 PQ/PR；请使用 PL`,
-      severity: 'error',
-      code: DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG
-    });
+    addRobotDiagnostic(diagnostics, lineNum, clean.search(/\b(?:PQ|PR)/i), clean.length,
+      `${command} 不支持 PQ/PR；请使用 PL`, 'error', DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG);
   }
 
   if (command === 'MOVJ' && hasDirectArg(clean, 'P') && !hasDirectArg(clean, 'X')) {
-    diagnostics.push({
-      line: lineNum, col: clean.search(/\bP/i), endCol: clean.length,
-      msg: 'MOVJ 第一语法不支持 P 引数',
-      severity: 'error',
-      code: DiagnosticCode.ROBOT_UNSUPPORTED_MOVJ_P_ARG
-    });
+    addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bP/i), clean.length,
+      'MOVJ 第一语法不支持 P 引数', 'error', DiagnosticCode.ROBOT_UNSUPPORTED_MOVJ_P_ARG);
   }
 
   if (command === 'INCMOVL' && !hasDirectArg(clean, 'P')) {
-    diagnostics.push({
-      line: lineNum, col: clean.search(/\bINCMOVL\b/i), endCol: clean.search(/\bINCMOVL\b/i) + 'INCMOVL'.length,
-      msg: 'INCMOVL 缺少必填 P 引数',
-      severity: 'error',
-      code: DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG
-    });
+    const col = clean.search(/\bINCMOVL\b/i);
+    addRobotDiagnostic(diagnostics, lineNum, col, col + 'INCMOVL'.length,
+      'INCMOVL 缺少必填 P 引数', 'error', DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG);
   }
 
   if (command === 'STITCHON') {
     const hasL = hasDirectArg(clean, 'L');
     const hasK = hasDirectArg(clean, 'K');
     if (hasL && hasK) {
-      diagnostics.push({ line: lineNum, col: clean.search(/\b(?:L|K)/i), endCol: clean.length, msg: 'STITCHON 的 L/K 只能择一输入', severity: 'error', code: DiagnosticCode.ROBOT_STITCH_ARG_CONFLICT });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\b(?:L|K)/i), clean.length,
+        'STITCHON 的 L/K 只能择一输入', 'error', DiagnosticCode.ROBOT_STITCH_ARG_CONFLICT);
     } else if (!hasL && !hasK) {
-      diagnostics.push({ line: lineNum, col: clean.search(/\bSTITCHON\b/i), endCol: clean.length, msg: 'STITCHON 需指定 L 或 K 其中一个', severity: 'warning', code: DiagnosticCode.ROBOT_STITCH_MISSING_ARG });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bSTITCHON\b/i), clean.length,
+        'STITCHON 需指定 L 或 K 其中一个', 'warning', DiagnosticCode.ROBOT_STITCH_MISSING_ARG);
     }
     const lValue = getStaticDirectArgNumber(clean, 'L');
     if (lValue !== null && !Number.isInteger(lValue)) {
-      diagnostics.push({ line: lineNum, col: clean.search(/\bL/i), endCol: clean.length, msg: 'STITCHON 的 L 引数不可带小数点', severity: 'error', code: DiagnosticCode.ROBOT_STITCH_L_INTEGER });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bL/i), clean.length,
+        'STITCHON 的 L 引数不可带小数点', 'error', DiagnosticCode.ROBOT_STITCH_L_INTEGER);
     }
   }
 
@@ -171,11 +160,13 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
     const hasP = hasDirectArg(clean, 'P');
     const detailArgs = ['E', 'Q', 'K', 'L', 'R', 'I'].filter(arg => hasDirectArg(clean, arg));
     if (hasP && detailArgs.length > 0) {
-      diagnostics.push({ line: lineNum, col: clean.search(/\bWEAVEON\b/i), endCol: clean.length, msg: 'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用', severity: 'error', code: DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bWEAVEON\b/i), clean.length,
+        'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用', 'error', DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS);
     }
     const qMatch = clean.match(/\bQ([+-]?\d+)(?!\.)/i);
     if (!hasP && qMatch) {
-      diagnostics.push({ line: lineNum, col: qMatch.index, endCol: qMatch.index + qMatch[0].length, msg: 'WEAVEON 的 Q 频率建议使用小数形式，例如 Q1.0', severity: 'warning', code: DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL });
+      addRobotDiagnostic(diagnostics, lineNum, qMatch.index, qMatch.index + qMatch[0].length,
+        'WEAVEON 的 Q 频率建议使用小数形式，例如 Q1.0', 'warning', DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL);
     }
   }
 
@@ -196,12 +187,8 @@ function createRobotState() {
 }
 
 function addPendingMovcDiagnostic(diagnostics, lineNum) {
-  diagnostics.push({
-    line: lineNum, col: 0, endCol: 0,
-    msg: 'MOVC 必须成对出现：第一行为中间点，第二行为结束点',
-    severity: 'error',
-    code: DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED
-  });
+  addRobotDiagnostic(diagnostics, lineNum, 0, 0,
+    'MOVC 必须成对出现：第一行为中间点，第二行为结束点', 'error', DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED);
 }
 
 function validateRobotLineState(state, clean, command, lineNum) {
@@ -232,85 +219,53 @@ function validateRobotLineState(state, clean, command, lineNum) {
   if (command === 'SWAITSIG' && state.currentMovementLine > 0) {
     state.swaitsigCount++;
     if (state.swaitsigCount > 1) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(/\bSWAITSIG\b/i), endCol: clean.length,
-        msg: '运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用 G4.16',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_SWAITSIG_LIMIT
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bSWAITSIG\b/i), clean.length,
+        '运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用 G4.16', 'error', DiagnosticCode.ROBOT_SWAITSIG_LIMIT);
     }
   }
 
   if (command === 'SYNCOUT' && state.currentMovementLine > 0) {
     state.syncoutCount++;
     if (state.syncoutCount > 10) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(/\bSYNCOUT\b/i), endCol: clean.length,
-        msg: '同一有移动量移动单节最多允许 10 个 SYNCOUT',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_SYNCOUT_LIMIT
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bSYNCOUT\b/i), clean.length,
+        '同一有移动量移动单节最多允许 10 个 SYNCOUT', 'error', DiagnosticCode.ROBOT_SYNCOUT_LIMIT);
     }
   }
 
   if (state.inStitchOn && command !== 'STITCHOFF') {
     const stitchForbidden = ['MOVJ', 'USERCOR', 'SHIFTON', 'SHIFTOFF', 'OBJCORON', 'OBJCOROFF', 'OBJCORCLEAR', 'SYNCOUT', 'WEAVEON', 'WEAVEOFF', 'WAITSYNC', 'ENDSYNC'];
     if (stitchForbidden.includes(command) || (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && /\bSKIP\b/i.test(clean))) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), endCol: clean.length,
-        msg: 'STITCHON 生效范围内不支持此指令',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), clean.length,
+        'STITCHON 生效范围内不支持此指令', 'error', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     } else if (command === 'M96') {
-      diagnostics.push({
-        line: lineNum, col: clean.search(/\bM96\b/i), endCol: clean.length,
-        msg: 'STITCHON 生效范围内 M96 中断型副程序触发无效',
-        severity: 'warning',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bM96\b/i), clean.length,
+        'STITCHON 生效范围内 M96 中断型副程序触发无效', 'warning', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     }
   }
 
   if (state.inWeaveOn && command !== 'WEAVEOFF') {
     if (['MOVJ', 'STITCHON', 'STITCHOFF', 'WAITSYNC', 'ENDSYNC'].includes(command)) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(new RegExp('\\b' + command + '\\b', 'i')), endCol: clean.length,
-        msg: 'WEAVEON 生效范围内不支持此指令',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(new RegExp('\\b' + command + '\\b', 'i')), clean.length,
+        'WEAVEON 生效范围内不支持此指令', 'error', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     } else if (command === 'M96') {
-      diagnostics.push({
-        line: lineNum, col: clean.search(/\bM96\b/i), endCol: clean.length,
-        msg: 'WEAVEON 生效范围内 M96 中断型副程序触发无效',
-        severity: 'warning',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bM96\b/i), clean.length,
+        'WEAVEON 生效范围内 M96 中断型副程序触发无效', 'warning', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     }
   }
 
   if (state.inWaitSync && command !== 'ENDSYNC') {
     const waitSyncForbidden = ['MOVJ', 'USERCOR', 'G04.1', 'SHIFTON'];
     if (waitSyncForbidden.includes(command) || /^M\d+$/i.test(command)) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), endCol: clean.length,
-        msg: 'WAITSYNC 生效范围内不支持此指令',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), clean.length,
+        'WAITSYNC 生效范围内不支持此指令', 'error', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     }
   }
 
   if (state.inG192 && command !== 'G192.2') {
     const g192Forbidden = ['MOVJ', 'INCMOVJ', 'MOVC', 'SWAITSIG', 'SYNCOUT', 'WEAVEON', 'WEAVEOFF', 'WAITSYNC', 'ENDSYNC'];
     if (g192Forbidden.includes(command)) {
-      diagnostics.push({
-        line: lineNum, col: clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), endCol: clean.length,
-        msg: 'G192.1 末端跟踪生效范围内不支持此指令',
-        severity: 'error',
-        code: DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND
-      });
+      addRobotDiagnostic(diagnostics, lineNum, clean.search(new RegExp('\\b' + command.replace('.', '\\.') + '\\b', 'i')), clean.length,
+        'G192.1 末端跟踪生效范围内不支持此指令', 'error', DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND);
     }
   }
 

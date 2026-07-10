@@ -1,6 +1,7 @@
 // Static validation for built-in function arguments.
 
 const { DiagnosticCode } = require('./diagnosticCodes');
+const { createError, createWarning } = require('./diagnosticFactory');
 
 function getStaticFunctionCalls(cleanLine, functionName) {
   const escaped = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -19,14 +20,7 @@ function parseStaticNumber(value) {
 }
 
 function addRangeDiagnostic(diagnostics, call, lineNum, message, code) {
-  diagnostics.push({
-    line: lineNum,
-    col: call.col,
-    endCol: call.endCol,
-    msg: message,
-    severity: 'error',
-    code
-  });
+  diagnostics.push(createError(lineNum, call.col, call.endCol, message, { code }));
 }
 
 function stripCommentsKeepStringsWithState(line, lineStartInBlock = false) {
@@ -146,14 +140,9 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
   const commentStripped = stripCommentsKeepStringsWithState(raw || '', lineStartInBlock).text;
   const openComMatch = commentStripped.match(/\bOPEN\s*\(\s*"COM\d+"\s*\)/i);
   if (openComMatch) {
-    diagnostics.push({
-      line: lineNum,
-      col: openComMatch.index,
-      endCol: openComMatch.index + openComMatch[0].length,
-      msg: '串口传输埠仅支持 OPEN("COM")；OPEN("COM1") 会按普通文件名处理',
-      severity: 'warning',
+    diagnostics.push(createWarning(lineNum, openComMatch.index, openComMatch.index + openComMatch[0].length, '串口传输埠仅支持 OPEN("COM")；OPEN("COM1") 会按普通文件名处理', {
       code: DiagnosticCode.FUNCTION_OPEN_COM_PORT
-    });
+    }));
   }
 
   return diagnostics;
