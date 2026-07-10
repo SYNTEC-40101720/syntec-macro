@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.11] - 2026-07-11
+
+### Changed
+- **诊断动作元数据**: 将 Quick Fix 替换规则、说明文案与控制流闭合词抽取到独立 `diagnosticActions` 模块，降低后续新增诊断和 CodeAction 的维护成本。
+
 ## [2.8.10] - 2026-07-11
 
 ### Added
