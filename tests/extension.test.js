@@ -337,3 +337,19 @@ test('Validator diagnostics expose stable codes for control-flow errors', () => 
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
   }
 });
+
+test('Validator diagnostics expose stable codes for variable issues', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\n#TEMP := 1;\n@TEMP := 2;\n#0 := 1;\nAR-1 := 1;\nMAR[1.1] := 2;\n#1 = 100;');
+  for (const code of [
+    DiagnosticCode.NAMED_LOCAL_VARIABLE,
+    DiagnosticCode.NAMED_GLOBAL_VARIABLE,
+    DiagnosticCode.VACANT_ASSIGNMENT,
+    DiagnosticCode.INVALID_APP_VARIABLE_NUMBER,
+    DiagnosticCode.ASSIGNMENT_STYLE_EQUALS
+  ]) {
+    assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
+  }
+});

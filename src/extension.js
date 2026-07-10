@@ -521,6 +521,13 @@ const BLOCK_CLOSERS = {
   CASE: 'END_CASE;'
 };
 
+const DIAGNOSTIC_HELP = {
+  [DiagnosticCode.NAMED_LOCAL_VARIABLE]: '新代 MACRO 局部变量使用数字编号，例如 #1、#100 或 #[表达式]；#TEMP 这类命名局部变量不支持，需改为规划好的数字变量。',
+  [DiagnosticCode.NAMED_GLOBAL_VARIABLE]: '新代 MACRO 公用变量使用数字编号，例如 @1、@1000 或 @[表达式]；@TEMP 这类命名公用变量不支持，需改为规划好的数字变量。',
+  [DiagnosticCode.VACANT_ASSIGNMENT]: '#0/@0 为 VACANT，只读并表示空值；请不要作为赋值目标，可改用可写的数字变量。',
+  [DiagnosticCode.INVALID_APP_VARIABLE_NUMBER]: 'AR/MAR APP 变量编号必须为非负整数；请使用 AR0、MAR53、AR[#1] 这类合法编号形式。'
+};
+
 function getDiagnosticText(document, diagnostic) {
   return document.getText(diagnostic.range).trim().toUpperCase();
 }
@@ -532,6 +539,17 @@ function createReplacementAction(document, diagnostic, title, replacement) {
   action.edit = edit;
   action.diagnostics = [diagnostic];
   action.isPreferred = true;
+  return action;
+}
+
+function createDiagnosticHelpAction(diagnostic, title, message) {
+  const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
+  action.command = {
+    command: 'syntecMacro.showDiagnosticHelp',
+    title,
+    arguments: [message]
+  };
+  action.diagnostics = [diagnostic];
   return action;
 }
 
@@ -606,9 +624,13 @@ function provideCodeActions(document, _range, context) {
       const keyword = getDiagnosticText(document, diagnostic);
       const replacement = FANUC_COMPARISON_REPLACEMENTS[keyword];
       if (replacement) actions.push(createReplacementAction(document, diagnostic, `改为 ${replacement}`, replacement));
+    } else if (code === DiagnosticCode.ASSIGNMENT_STYLE_EQUALS) {
+      actions.push(createReplacementAction(document, diagnostic, '改为 :=', ':='));
     } else if (Object.prototype.hasOwnProperty.call(DIAGNOSTIC_REPLACEMENTS, code)) {
       const replacement = DIAGNOSTIC_REPLACEMENTS[code];
       if (replacement) actions.push(createReplacementAction(document, diagnostic, replacement.title, replacement.text));
+    } else if (Object.prototype.hasOwnProperty.call(DIAGNOSTIC_HELP, code)) {
+      actions.push(createDiagnosticHelpAction(diagnostic, '查看变量规则说明', DIAGNOSTIC_HELP[code]));
     }
   }
   return actions;
@@ -703,6 +725,12 @@ function activate(context) {
   // Diagnostics
   diagnosticCollection = vscode.languages.createDiagnosticCollection(LANG_ID);
   context.subscriptions.push(diagnosticCollection);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('syntecMacro.showDiagnosticHelp', message => {
+      vscode.window.showInformationMessage(message);
+    })
+  );
 
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(selector, { provideCodeActions }, {

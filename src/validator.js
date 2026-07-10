@@ -312,7 +312,8 @@ function validateNamedVariables(_raw, lineNum, _lineStartInBlock, cleanLine) {
     diagnostics.push({
       line: lineNum, col, endCol: col + variable.length,
       msg: `${variable} 是不支持的命名变量；请使用数字变量编号`,
-      severity: 'error'
+      severity: 'error',
+      code: variable.startsWith('#') ? DiagnosticCode.NAMED_LOCAL_VARIABLE : DiagnosticCode.NAMED_GLOBAL_VARIABLE
     });
   }
   return diagnostics;
@@ -333,7 +334,8 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
       col,
       endCol: col + match[2].length,
       msg: `${match[2]} 为 VACANT，只读，不建议作为赋值目标`,
-      severity: 'warning'
+      severity: 'warning',
+      code: DiagnosticCode.VACANT_ASSIGNMENT
     });
   }
 
@@ -344,7 +346,8 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
       col: match.index,
       endCol: match.index + match[0].length,
       msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 直接编号必须为非负整数`,
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.INVALID_APP_VARIABLE_NUMBER
     });
   }
 
@@ -355,7 +358,8 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
       col: match.index,
       endCol: match.index + match[0].length,
       msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 间接静态编号必须为非负整数`,
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.INVALID_APP_VARIABLE_NUMBER
     });
   }
 
@@ -376,7 +380,8 @@ function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
     diagnostics.push({
       line: lineNum, col, endCol: col + 1,
       msg: '赋值使用 = 支援但不推荐；建议使用 :=',
-      severity: 'warning'
+      severity: 'warning',
+      code: DiagnosticCode.ASSIGNMENT_STYLE_EQUALS
     });
   }
 

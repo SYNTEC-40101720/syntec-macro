@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.8] - 2026-07-11
+
+### Added
+- **变量诊断 code**: 为命名局部/公用变量、`#0/@0` VACANT 赋值、AR/MAR 非法编号与赋值 `=` 风格建议提供稳定诊断 code。
+- **变量诊断说明 action**: 对无法安全自动修复的变量编号问题提供规则说明 Quick Fix。
+- **赋值风格 Quick Fix**: 对赋值语句中的 `=` 提供一键替换为推荐 `:=`。
+- **变量诊断集成测试**: 覆盖变量诊断说明 action 与赋值风格 Quick Fix 在 VS Code 宿主中的行为。
+
 ## [2.8.7] - 2026-07-10
 
 ### Added

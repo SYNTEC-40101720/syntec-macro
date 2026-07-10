@@ -326,6 +326,49 @@ const tests = [
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }
     }
+  },
+  {
+    name: 'variable diagnostics expose help actions and assignment style fix',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\n#TEMP := 1;\n#0 := 2;\nAR-1 := 3;\n#1 = 100;');
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        const diagnostics = await waitForDiagnostics(document.uri, items =>
+          items.some(d => d.code === 'SYNTEC_NAMED_LOCAL_VARIABLE') &&
+          items.some(d => d.code === 'SYNTEC_VACANT_ASSIGNMENT') &&
+          items.some(d => d.code === 'SYNTEC_INVALID_APP_VARIABLE_NUMBER') &&
+          items.some(d => d.code === 'SYNTEC_ASSIGNMENT_STYLE_EQUALS')
+        );
+
+        for (const code of ['SYNTEC_NAMED_LOCAL_VARIABLE', 'SYNTEC_VACANT_ASSIGNMENT', 'SYNTEC_INVALID_APP_VARIABLE_NUMBER']) {
+          const diagnostic = diagnostics.find(d => d.code === code);
+          const actions = await vscode.commands.executeCommand(
+            'vscode.executeCodeActionProvider',
+            document.uri,
+            diagnostic.range,
+            vscode.CodeActionKind.QuickFix.value
+          );
+          assert.ok(actions.some(action => action.title === '查看变量规则说明'), `${code} should provide a help action`);
+        }
+
+        const assignment = diagnostics.find(d => d.code === 'SYNTEC_ASSIGNMENT_STYLE_EQUALS');
+        const assignmentActions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          assignment.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const action = assignmentActions.find(item => item.title === '改为 :=');
+        assert.ok(action, 'assignment style quick fix should be provided');
+        await vscode.workspace.applyEdit(action.edit);
+        assert.strictEqual(document.lineAt(4).text, '#1 := 100;');
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
   }
 ];
 
