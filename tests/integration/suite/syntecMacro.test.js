@@ -297,6 +297,35 @@ const tests = [
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }
     }
+  },
+  {
+    name: 'unclosed control block quick fix inserts matching closer',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\nIF #1 = 1 THEN\n#2 := 1;');
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === 'SYNTEC_CONTROL_UNCLOSED_BLOCK'));
+        const diagnostic = diagnostics.find(d => d.code === 'SYNTEC_CONTROL_UNCLOSED_BLOCK');
+        assert.ok(diagnostic, 'unclosed IF diagnostic should be emitted');
+
+        const actions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          diagnostic.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const action = actions.find(item => item.title === '插入 END_IF;');
+        assert.ok(action, `END_IF quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}`);
+
+        await vscode.workspace.applyEdit(action.edit);
+        assert.strictEqual(document.getText(), '%@MACRO\nIF #1 = 1 THEN\n#2 := 1;\nEND_IF;');
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
   }
 ];
 

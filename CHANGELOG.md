@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.7] - 2026-07-10
+
+### Added
+- **控制流诊断 code**: 为未匹配结束符、嵌套顺序错误、未匹配 `ELSE/ELSEIF/UNTIL`、`ELSEIF` 位于 `ELSE` 之后，以及文件结束时未闭合块提供稳定诊断 code。
+- **未闭合块 Quick Fix**: 对文件结束时未闭合的 `IF/FOR/WHILE/CASE` 提供插入对应 `END_*;` 的 Quick Fix。
+- **控制流集成测试**: 覆盖未闭合控制块 Quick Fix 在真实 VS Code 宿主中的应用结果。
+
 ## [2.8.6] - 2026-07-10
 
 ### Added

@@ -112,7 +112,8 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
         msg: `${kw} 嵌套顺序错误：当前未闭合的是 ${top.keyword}`,
-        severity: 'error'
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_NESTING_ORDER
       });
       let matchIdx = -1;
       for (let j = stack.length - 2; j >= 0; j--) {
@@ -123,7 +124,8 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
         msg: `${kw} 没有匹配的 ${opener}`,
-        severity: 'error'
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_UNMATCHED_END
       });
     }
     return;
@@ -138,7 +140,9 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
     if (ni < 0) {
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
-        msg: 'ELSE 没有匹配的 IF 或 CASE', severity: 'error'
+        msg: 'ELSE 没有匹配的 IF 或 CASE',
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_UNMATCHED_ELSE
       });
     } else {
       for (let j = ni; j >= 0; j--) {
@@ -156,12 +160,16 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
     if (ni < 0) {
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
-        msg: 'ELSEIF 没有匹配的 IF', severity: 'error'
+        msg: 'ELSEIF 没有匹配的 IF',
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_UNMATCHED_ELSEIF
       });
     } else if (stack[ni].hasElse) {
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
-        msg: 'IF 块已有 ELSE，再次遇到 ELSEIF', severity: 'error'
+        msg: 'IF 块已有 ELSE，再次遇到 ELSEIF',
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_ELSEIF_AFTER_ELSE
       });
     }
     return;
@@ -175,7 +183,9 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
     if (ni < 0) {
       diagnostics.push({
         line: lineNum, col: pos.col, endCol: pos.endCol,
-        msg: 'UNTIL 没有匹配的 REPEAT', severity: 'error'
+        msg: 'UNTIL 没有匹配的 REPEAT',
+        severity: 'error',
+        code: DiagnosticCode.CONTROL_UNMATCHED_UNTIL
       });
     } else {
       if (!lineFacts.hasEndRepeat) {
@@ -214,7 +224,9 @@ function validateUnclosedBlocks(stack) {
     diagnostics.push({
       line: block.line, col: 0, endCol: 0,
       msg: `${block.keyword} 块缺少对应的 END_（文件结束）`,
-      severity: 'warning'
+      severity: 'warning',
+      code: DiagnosticCode.CONTROL_UNCLOSED_BLOCK,
+      keyword: block.keyword
     });
   }
   return diagnostics;

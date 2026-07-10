@@ -514,6 +514,13 @@ const FANUC_COMPARISON_REPLACEMENTS = {
   LE: '<='
 };
 
+const BLOCK_CLOSERS = {
+  IF: 'END_IF;',
+  FOR: 'END_FOR;',
+  WHILE: 'END_WHILE;',
+  CASE: 'END_CASE;'
+};
+
 function getDiagnosticText(document, diagnostic) {
   return document.getText(diagnostic.range).trim().toUpperCase();
 }
@@ -542,7 +549,30 @@ function createDiagnosticFromProblem(problem) {
   );
   diagnostic.source = 'syntec-macro';
   if (problem.code) diagnostic.code = problem.code;
+  if (problem.keyword) diagnostic.syntecKeyword = problem.keyword;
   return diagnostic;
+}
+
+function getUnclosedBlockKeyword(diagnostic) {
+  if (diagnostic.syntecKeyword) return diagnostic.syntecKeyword;
+  const match = diagnostic.message.match(/^([A-Z_]+) 块缺少对应的 END_/);
+  return match ? match[1] : null;
+}
+
+function createInsertBlockCloserAction(document, diagnostic) {
+  const keyword = getUnclosedBlockKeyword(diagnostic);
+  const closer = BLOCK_CLOSERS[keyword];
+  if (!closer) return null;
+
+  const action = new vscode.CodeAction(`插入 ${closer}`, vscode.CodeActionKind.QuickFix);
+  const edit = new vscode.WorkspaceEdit();
+  const lastLine = document.lineAt(document.lineCount - 1);
+  const prefix = lastLine.text.length > 0 ? '\n' : '';
+  edit.insert(document.uri, lastLine.range.end, prefix + closer);
+  action.edit = edit;
+  action.diagnostics = [diagnostic];
+  action.isPreferred = true;
+  return action;
 }
 
 function rangeIntersects(a, b) {
@@ -569,6 +599,9 @@ function provideCodeActions(document, _range, context) {
       actions.push(createInsertSemicolonAction(document, diagnostic));
     } else if (code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON) {
       actions.push(createRemoveSemicolonAction(document, diagnostic));
+    } else if (code === DiagnosticCode.CONTROL_UNCLOSED_BLOCK) {
+      const action = createInsertBlockCloserAction(document, diagnostic);
+      if (action) actions.push(action);
     } else if (code === DiagnosticCode.UNSUPPORTED_FANUC_COMPARISON) {
       const keyword = getDiagnosticText(document, diagnostic);
       const replacement = FANUC_COMPARISON_REPLACEMENTS[keyword];

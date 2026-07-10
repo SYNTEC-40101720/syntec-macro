@@ -317,3 +317,23 @@ test('Validator diagnostics expose stable codes for unsupported syntax fixes', (
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
   }
 });
+
+test('Validator diagnostics expose stable codes for control-flow errors', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const samples = [
+    ['END_IF;', DiagnosticCode.CONTROL_UNMATCHED_END],
+    ['IF #1=1 THEN\nFOR #1 := 1 TO 2 DO\nEND_IF;', DiagnosticCode.CONTROL_NESTING_ORDER],
+    ['ELSE', DiagnosticCode.CONTROL_UNMATCHED_ELSE],
+    ['ELSEIF #1=1 THEN', DiagnosticCode.CONTROL_UNMATCHED_ELSEIF],
+    ['IF #1=1 THEN\nELSE\nELSEIF #2=1 THEN', DiagnosticCode.CONTROL_ELSEIF_AFTER_ELSE],
+    ['UNTIL #1=1;', DiagnosticCode.CONTROL_UNMATCHED_UNTIL],
+    ['IF #1=1 THEN', DiagnosticCode.CONTROL_UNCLOSED_BLOCK]
+  ];
+
+  for (const [text, code] of samples) {
+    const diagnostics = validateDocument(text);
+    assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
+  }
+});
