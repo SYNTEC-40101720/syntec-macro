@@ -20,6 +20,7 @@ const {
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
 const { DiagnosticCode } = require('./diagnosticCodes');
+const { createError, createWarning } = require('./diagnosticFactory');
 const { createLineRule, getRuleIds, runLineRules } = require('./diagnosticRules');
 const {
   classifyStatement,
@@ -219,11 +220,7 @@ function collectMetadata(lines) {
   // 第一行以 % 且无 %@MACRO → 警告
   if (firstNonCommentIsBarePercent && !hasMacroHeader) {
     const first = lines[firstNonCommentIdx].trim();
-    diagnostics.push({
-      line: firstNonCommentIdx + 1, col: 0, endCol: first.length,
-      msg: '此文件缺少 %@MACRO 文件头，将被视为 ISO 格式文件',
-      severity: 'warning'
-    });
+    diagnostics.push(createWarning(firstNonCommentIdx + 1, 0, first.length, '此文件缺少 %@MACRO 文件头，将被视为 ISO 格式文件'));
   }
 
   return { nLabels, diagnostics };
@@ -255,16 +252,10 @@ function validateChineseCharacters(raw, lineNum, lineStartInBlock) {
     if (CJK_PUNCT.test(raw[ci])) puncts.push({ col: ci, ch: raw[ci] });
   }
   if (hasCJK) {
-    diagnostics.push({
-      line: lineNum, col: firstCJK, endCol: firstCJK + 1,
-      msg: '中文字符：宏程序只允许使用英文字符', severity: 'error'
-    });
+    diagnostics.push(createError(lineNum, firstCJK, firstCJK + 1, '中文字符：宏程序只允许使用英文字符'));
   }
   for (const p of puncts) {
-    diagnostics.push({
-      line: lineNum, col: p.col, endCol: p.col + 1,
-      msg: `中文标点 "${p.ch}"：宏程序应使用英文字符`, severity: 'error'
-    });
+    diagnostics.push(createError(lineNum, p.col, p.col + 1, `中文标点 "${p.ch}"：宏程序应使用英文字符`));
   }
   return diagnostics;
 }
@@ -283,18 +274,12 @@ function validateParentheses(line, lineNum, _lineStartInBlock, cleanLine) {
     if (clean[ci] === '(') parenStack.push(ci);
     else if (clean[ci] === ')') {
       if (parenStack.length === 0) {
-        diagnostics.push({
-          line: lineNum, col: ci, endCol: ci + 1,
-          msg: '括号不匹配：多余的右括号', severity: 'warning'
-        });
+        diagnostics.push(createWarning(lineNum, ci, ci + 1, '括号不匹配：多余的右括号'));
       } else { parenStack.pop(); }
     }
   }
   if (parenStack.length > 0) {
-    diagnostics.push({
-      line: lineNum, col: parenStack[0], endCol: parenStack[0] + 1,
-      msg: `括号不匹配：缺少 ${parenStack.length} 个右括号`, severity: 'warning'
-    });
+    diagnostics.push(createWarning(lineNum, parenStack[0], parenStack[0] + 1, `括号不匹配：缺少 ${parenStack.length} 个右括号`));
   }
   return diagnostics;
 }
@@ -310,12 +295,9 @@ function validateNamedVariables(_raw, lineNum, _lineStartInBlock, cleanLine) {
   while ((match = re.exec(clean)) !== null) {
     const variable = match[2];
     const col = match.index + match[1].length;
-    diagnostics.push({
-      line: lineNum, col, endCol: col + variable.length,
-      msg: `${variable} 是不支持的命名变量；请使用数字变量编号`,
-      severity: 'error',
+    diagnostics.push(createError(lineNum, col, col + variable.length, `${variable} 是不支持的命名变量；请使用数字变量编号`, {
       code: variable.startsWith('#') ? DiagnosticCode.NAMED_LOCAL_VARIABLE : DiagnosticCode.NAMED_GLOBAL_VARIABLE
-    });
+    }));
   }
   return diagnostics;
 }
@@ -330,38 +312,23 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
   let match;
   while ((match = vacantAssignRe.exec(clean)) !== null) {
     const col = match.index + match[1].length;
-    diagnostics.push({
-      line: lineNum,
-      col,
-      endCol: col + match[2].length,
-      msg: `${match[2]} 为 VACANT，只读，不建议作为赋值目标`,
-      severity: 'warning',
+    diagnostics.push(createWarning(lineNum, col, col + match[2].length, `${match[2]} 为 VACANT，只读，不建议作为赋值目标`, {
       code: DiagnosticCode.VACANT_ASSIGNMENT
-    });
+    }));
   }
 
   const directBadAppVarRe = /\b(?:AR|MAR)(?:-\d+(?:\.\d*)?|\d+\.\d+)\b/ig;
   while ((match = directBadAppVarRe.exec(clean)) !== null) {
-    diagnostics.push({
-      line: lineNum,
-      col: match.index,
-      endCol: match.index + match[0].length,
-      msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 直接编号必须为非负整数`,
-      severity: 'error',
+    diagnostics.push(createError(lineNum, match.index, match.index + match[0].length, `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 直接编号必须为非负整数`, {
       code: DiagnosticCode.INVALID_APP_VARIABLE_NUMBER
-    });
+    }));
   }
 
   const indirectBadAppVarRe = /\b(?:AR|MAR)\[\s*(-\d+(?:\.\d*)?|\d+\.\d+)\s*\]/ig;
   while ((match = indirectBadAppVarRe.exec(clean)) !== null) {
-    diagnostics.push({
-      line: lineNum,
-      col: match.index,
-      endCol: match.index + match[0].length,
-      msg: `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 间接静态编号必须为非负整数`,
-      severity: 'error',
+    diagnostics.push(createError(lineNum, match.index, match.index + match[0].length, `${match[0].toUpperCase()} 不是合法 APP 变量编号；AR/MAR 间接静态编号必须为非负整数`, {
       code: DiagnosticCode.INVALID_APP_VARIABLE_NUMBER
-    });
+    }));
   }
 
   return diagnostics;
@@ -378,12 +345,9 @@ function validateStylePreferences(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const assignmentMatch = clean.match(assignmentRe);
   if (assignmentMatch) {
     const col = clean.indexOf('=', assignmentMatch[0].lastIndexOf('='));
-    diagnostics.push({
-      line: lineNum, col, endCol: col + 1,
-      msg: '赋值使用 = 支援但不推荐；建议使用 :=',
-      severity: 'warning',
+    diagnostics.push(createWarning(lineNum, col, col + 1, '赋值使用 = 支援但不推荐；建议使用 :=', {
       code: DiagnosticCode.ASSIGNMENT_STYLE_EQUALS
-    });
+    }));
   }
 
   return diagnostics;
@@ -397,26 +361,16 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
   let match;
   const equalityRe = /==/g;
   while ((match = equalityRe.exec(clean)) !== null) {
-    diagnostics.push({
-      line: lineNum,
-      col: match.index,
-      endCol: match.index + 2,
-      msg: '== 不支持；等于比较请使用单独的 =',
-      severity: 'error',
+    diagnostics.push(createError(lineNum, match.index, match.index + 2, '== 不支持；等于比较请使用单独的 =', {
       code: DiagnosticCode.UNSUPPORTED_EQUALITY_OPERATOR
-    });
+    }));
   }
 
   const inequalityRe = /!=/g;
   while ((match = inequalityRe.exec(clean)) !== null) {
-    diagnostics.push({
-      line: lineNum,
-      col: match.index,
-      endCol: match.index + 2,
-      msg: '!= 不支持；不等于比较请使用 <>',
-      severity: 'error',
+    diagnostics.push(createError(lineNum, match.index, match.index + 2, '!= 不支持；不等于比较请使用 <>', {
       code: DiagnosticCode.UNSUPPORTED_INEQUALITY_OPERATOR
-    });
+    }));
   }
 
   const unsupportedOperators = [
@@ -429,27 +383,16 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
   ];
   for (const rule of unsupportedOperators) {
     while ((match = rule.re.exec(clean)) !== null) {
-      diagnostics.push({
-        line: lineNum,
-        col: match.index,
-        endCol: match.index + match[0].length,
-        msg: rule.msg,
-        severity: 'error',
+      diagnostics.push(createError(lineNum, match.index, match.index + match[0].length, rule.msg, {
         code: rule.code
-      });
+      }));
     }
   }
 
   const staticModRe = /((?:\d+\.\d*|\.\d+)|\d+)\s+MOD\s+((?:\d+\.\d*|\.\d+)|\d+)/ig;
   while ((match = staticModRe.exec(clean)) !== null) {
     if (match[1].includes('.') || match[2].includes('.')) {
-      diagnostics.push({
-        line: lineNum,
-        col: match.index,
-        endCol: match.index + match[0].length,
-        msg: 'MOD 仅适用于 Long 型态；静态数字操作数不可带小数点',
-        severity: 'error'
-      });
+      diagnostics.push(createError(lineNum, match.index, match.index + match[0].length, 'MOD 仅适用于 Long 型态；静态数字操作数不可带小数点'));
     }
   }
 
@@ -464,14 +407,9 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
   };
   while ((match = fanucComparisonRe.exec(clean)) !== null) {
     const keyword = match[1];
-    diagnostics.push({
-      line: lineNum,
-      col: match.index,
-      endCol: match.index + keyword.length,
-      msg: `${keyword} 不支持；请使用 ${fanucReplacement[keyword]}`,
-      severity: 'error',
+    diagnostics.push(createError(lineNum, match.index, match.index + keyword.length, `${keyword} 不支持；请使用 ${fanucReplacement[keyword]}`, {
       code: DiagnosticCode.UNSUPPORTED_FANUC_COMPARISON
-    });
+    }));
   }
 
   return diagnostics;
@@ -489,13 +427,7 @@ function validateDanglingComparisonExpression(_raw, lineNum, _lineStartInBlock, 
 
   if (/^[#@\[(+\-.\d]/.test(statement) && /(?:<>|<=|>=|<|>)/.test(statement)) {
     const col = clean.search(/\S/);
-    diagnostics.push({
-      line: lineNum,
-      col,
-      endCol: col + statement.length,
-      msg: '比较表达式不能单独成行；请放在 IF/ELSEIF/WHILE/UNTIL 条件中，或写成赋值/完整语句',
-      severity: 'error'
-    });
+    diagnostics.push(createError(lineNum, col, col + statement.length, '比较表达式不能单独成行；请放在 IF/ELSEIF/WHILE/UNTIL 条件中，或写成赋值/完整语句'));
   }
 
   return diagnostics;
@@ -512,14 +444,9 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
   const kind = classifyStatement(clean);
   if (terminator.hasSemicolon && ['blockHeader', 'branch', 'caseLabel'].includes(kind)) {
     const semicolonCol = terminator.semicolonCol >= 0 ? terminator.semicolonCol : terminator.endCol;
-    diagnostics.push({
-      line: lineNum,
-      col: Math.max(0, semicolonCol),
-      endCol: Math.max(0, semicolonCol + 1),
-      msg: '控制结构行不应以 ; 结尾',
-      severity: 'error',
+    diagnostics.push(createError(lineNum, Math.max(0, semicolonCol), Math.max(0, semicolonCol + 1), '控制结构行不应以 ; 结尾', {
       code: DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON
-    });
+    }));
     return diagnostics;
   }
   if (terminator.hasSemicolon) return diagnostics;
@@ -527,14 +454,9 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
   if (['blockHeader', 'branch', 'caseLabel', 'danglingComparison'].includes(kind)) return diagnostics;
 
   if (/\S/.test(clean)) {
-    diagnostics.push({
-      line: lineNum,
-      col: Math.max(0, terminator.endCol),
-      endCol: Math.max(0, terminator.endCol + 1),
-      msg: '语句应以 ; 结尾',
-      severity: 'error',
+    diagnostics.push(createError(lineNum, Math.max(0, terminator.endCol), Math.max(0, terminator.endCol + 1), '语句应以 ; 结尾', {
       code: DiagnosticCode.MISSING_SEMICOLON
-    });
+    }));
   }
 
   return diagnostics;
@@ -552,13 +474,7 @@ function validatePathExtensionArgs(_raw, lineNum, _lineStartInBlock, cleanLine) 
     const arg = match[1].toUpperCase();
     if (/^[XYZABC][12]$/.test(arg)) continue;
     if (!allowed.has(arg)) {
-      diagnostics.push({
-        line: lineNum,
-        col: match.index,
-        endCol: match.index + match[0].length,
-        msg: `路径扩充引数 ,${arg}_ 不存在；仅确认支持 ,C_ / ,R_ / ,A_`,
-        severity: 'error'
-      });
+      diagnostics.push(createError(lineNum, match.index, match.index + match[0].length, `路径扩充引数 ,${arg}_ 不存在；仅确认支持 ,C_ / ,R_ / ,A_`));
     }
   }
 
@@ -570,10 +486,7 @@ function validateGotoReferences(gotoRefs, nLabels) {
   const diagnostics = [];
   for (const ref of gotoRefs) {
     if (!nLabels.has(ref.target)) {
-      diagnostics.push({
-        line: ref.line, col: 0, endCol: 0,
-        msg: `GOTO 目标 ${ref.target} 不存在`, severity: 'warning'
-      });
+      diagnostics.push(createWarning(ref.line, 0, 0, `GOTO 目标 ${ref.target} 不存在`));
     }
   }
   return diagnostics;
