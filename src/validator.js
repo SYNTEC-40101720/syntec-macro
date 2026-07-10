@@ -19,6 +19,12 @@ const {
   validateControlFlowLine,
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
+const { DiagnosticCode } = require('./diagnosticCodes');
+const {
+  classifyStatement,
+  getStatementTerminatorInfo,
+  isMacroHeaderLine
+} = require('./statementClassifier');
 
 // ============================================================
 // 工具函数
@@ -77,35 +83,6 @@ function stripCommentsAndStringsWithState(line, lineStartInBlock = false) {
 
 function stripCommentsAndStrings(line) {
   return stripCommentsAndStringsWithState(line).text;
-}
-
-function getStatementTerminatorInfo(cleanLine) {
-  return {
-    hasSemicolon: /;\s*$/.test(cleanLine),
-    endCol: cleanLine.search(/\s*$/)
-  };
-}
-
-function classifyStatement(cleanLine) {
-  const trimmed = cleanLine.trim();
-  if (!trimmed) return 'blank';
-  if (isMacroHeaderLine(trimmed)) return 'macroHeader';
-  if (/^%$/.test(trimmed)) return 'programDelimiter';
-
-  const statement = trimmed.replace(/;\s*$/, '').trim();
-  if (/^(?:IF|ELSEIF|ELSIF)\b.*\bTHEN\b/i.test(statement) ||
-      /^FOR\b.*\bDO\b/i.test(statement) ||
-      /^WHILE\b.*\bDO\b/i.test(statement) ||
-      /^CASE\b.*\bOF\b/i.test(statement) ||
-      /^REPEAT\b\s*$/i.test(statement)) {
-    return 'blockHeader';
-  }
-  if (/^ELSE\b\s*$/i.test(statement)) return 'branch';
-  if (/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*$/.test(statement)) {
-    return 'caseLabel';
-  }
-  if (/^[#@\[(+\-.\d].*(?:<>|<=|>=|<|>)/.test(statement)) return 'danglingComparison';
-  return 'statement';
 }
 
 function createLineContext(raw, lineStartInBlock) {
@@ -181,11 +158,6 @@ function getKeywordPositions(line, isClean = false) {
   }
 
   return positions;
-}
-
-// 检查是否 %@MACRO 文件头行
-function isMacroHeaderLine(line) {
-  return /^%@MACRO$/i.test(line.trim());
 }
 
 // 检查一行是否 N标签（行首单独出现 N+数字，且以分号结尾）
@@ -529,12 +501,14 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
   const terminator = getStatementTerminatorInfo(clean);
   const kind = classifyStatement(clean);
   if (terminator.hasSemicolon && ['blockHeader', 'branch', 'caseLabel'].includes(kind)) {
+    const semicolonCol = terminator.semicolonCol >= 0 ? terminator.semicolonCol : terminator.endCol;
     diagnostics.push({
       line: lineNum,
-      col: Math.max(0, terminator.endCol),
-      endCol: Math.max(0, terminator.endCol + 1),
+      col: Math.max(0, semicolonCol),
+      endCol: Math.max(0, semicolonCol + 1),
       msg: '控制结构行不应以 ; 结尾',
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON
     });
     return diagnostics;
   }
@@ -548,7 +522,8 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
       col: Math.max(0, terminator.endCol),
       endCol: Math.max(0, terminator.endCol + 1),
       msg: '语句应以 ; 结尾',
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.MISSING_SEMICOLON
     });
   }
 

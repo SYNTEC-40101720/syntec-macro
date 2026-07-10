@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.5] - 2026-07-10
+
+### Added
+- **诊断 Quick Fix**: 为缺少行尾 `;` 与控制结构行误加 `;` 提供一键修复。
+- **诊断稳定 code**: 为分号相关诊断提供稳定 code，便于测试、Quick Fix 与后续维护。
+- **VS Code 集成测试**: 覆盖真实扩展宿主中的分号诊断 code 与 Quick Fix。
+
+### Changed
+- **语句分类模块**: 将语句分类与行尾分号信息抽出为独立模块，供 validator 与后续扩展能力复用。
+- **测试样例策略**: 保持 `test-demo.nc` 为无诊断合法语法覆盖样例，错误场景改由测试内联样例覆盖。
+- **代码片段**: 调整控制流与函数片段的行尾分号和占位符写法，确保插入结果符合当前诊断规则，并消除 VS Code snippet 语法警告。
+
 ## [2.8.4] - 2026-07-10
 
 ### Changed

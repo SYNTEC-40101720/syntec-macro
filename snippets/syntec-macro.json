@@ -3,12 +3,12 @@
     "prefix": "ife",
     "body": [
       "IF ${1:条件} THEN",
-      "${2:// 代码}",
+      "// ${2:代码}",
       "ELSEIF ${3:条件} THEN",
-      "${4:// 代码}",
+      "// ${4:代码}",
       "ELSE",
-      "${5:// 代码}",
-      "END_IF"
+      "// ${5:代码}",
+      "END_IF;"
     ],
     "description": "IF 条件语句（含 ELSEIF / ELSE）"
   },
@@ -16,8 +16,8 @@
     "prefix": "if",
     "body": [
       "IF ${1:条件} THEN",
-      "${2:// 代码}",
-      "END_IF"
+      "// ${2:代码}",
+      "END_IF;"
     ],
     "description": "IF 条件语句（仅 IF/END_IF）"
   },
@@ -25,8 +25,8 @@
     "prefix": "for",
     "body": [
       "FOR ${1:#i} := ${2:1} TO ${3:10} BY ${4:1} DO",
-      "${5:// 代码}",
-      "END_FOR"
+      "// ${5:代码}",
+      "END_FOR;"
     ],
     "description": "FOR 循环（从起始到终止，步进执行）"
   },
@@ -34,8 +34,8 @@
     "prefix": "while",
     "body": [
       "WHILE ${1:条件} DO",
-      "${2:// 代码}",
-      "END_WHILE"
+      "// ${2:代码}",
+      "END_WHILE;"
     ],
     "description": "WHILE 循环（条件为真时重复执行）"
   },
@@ -43,9 +43,8 @@
     "prefix": "repeat",
     "body": [
       "REPEAT",
-      "${1:// 代码}",
-      "UNTIL ${2:条件}",
-      "END_REPEAT"
+      "// ${1:代码}",
+      "UNTIL ${2:条件} END_REPEAT;"
     ],
     "description": "REPEAT 循环（先执行后判断，必须以 END_REPEAT 结尾）"
   },
@@ -54,11 +53,11 @@
     "body": [
       "CASE ${1:#变量} OF",
       "${2:值1}:",
-      "\t${3:// 代码}",
+      "\t// ${3:代码}",
       "${4:值2},${5:值3}:",
-      "\t${6:// 代码}",
+      "\t// ${6:代码}",
       "ELSE",
-      "\t${7:// 代码}",
+      "\t// ${7:代码}",
       "END_CASE;"
     ],
     "description": "CASE 多分支选择语句"
@@ -66,7 +65,7 @@
   "GOTO 跳转": {
     "prefix": "goto",
     "body": [
-      "GOTO ${1:标签}"
+      "GOTO ${1:标签};"
     ],
     "description": "GOTO 跳转到指定标签"
   },
@@ -115,14 +114,14 @@
   "G10 L1022 EtherCAT 读取": {
     "prefix": "g10l1022r",
     "body": [
-      "G10 L1022 P0 A${1:1} I${2:\"2000h\"} U${3:0} R${4:30000};"
+      "G10 L1022 P0 A${1:1} I\"${2:2000h}\" U${3:0} R${4:30000};"
     ],
     "description": "EtherCAT 物件字典读取"
   },
   "G10 L1022 EtherCAT 写入": {
     "prefix": "g10l1022w",
     "body": [
-      "G10 L1022 P1 A${1:1} I${2:\"2000h\"} U${3:0} B${4:32} V${5:50} E${6:30000};"
+      "G10 L1022 P1 A${1:1} I\"${2:2000h}\" U${3:0} B${4:32} V${5:50} E${6:30000};"
     ],
     "description": "EtherCAT 物件字典写入"
   },
@@ -171,14 +170,14 @@
   "变量赋值": {
     "prefix": "set",
     "body": [
-      "${1:#变量} := ${2:值}"
+      "${1:#变量} := ${2:值};"
     ],
     "description": "变量赋值（:=）"
   },
   "带注释赋值": {
     "prefix": "setc",
     "body": [
-      "${1:#变量} := ${2:值}  ${3:// 注释说明}"
+      "${1:#变量} := ${2:值};  ${3:// 注释说明}"
     ],
     "description": "带注释的变量赋值"
   },
@@ -190,16 +189,16 @@
       "// ===== 程序信息 =====",
       "// 程序名: ${1:程序名称}",
       "// 功能描述: ${2:功能描述}",
-      "// 创建日期: ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DAY}",
+      "// 创建日期: ${3:YYYY}-${4:MM}-${5:DD}",
       "// 作者: ${6:作者}",
       "",
       "// ===== 变量声明 =====",
-      "// ${7:// 在此声明局部变量和参数}",
+      "// ${7:在此声明局部变量和参数}",
       "",
       "N10;",
-      "${8:// 主程序代码}",
+      "// ${8:主程序代码}",
       "",
-      "M99  // 程序结束返回"
+      "M99;  // 程序结束返回"
     ],
     "description": "完整的 MACRO 程序模板（含文件头注释）"
   },
@@ -212,23 +211,23 @@
       "// 子程序名: ${1:子程序名称}",
       "// 参数说明: #1=${2:参数1}, #2=${3:参数2}",
       "",
-      "${4:// 子程序代码}",
+      "// ${4:子程序代码}",
       "",
-      "M99  // 返回主程序"
+      "M99;  // 返回主程序"
     ],
     "description": "MACRO 子程序模板"
   },
   "ALARM 报警": {
     "prefix": "alarm",
     "body": [
-      "ALARM(${1:报警编号}, \"${2:报警信息}\")"
+      "ALARM(${1:报警编号}, \"${2:报警信息}\");"
     ],
     "description": "触发报警（编号 + 提示信息）"
   },
   "MSG 消息提示": {
     "prefix": "msg",
     "body": [
-      "MSG(\"${1:提示信息}\")"
+      "MSG(\"${1:提示信息}\");"
     ],
     "description": "屏幕显示消息提示"
   },
@@ -242,21 +241,21 @@
   "OPEN 打开文件": {
     "prefix": "open",
     "body": [
-      "OPEN(\"${1:文件路径}\")"
+      "OPEN(\"${1:文件路径}\");"
     ],
     "description": "打开文件（不指定模式=覆写，\"a\"=附加）"
   },
   "OPEN 附加打开文件": {
     "prefix": "opena",
     "body": [
-      "OPEN(\"${1:文件路径}\", \"a\")"
+      "OPEN(\"${1:文件路径}\", \"a\");"
     ],
     "description": "以附加模式打开文件"
   },
   "PRINT 输出字符串": {
     "prefix": "print",
     "body": [
-      "PRINT(\"${1:输出字串}\")"
+      "PRINT(\"${1:输出字串}\");"
     ],
     "description": "输出字符串到档案或传输埠（变数名会被替换为内容）"
   },
@@ -270,84 +269,84 @@
   "READDI 读取DI信号": {
     "prefix": "readdi",
     "body": [
-      "#${1:变量} := READDI(${2:DI端口号})"
+      "#${1:变量} := READDI(${2:DI端口号});"
     ],
     "description": "读取数字输入（DI）信号状态"
   },
   "SETDO 设置DO信号": {
     "prefix": "setdo",
     "body": [
-      "SETDO(${1:DO端口号}, ${2:0或1})"
+      "SETDO(${1:DO端口号}, ${2:0或1});"
     ],
     "description": "设置数字输出（DO）信号"
   },
   "READABIT 读取ABIT": {
     "prefix": "readabit",
     "body": [
-      "#${1:变量} := READABIT(${2:点编号})"
+      "#${1:变量} := READABIT(${2:点编号});"
     ],
     "description": "读取指定的 A 点编号（0~511）"
   },
   "SETABIT 设置ABIT": {
     "prefix": "setabit",
     "body": [
-      "SETABIT(${1:点编号}, ${2:0或1})"
+      "SETABIT(${1:点编号}, ${2:0或1});"
     ],
     "description": "设定指定的 A 点开/关（0~511）"
   },
   "G65 调用宏程序": {
     "prefix": "g65",
     "body": [
-      "G65 P${1:宏程序号} L${2:调用次数} A${3:参数1} B${4:参数2}"
+      "G65 P${1:宏程序号} L${2:调用次数} A${3:参数1} B${4:参数2};"
     ],
     "description": "G65 调用宏程序（P=程序号, L=次数, A/B/C...=参数传递）"
   },
   "DBOPEN 打开数据库": {
     "prefix": "dbopen",
     "body": [
-      "DBOPEN(\"${1:数据库文件名}\")"
+      "DBOPEN(\"${1:数据库文件名}\");"
     ],
     "description": "打开数据库文件"
   },
   "DBSAVE 保存数据库": {
     "prefix": "dbsave",
     "body": [
-      "DBSAVE(${1:Index})"
+      "DBSAVE(${1:Index});"
     ],
     "description": "覆盖第 Index 笔的 Cycle 资料"
   },
   "DBINSERT 插入数据": {
     "prefix": "dbinsert",
     "body": [
-      "DBINSERT(${1:Index}, \"${2:Cycle Name}\")"
+      "DBINSERT(${1:Index}, \"${2:Cycle Name}\");"
     ],
     "description": "新增 Cycle 资料到第 Index 笔"
   },
   "DBLOAD 加载数据": {
     "prefix": "dbload",
     "body": [
-      "DBLOAD(${1:数据组})"
+      "DBLOAD(${1:数据组});"
     ],
     "description": "从数据库加载一条数据"
   },
   "DBDELETE 删除数据": {
     "prefix": "dbdelete",
     "body": [
-      "DBDELETE(${1:数据组})"
+      "DBDELETE(${1:数据组});"
     ],
     "description": "从数据库删除一条数据"
   },
   "DBNEW 新建数据库": {
     "prefix": "dbnew",
     "body": [
-      "DBNEW(\"${1:档案名}\")"
+      "DBNEW(\"${1:档案名}\");"
     ],
     "description": "新增并开启全新的 Cycle 档案"
   },
   "SETDRAW 绘图设置": {
     "prefix": "setdraw",
     "body": [
-      "SETDRAW(${1:路径颜色}[, ${2:填充颜色}, ${3:刀具半径}])"
+      "SETDRAW(${1:路径颜色}, ${2:填充颜色}, ${3:刀具半径});"
     ],
     "description": "定义图形模拟的画图样式"
   },
@@ -361,35 +360,35 @@
   "SYSVAR 系统变量": {
     "prefix": "sysvar",
     "body": [
-      "#${1:变量} := SYSVAR(${2:轴群识别码}, ${3:系统变数码})"
+      "#${1:变量} := SYSVAR(${2:轴群识别码}, ${3:系统变数码});"
     ],
     "description": "读取特定轴群中的系统变数"
   },
   "CHKMN 检查机械厂代码": {
     "prefix": "chkmn",
     "body": [
-      "#${1:变量} := CHKMN(\"${2:机械厂代码}\")"
+      "#${1:变量} := CHKMN(\"${2:机械厂代码}\");"
     ],
     "description": "检查机械厂代码是否一致"
   },
   "PARAM 参数读取": {
     "prefix": "param",
     "body": [
-      "#${1:变量} := PARAM(${2:参数号码}[, ${3:轴群}])"
+      "#${1:变量} := PARAM(${2:参数号码}, ${3:轴群});"
     ],
     "description": "读取系统参数 Pr 或 V12 PN 参数"
   },
   "PUSH 压栈": {
     "prefix": "push",
     "body": [
-      "PUSH(${1:值})"
+      "PUSH(${1:值});"
     ],
     "description": "将值压入堆栈"
   },
   "POP 出栈": {
     "prefix": "pop",
     "body": [
-      "#${1:变量} := POP()"
+      "#${1:变量} := POP();"
     ],
     "description": "从堆栈弹出值"
   },
@@ -523,7 +522,7 @@
     "prefix": "g661",
     "body": [
       "G66.1 P${1:宏程序号} L${2:次数};",
-      "${3:// 每行运动指令都会调用}",
+      "// ${3:每行运动指令都会调用}",
       "G67;"
     ],
     "description": "G66.1 模式宏程序呼叫（每行运动都调用，G67 取消）"

@@ -5,6 +5,16 @@ const vscode = require('vscode');
 const EXTENSION_ID = 'syntec-team.syntec-macro';
 const LANG_ID = 'syntec-macro';
 
+async function waitForDiagnostics(uri, predicate, timeoutMs = 1500) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const diagnostics = vscode.languages.getDiagnostics(uri);
+    if (predicate(diagnostics)) return diagnostics;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return vscode.languages.getDiagnostics(uri);
+}
+
 async function openSyntecDocument(text) {
   const document = await vscode.workspace.openTextDocument({
     content: text,
@@ -198,6 +208,51 @@ const tests = [
         await new Promise(resolve => setTimeout(resolve, 450));
         diagnostics = vscode.languages.getDiagnostics(document.uri);
         assert.strictEqual(diagnostics.length, 0, 'diagnostics should be cleared when disabled');
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
+  },
+  {
+    name: 'diagnostics expose semicolon codes and quick fixes',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\n#1 := 1\nWHILE #1 < 10 DO;\nEND_WHILE;');
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        const diagnostics = await waitForDiagnostics(document.uri, items =>
+          items.some(d => d.code === 'SYNTEC_MISSING_SEMICOLON') &&
+          items.some(d => d.code === 'SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON')
+        );
+
+        const missing = diagnostics.find(d => d.code === 'SYNTEC_MISSING_SEMICOLON');
+        const extra = diagnostics.find(d => d.code === 'SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON');
+        assert.ok(missing, 'missing semicolon diagnostic code should be emitted');
+        assert.ok(extra, 'control structure trailing semicolon diagnostic code should be emitted');
+
+        const missingActions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          missing.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const insertAction = missingActions.find(action => action.title === '补上行尾 ;');
+        assert.ok(insertAction, 'missing semicolon quick fix should be provided');
+
+        const extraActions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          extra.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const removeAction = extraActions.find(action => action.title === '移除控制结构行尾 ;');
+        assert.ok(removeAction, 'trailing semicolon quick fix should be provided');
+
+        await vscode.workspace.applyEdit(insertAction.edit);
+        await vscode.workspace.applyEdit(removeAction.edit);
+        assert.strictEqual(document.getText(), '%@MACRO\n#1 := 1;\nWHILE #1 < 10 DO\nEND_WHILE;');
       } finally {
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }

@@ -237,17 +237,22 @@ test('Snippets match function definitions (no stale parameters)', () => {
   assert.strictEqual(byPrefix.sleep.body[0], 'SLEEP();', 'SLEEP snippet should be parameterless');
   assert.strictEqual(byPrefix.wait.body[0], 'WAIT();', 'WAIT snippet should be parameterless');
   assert.strictEqual(byPrefix.close.body[0], 'CLOSE();', 'CLOSE snippet should be parameterless');
-  assert.strictEqual(byPrefix.msg.body[0], 'MSG("${1:提示信息}")', 'MSG snippet should not insert a leading space');
+  assert.strictEqual(byPrefix.msg.body[0], 'MSG("${1:提示信息}");', 'MSG snippet should not insert a leading space and should end with semicolon');
   assert.ok(byPrefix.for.body[0].includes(' := '), 'FOR snippet should use recommended := assignment');
+  assert.strictEqual(byPrefix.if.body.at(-1), 'END_IF;', 'IF snippet should close with semicolon');
+  assert.strictEqual(byPrefix.while.body.at(-1), 'END_WHILE;', 'WHILE snippet should close with semicolon');
+  assert.strictEqual(byPrefix.repeat.body.at(-1), 'UNTIL ${2:条件} END_REPEAT;', 'REPEAT snippet should use single-line UNTIL END_REPEAT with semicolon');
   // OPEN: path-based API, not file-handle
-  assert.strictEqual(byPrefix.open.body[0], 'OPEN("${1:文件路径}")', 'OPEN snippet should use valid overwrite syntax');
-  assert.strictEqual(byPrefix.opena.body[0], 'OPEN("${1:文件路径}", "a")', 'OPEN append snippet should use valid append syntax');
+  assert.strictEqual(byPrefix.open.body[0], 'OPEN("${1:文件路径}");', 'OPEN snippet should use valid overwrite syntax');
+  assert.strictEqual(byPrefix.opena.body[0], 'OPEN("${1:文件路径}", "a");', 'OPEN append snippet should use valid append syntax');
   // READABIT: single arg, no 位号
   assert.ok(!byPrefix.readabit.body[0].includes('位号'), 'READABIT should have single arg');
   // SETABIT: two args, no 位号
   assert.ok(!byPrefix.setabit.body[0].includes('位号'), 'SETABIT should not have three args');
   assert.ok(byPrefix.g10l1803.body[0].includes('G10 L1803'), 'G10 L1803 snippet should exist');
   assert.ok(byPrefix.g10l1805.body[0].includes('G10 L1805'), 'G10 L1805 snippet should exist');
+  assert.strictEqual(byPrefix.g10l1022r.body[0], 'G10 L1022 P0 A${1:1} I"${2:2000h}" U${3:0} R${4:30000};', 'G10 L1022 read snippet should keep quotes outside placeholder');
+  assert.ok(byPrefix.ife.body.includes('// ${2:代码}'), 'control-flow snippets should keep comment markers outside placeholders');
   for (const prefix of ['g10l1000', 'g10l1810', 'g10l1820', 'g10l1021', 'g10l1022r', 'g10l1022w', 'g10l1900r', 'g10l1900w', 'g10l1901', 'g10l1910r', 'g10l1910w', 'g10l1911']) {
     assert.ok(byPrefix[prefix], `${prefix} snippet should exist`);
   }
@@ -283,4 +288,13 @@ test('Grammar highlights documented operators and variable forms', () => {
   assert.match('$4', new RegExp(patternByName['variable.language.axis-group.syntec-macro']));
   assert.doesNotMatch('MOVJ-II', new RegExp(patternByName['keyword.control.robot-move.syntec-macro']));
   assert.doesNotMatch('TOOLCORON', new RegExp(patternByName['keyword.control.robot-coord.syntec-macro']));
+});
+
+test('Validator diagnostics expose stable codes for semicolon fixes', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\n#1 := 1\nWHILE #1 < 10 DO;\nEND_WHILE;');
+  assert.ok(diagnostics.some(d => d.code === DiagnosticCode.MISSING_SEMICOLON), 'missing semicolon should expose a stable code');
+  assert.ok(diagnostics.some(d => d.code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON), 'control structure trailing semicolon should expose a stable code');
 });

@@ -7,6 +7,7 @@ const path = require('path');
 const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
+const { DiagnosticCode } = require('./diagnosticCodes');
 const { normalizeProgramName, normalizeSubprogramName, buildFileCandidates } = require('./fileResolver');
 const { buildFunctionSnippet } = require('./completionSnippets');
 const { formatSyntecMacroDocument } = require('./formatter');
@@ -464,10 +465,46 @@ function refreshDiagnostics(document) {
       p.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning
     );
     d.source = 'syntec-macro';
+    if (p.code) d.code = p.code;
     return d;
   });
 
   diagnosticCollection.set(document.uri, diagnostics);
+}
+
+function createInsertSemicolonAction(document, diagnostic) {
+  const action = new vscode.CodeAction('补上行尾 ;', vscode.CodeActionKind.QuickFix);
+  const edit = new vscode.WorkspaceEdit();
+  const line = document.lineAt(diagnostic.range.start.line);
+  const character = Math.min(diagnostic.range.start.character, line.text.length);
+  edit.insert(document.uri, new vscode.Position(diagnostic.range.start.line, character), ';');
+  action.edit = edit;
+  action.diagnostics = [diagnostic];
+  action.isPreferred = true;
+  return action;
+}
+
+function createRemoveSemicolonAction(document, diagnostic) {
+  const action = new vscode.CodeAction('移除控制结构行尾 ;', vscode.CodeActionKind.QuickFix);
+  const edit = new vscode.WorkspaceEdit();
+  edit.delete(document.uri, diagnostic.range);
+  action.edit = edit;
+  action.diagnostics = [diagnostic];
+  action.isPreferred = true;
+  return action;
+}
+
+function provideCodeActions(document, _range, context) {
+  const actions = [];
+  for (const diagnostic of context.diagnostics) {
+    if (diagnostic.source !== 'syntec-macro') continue;
+    if (diagnostic.code === DiagnosticCode.MISSING_SEMICOLON) {
+      actions.push(createInsertSemicolonAction(document, diagnostic));
+    } else if (diagnostic.code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON) {
+      actions.push(createRemoveSemicolonAction(document, diagnostic));
+    }
+  }
+  return actions;
 }
 
 // =====================
@@ -559,6 +596,12 @@ function activate(context) {
   // Diagnostics
   diagnosticCollection = vscode.languages.createDiagnosticCollection(LANG_ID);
   context.subscriptions.push(diagnosticCollection);
+
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(selector, { provideCodeActions }, {
+      providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+    })
+  );
 
   // 初始扫描 + 实时更新
   for (const doc of vscode.workspace.textDocuments) {
