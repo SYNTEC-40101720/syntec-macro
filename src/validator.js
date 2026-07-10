@@ -451,6 +451,58 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
   return diagnostics;
 }
 
+function validateDanglingComparisonExpression(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  const trimmed = clean.trim();
+  if (!trimmed || isMacroHeaderLine(trimmed)) return [];
+
+  const diagnostics = [];
+  const statement = trimmed.replace(/;\s*$/, '').trim();
+  if (/^(?:IF|ELSEIF|WHILE|UNTIL)\b/i.test(statement)) return [];
+  if (/(?::=|==|!=|&&|\|\|)/.test(statement)) return [];
+
+  if (/^[#@\[(+\-.\d]/.test(statement) && /(?:<>|<=|>=|<|>)/.test(statement)) {
+    const col = clean.search(/\S/);
+    diagnostics.push({
+      line: lineNum,
+      col,
+      endCol: col + statement.length,
+      msg: '比较表达式不能单独成行；请放在 IF/ELSEIF/WHILE/UNTIL 条件中，或写成赋值/完整语句',
+      severity: 'error'
+    });
+  }
+
+  return diagnostics;
+}
+
+function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  const trimmed = clean.trim();
+  if (!trimmed || isMacroHeaderLine(trimmed)) return [];
+
+  const diagnostics = [];
+  if (/^%$/.test(trimmed) || /[；：，。！？【】《》（）""''、]/.test(trimmed)) return diagnostics;
+  if (/;\s*$/.test(clean)) return diagnostics;
+
+  const controlStructureRe = /^\s*(?:IF|ELSEIF|ELSIF|ELSE|FOR|WHILE|REPEAT|UNTIL|CASE|END_IF|END_FOR|END_WHILE|END_CASE|END_REPEAT|ENDIF|ENDFOR|ENDWHILE|ENDCASE|ENDREPEAT)\b/i;
+  const emptyCaseBranchRe = /^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*$/;
+  const danglingComparisonRe = /^[#@\[(+\-.\d].*(?:<>|<=|>=|<|>)/;
+  if (controlStructureRe.test(clean) || emptyCaseBranchRe.test(clean) || danglingComparisonRe.test(trimmed)) return diagnostics;
+
+  if (/\S/.test(clean)) {
+    const endCol = clean.search(/\s*$/);
+    diagnostics.push({
+      line: lineNum,
+      col: Math.max(0, endCol),
+      endCol: Math.max(0, endCol + 1),
+      msg: '语句应以 ; 结尾',
+      severity: 'error'
+    });
+  }
+
+  return diagnostics;
+}
+
 function validatePathExtensionArgs(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
   if (!clean.trim()) return [];
@@ -501,6 +553,8 @@ const LINE_VALIDATORS = [
   validateNamedVariables,
   validateVariableAccess,
   validateUnsupportedOperators,
+  validateDanglingComparisonExpression,
+  validateStatementTerminator,
   validateRobotSyntaxPreferences,
   validateConfirmedSingleLineSyntax,
   validatePathExtensionArgs,

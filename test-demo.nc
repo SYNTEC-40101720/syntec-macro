@@ -89,11 +89,11 @@ UNTIL #6 >= 5 END_REPEAT;
 
 CASE #10 OF
   1:
-    #11 := 100;
+  #11 := 100;
   2, 3:
-    #11 := 200;
-  ELSE
-    #11 := 0;
+  #11 := 200;
+ELSE
+  #11 := 0;
 END_CASE;
 
 IF #1 = 100 THEN
@@ -126,7 +126,7 @@ N200;
 #42 := #42 XOR 1; // 单 bit 翻转
 #43 := #43 XOR 0xFFFF; // 16 位整字翻转，mask 依实际字宽调整
 
-IF #1 > 50 THEN 
+IF #1 > 50 THEN
   #40 := 1;
 ELSEIF #1 >= 20 THEN
   #40 := 2;
@@ -356,8 +356,8 @@ M#4;
 #200 := 1; // 行尾注释
 
 (*
-  多行块注释
-  IF / END_IF / GOTO 等关键字在注释中不参与诊断
+多行块注释
+IF / END_IF / GOTO 等关键字在注释中不参与诊断
 *)
 
 FOR #1 := 1 TO 10 BY 1 DO
@@ -376,16 +376,16 @@ N300;
 WHILE #203 < 10 DO
   CASE #203 OF
     0:
-      MOVJ C1=#203 C2=0 FJ50;
+    MOVJ C1=#203 C2=0 FJ50;
     1:
-      MOVL X#203 Y0. Z0. FL100.;
+    MOVL X#203 Y0. Z0. FL100.;
     2:
-      INCMOVJ C1=5. C2=0 C3=0 C4=0 C5=0 C6=0 FJ30;
-    ELSE
-      PAUSE;
+    INCMOVJ C1=5. C2=0 C3=0 C4=0 C5=0 C6=0 FJ30;
+  ELSE
+    PAUSE;
   END_CASE;
   #203 := #203 + 1;
   SLEEP();
 END_WHILE;
-@1 <> 2;
+
 M99;
