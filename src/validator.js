@@ -20,6 +20,7 @@ const {
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
 const { DiagnosticCode } = require('./diagnosticCodes');
+const { createLineRule, getRuleIds, runLineRules } = require('./diagnosticRules');
 const {
   classifyStatement,
   getStatementTerminatorInfo,
@@ -582,20 +583,20 @@ function validateGotoReferences(gotoRefs, nLabels) {
 // 主验证函数
 // ============================================================
 
-// 行级验证策略集合（按从左到右顺序执行）
-const LINE_VALIDATORS = [
-  validateChineseCharacters,
-  validateParentheses,
-  validateNamedVariables,
-  validateVariableAccess,
-  validateUnsupportedOperators,
-  validateDanglingComparisonExpression,
-  validateStatementTerminator,
-  validateRobotSyntaxPreferences,
-  validateConfirmedSingleLineSyntax,
-  validatePathExtensionArgs,
-  validateStaticFunctionArguments,
-  validateStylePreferences
+// 行级验证规则集合（按从左到右顺序执行）
+const LINE_VALIDATOR_RULES = [
+  createLineRule('chinese-characters', validateChineseCharacters),
+  createLineRule('parentheses', validateParentheses),
+  createLineRule('named-variables', validateNamedVariables),
+  createLineRule('variable-access', validateVariableAccess),
+  createLineRule('unsupported-operators', validateUnsupportedOperators),
+  createLineRule('dangling-comparison-expression', validateDanglingComparisonExpression),
+  createLineRule('statement-terminator', validateStatementTerminator),
+  createLineRule('robot-syntax-preferences', validateRobotSyntaxPreferences),
+  createLineRule('confirmed-single-line-syntax', validateConfirmedSingleLineSyntax),
+  createLineRule('path-extension-args', validatePathExtensionArgs),
+  createLineRule('static-function-arguments', validateStaticFunctionArguments),
+  createLineRule('style-preferences', validateStylePreferences)
 ];
 
 function validateDocument(content) {
@@ -623,11 +624,7 @@ function validateDocument(content) {
     const gotoTarget = extractGotoTarget(line.clean, true);
     if (gotoTarget) gotoRefs.push({ line: lineNum, target: gotoTarget });
 
-    // 执行行级验证策略
-    for (const validator of LINE_VALIDATORS) {
-      const results = validator(line.raw, lineNum, lineStartInBlock, line.clean);
-      diagnostics.push(...results);
-    }
+    diagnostics.push(...runLineRules(LINE_VALIDATOR_RULES, line, lineNum, lineStartInBlock));
 
     diagnostics.push(...validateCaseLineStyle(line.clean, lineNum, controlFlowState.stack));
 
@@ -649,3 +646,4 @@ exports.validateDocument = validateDocument;
 exports.stripCommentsAndStrings = stripCommentsAndStrings;
 exports.getKeywordPositions = getKeywordPositions;
 exports.isNLabelLine = isNLabelLine;
+exports.getLineValidatorRuleIds = () => getRuleIds(LINE_VALIDATOR_RULES);

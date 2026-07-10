@@ -400,3 +400,21 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
   }
 });
+
+test('Validator line rules are registered with stable ids', () => {
+  const { getLineValidatorRuleIds } = require('../src/validator');
+  assert.deepStrictEqual(getLineValidatorRuleIds(), [
+    'chinese-characters',
+    'parentheses',
+    'named-variables',
+    'variable-access',
+    'unsupported-operators',
+    'dangling-comparison-expression',
+    'statement-terminator',
+    'robot-syntax-preferences',
+    'confirmed-single-line-syntax',
+    'path-extension-args',
+    'static-function-arguments',
+    'style-preferences'
+  ]);
+});
