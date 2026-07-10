@@ -257,6 +257,46 @@ const tests = [
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
       }
     }
+  },
+  {
+    name: 'unsupported syntax quick fixes replace safe operators',
+    run: async () => {
+      const config = vscode.workspace.getConfiguration('syntecMacro');
+      const original = config.get('enableDiagnostics');
+      const document = await openSyntecDocument('%@MACRO\nIF #1 == 1 THEN\nELSIF #2 != 0 THEN\n#3 := 10 DIV 3;\n#4 := 10 % 3;\nIF (#1 = 1) && (#2 = 2) || (#3 EQ 3) THEN\nEND_IF;\nEND_IF;');
+
+      async function applyFirstFixFor(code, title) {
+        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === code));
+        const diagnostic = diagnostics.find(d => d.code === code);
+        assert.ok(diagnostic, `${code} diagnostic should be emitted`);
+        const actions = await vscode.commands.executeCommand(
+          'vscode.executeCodeActionProvider',
+          document.uri,
+          diagnostic.range,
+          vscode.CodeActionKind.QuickFix.value
+        );
+        const action = actions.find(item => item.title === title);
+        assert.ok(action, `${title} quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}; diagnostic code: ${diagnostic.code}; range: ${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.character}`);
+        await vscode.workspace.applyEdit(action.edit);
+        await new Promise(resolve => setTimeout(resolve, 450));
+      }
+
+      try {
+        await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR', '改为 =');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_ELSIF', '改为 ELSEIF');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR', '改为 <>');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_DIV', '改为 /');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_PERCENT_OPERATOR', '改为 MOD');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR', '改为 AND');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR', '改为 OR');
+        await applyFirstFixFor('SYNTEC_UNSUPPORTED_FANUC_COMPARISON', '改为 =');
+
+        assert.strictEqual(document.getText(), '%@MACRO\nIF #1 = 1 THEN\nELSEIF #2 <> 0 THEN\n#3 := 10 / 3;\n#4 := 10 MOD 3;\nIF (#1 = 1) AND (#2 = 2) OR (#3 = 3) THEN\nEND_IF;\nEND_IF;');
+      } finally {
+        await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
+      }
+    }
   }
 ];
 

@@ -1,5 +1,7 @@
 // Control-flow stack validation for Syntec macro blocks.
 
+const { DiagnosticCode } = require('./diagnosticCodes');
+
 const OPENER_KEYWORDS = new Set(['IF', 'FOR', 'WHILE', 'CASE', 'REPEAT']);
 
 const CLOSER_TO_OPENER = {
@@ -67,13 +69,20 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
 
   if (pos.unsupported) {
     let msg = '';
-    if (kw === 'ELSIF') msg = 'ELSIF 不支持，请使用 ELSEIF';
-    else if (kw === 'DEFAULT') msg = 'DEFAULT 不支持，请使用 ELSE';
-    else if (kw === 'DIV') msg = 'DIV 不支持；整数除法请使用 /，分子与分母皆为整数时结果仍为整数';
-    else msg = `${kw} 是不支持的语法`;
+    let code;
+    if (kw === 'ELSIF') {
+      msg = 'ELSIF 不支持，请使用 ELSEIF';
+      code = DiagnosticCode.UNSUPPORTED_ELSIF;
+    } else if (kw === 'DEFAULT') {
+      msg = 'DEFAULT 不支持，请使用 ELSE';
+      code = DiagnosticCode.UNSUPPORTED_DEFAULT;
+    } else if (kw === 'DIV') {
+      msg = 'DIV 不支持；整数除法请使用 /，分子与分母皆为整数时结果仍为整数';
+      code = DiagnosticCode.UNSUPPORTED_DIV;
+    } else msg = `${kw} 是不支持的语法`;
     diagnostics.push({
       line: lineNum, col: pos.col, endCol: pos.endCol,
-      msg, severity: 'error'
+      msg, severity: 'error', code
     });
     return;
   }

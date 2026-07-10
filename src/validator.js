@@ -396,7 +396,8 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
       col: match.index,
       endCol: match.index + 2,
       msg: '== 不支持；等于比较请使用单独的 =',
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.UNSUPPORTED_EQUALITY_OPERATOR
     });
   }
 
@@ -407,17 +408,18 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
       col: match.index,
       endCol: match.index + 2,
       msg: '!= 不支持；不等于比较请使用 <>',
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.UNSUPPORTED_INEQUALITY_OPERATOR
     });
   }
 
   const unsupportedOperators = [
-    { re: /&&/g, msg: '&& 不支持；逻辑且请使用 AND 或 &' },
-    { re: /\|\|/g, msg: '|| 不支持；逻辑或请使用 OR' },
-    { re: /\+=/g, msg: '+= 不支持；请写成 #1 := #1 + 1 这类完整赋值' },
-    { re: /\+\+/g, msg: '++ 不支持；请写成 #1 := #1 + 1 这类完整赋值' },
-    { re: /(?<=\S)\s*%(?!=)\s*(?=\S)/g, msg: '% 不支持；取模请使用 MOD，且仅适用于 Long 型态' },
-    { re: /!(?!=)/g, msg: '! 不支持；NOT 是补数运算，逻辑条件请写成明确比较' }
+    { re: /&&/g, msg: '&& 不支持；逻辑且请使用 AND 或 &', code: DiagnosticCode.UNSUPPORTED_LOGICAL_AND_OPERATOR },
+    { re: /\|\|/g, msg: '|| 不支持；逻辑或请使用 OR', code: DiagnosticCode.UNSUPPORTED_LOGICAL_OR_OPERATOR },
+    { re: /\+=/g, msg: '+= 不支持；请写成 #1 := #1 + 1 这类完整赋值', code: DiagnosticCode.UNSUPPORTED_COMPOUND_ASSIGNMENT },
+    { re: /\+\+/g, msg: '++ 不支持；请写成 #1 := #1 + 1 这类完整赋值', code: DiagnosticCode.UNSUPPORTED_INCREMENT },
+    { re: /(?<=\S)\s*%(?!=)\s*(?=\S)/g, msg: '% 不支持；取模请使用 MOD，且仅适用于 Long 型态', code: DiagnosticCode.UNSUPPORTED_PERCENT_OPERATOR },
+    { re: /!(?!=)/g, msg: '! 不支持；NOT 是补数运算，逻辑条件请写成明确比较', code: DiagnosticCode.UNSUPPORTED_LOGICAL_NOT_OPERATOR }
   ];
   for (const rule of unsupportedOperators) {
     while ((match = rule.re.exec(clean)) !== null) {
@@ -426,7 +428,8 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
         col: match.index,
         endCol: match.index + match[0].length,
         msg: rule.msg,
-        severity: 'error'
+        severity: 'error',
+        code: rule.code
       });
     }
   }
@@ -460,7 +463,8 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
       col: match.index,
       endCol: match.index + keyword.length,
       msg: `${keyword} 不支持；请使用 ${fanucReplacement[keyword]}`,
-      severity: 'error'
+      severity: 'error',
+      code: DiagnosticCode.UNSUPPORTED_FANUC_COMPARISON
     });
   }
 

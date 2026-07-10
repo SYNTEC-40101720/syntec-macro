@@ -298,3 +298,22 @@ test('Validator diagnostics expose stable codes for semicolon fixes', () => {
   assert.ok(diagnostics.some(d => d.code === DiagnosticCode.MISSING_SEMICOLON), 'missing semicolon should expose a stable code');
   assert.ok(diagnostics.some(d => d.code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON), 'control structure trailing semicolon should expose a stable code');
 });
+
+test('Validator diagnostics expose stable codes for unsupported syntax fixes', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\nIF #1 == 1 THEN\nELSIF #2 != 0 THEN\nEND_IF;\n#1 := 10 DIV 3;\n#2 := 10 % 3;\nIF (#1 = 1) && (#2 = 2) || (#3 EQ 3) THEN\nEND_IF;');
+  for (const code of [
+    DiagnosticCode.UNSUPPORTED_EQUALITY_OPERATOR,
+    DiagnosticCode.UNSUPPORTED_ELSIF,
+    DiagnosticCode.UNSUPPORTED_INEQUALITY_OPERATOR,
+    DiagnosticCode.UNSUPPORTED_DIV,
+    DiagnosticCode.UNSUPPORTED_PERCENT_OPERATOR,
+    DiagnosticCode.UNSUPPORTED_LOGICAL_AND_OPERATOR,
+    DiagnosticCode.UNSUPPORTED_LOGICAL_OR_OPERATOR,
+    DiagnosticCode.UNSUPPORTED_FANUC_COMPARISON
+  ]) {
+    assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);
+  }
+});

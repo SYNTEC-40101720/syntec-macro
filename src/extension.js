@@ -494,14 +494,88 @@ function createRemoveSemicolonAction(document, diagnostic) {
   return action;
 }
 
+const DIAGNOSTIC_REPLACEMENTS = {
+  [DiagnosticCode.UNSUPPORTED_ELSIF]: { title: '改为 ELSEIF', text: 'ELSEIF' },
+  [DiagnosticCode.UNSUPPORTED_DEFAULT]: { title: '改为 ELSE', text: 'ELSE' },
+  [DiagnosticCode.UNSUPPORTED_DIV]: { title: '改为 /', text: '/' },
+  [DiagnosticCode.UNSUPPORTED_EQUALITY_OPERATOR]: { title: '改为 =', text: '=' },
+  [DiagnosticCode.UNSUPPORTED_INEQUALITY_OPERATOR]: { title: '改为 <>', text: '<>' },
+  [DiagnosticCode.UNSUPPORTED_LOGICAL_AND_OPERATOR]: { title: '改为 AND', text: 'AND' },
+  [DiagnosticCode.UNSUPPORTED_LOGICAL_OR_OPERATOR]: { title: '改为 OR', text: 'OR' },
+  [DiagnosticCode.UNSUPPORTED_PERCENT_OPERATOR]: { title: '改为 MOD', text: ' MOD ' }
+};
+
+const FANUC_COMPARISON_REPLACEMENTS = {
+  EQ: '=',
+  NE: '<>',
+  GT: '>',
+  GE: '>=',
+  LT: '<',
+  LE: '<='
+};
+
+function getDiagnosticText(document, diagnostic) {
+  return document.getText(diagnostic.range).trim().toUpperCase();
+}
+
+function createReplacementAction(document, diagnostic, title, replacement) {
+  const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(document.uri, diagnostic.range, replacement);
+  action.edit = edit;
+  action.diagnostics = [diagnostic];
+  action.isPreferred = true;
+  return action;
+}
+
+function getDiagnosticCode(diagnostic) {
+  if (typeof diagnostic.code === 'string') return diagnostic.code;
+  if (diagnostic.code && typeof diagnostic.code.value === 'string') return diagnostic.code.value;
+  return undefined;
+}
+
+function createDiagnosticFromProblem(problem) {
+  const diagnostic = new vscode.Diagnostic(
+    new vscode.Range(problem.line - 1, problem.col, problem.line - 1, problem.endCol || problem.col + 1),
+    problem.msg,
+    problem.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning
+  );
+  diagnostic.source = 'syntec-macro';
+  if (problem.code) diagnostic.code = problem.code;
+  return diagnostic;
+}
+
+function rangeIntersects(a, b) {
+  return a.intersection(b) !== undefined || a.contains(b.start) || b.contains(a.start);
+}
+
+function getActionableDiagnostics(document, range, context) {
+  const diagnostics = context.diagnostics.filter(diagnostic =>
+    diagnostic.source === 'syntec-macro' && getDiagnosticCode(diagnostic)
+  );
+  if (diagnostics.length > 0) return diagnostics;
+
+  return validateDocument(document.getText())
+    .filter(problem => problem.code)
+    .map(createDiagnosticFromProblem)
+    .filter(diagnostic => rangeIntersects(diagnostic.range, range));
+}
+
 function provideCodeActions(document, _range, context) {
   const actions = [];
-  for (const diagnostic of context.diagnostics) {
-    if (diagnostic.source !== 'syntec-macro') continue;
-    if (diagnostic.code === DiagnosticCode.MISSING_SEMICOLON) {
+  for (const diagnostic of getActionableDiagnostics(document, _range, context)) {
+    const code = getDiagnosticCode(diagnostic);
+    if (code === DiagnosticCode.MISSING_SEMICOLON) {
       actions.push(createInsertSemicolonAction(document, diagnostic));
-    } else if (diagnostic.code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON) {
+    } else if (code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON) {
       actions.push(createRemoveSemicolonAction(document, diagnostic));
+    } else if (code === DiagnosticCode.UNSUPPORTED_FANUC_COMPARISON) {
+      const keyword = getDiagnosticText(document, diagnostic);
+      const replacement = FANUC_COMPARISON_REPLACEMENTS[keyword];
+      if (replacement) actions.push(createReplacementAction(document, diagnostic, `改为 ${replacement}`, replacement));
+    } else if (Object.prototype.hasOwnProperty.call(DIAGNOSTIC_REPLACEMENTS, code)) {
+      const replacement = DIAGNOSTIC_REPLACEMENTS[code];
+      if (replacement) actions.push(createReplacementAction(document, diagnostic, replacement.title, replacement.text));
     }
   }
   return actions;

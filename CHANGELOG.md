@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.6] - 2026-07-10
+
+### Added
+- **不支持语法 Quick Fix**: 为 `ELSIF`、`DEFAULT`、`DIV`、`==`、`!=`、`&&`、`||`、`%` 与 FANUC 比较关键字提供稳定诊断 code 和安全替换 Quick Fix。
+- **Quick Fix 集成测试**: 覆盖多个不支持语法的真实 VS Code Quick Fix 应用流程。
+
+### Changed
+- **CodeAction 稳定性**: Quick Fix provider 可在 VS Code 未传入完整诊断上下文时回退到当前文档诊断，提升 CodeAction 查询稳定性。
+
 ## [2.8.5] - 2026-07-10
 
 ### Added
