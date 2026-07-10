@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.15] - 2026-07-11
+
+### Changed
+- **诊断去重稳定性**: 诊断去重 key 优先使用稳定 `code` 而非中文提示文字，避免未来调整文案影响诊断去重行为。
+
 ## [2.8.14] - 2026-07-11
 
 ### Changed

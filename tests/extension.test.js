@@ -5,6 +5,20 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 
+test('Diagnostic dedupe key prefers stable code over localized message', () => {
+  const { getDiagnosticDedupeKey } = require('../src/diagnosticFactory');
+  const base = { line: 2, col: 4, endCol: 6, severity: 'error', code: 'SYNTEC_TEST_CODE' };
+
+  assert.strictEqual(
+    getDiagnosticDedupeKey({ ...base, msg: '旧提示' }),
+    getDiagnosticDedupeKey({ ...base, msg: '新提示' })
+  );
+  assert.notStrictEqual(
+    getDiagnosticDedupeKey({ ...base, code: 'SYNTEC_OTHER_CODE', msg: '旧提示' }),
+    getDiagnosticDedupeKey({ ...base, msg: '旧提示' })
+  );
+});
+
 // ===== v2.6.0 新增测试 =====
 
 test('Robot instructions exist in getAllKeywords', () => {

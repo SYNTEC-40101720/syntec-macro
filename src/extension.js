@@ -7,6 +7,7 @@ const path = require('path');
 const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
+const { getDiagnosticDedupeKey } = require('./diagnosticFactory');
 const { DiagnosticCode } = require('./diagnosticCodes');
 const {
   BLOCK_CLOSERS,
@@ -458,7 +459,7 @@ function refreshDiagnostics(document) {
   const text = document.getText();
   const seenProblems = new Set();
   const problems = validateDocument(text).filter(p => {
-    const key = [p.line, p.col, p.endCol || p.col + 1, p.severity, p.msg].join('|');
+    const key = getDiagnosticDedupeKey(p);
     if (seenProblems.has(key)) return false;
     seenProblems.add(key);
     return true;
