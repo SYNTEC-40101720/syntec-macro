@@ -15,6 +15,37 @@ async function waitForDiagnostics(uri, predicate, timeoutMs = 1500) {
   return vscode.languages.getDiagnostics(uri);
 }
 
+async function waitForDiagnosticCode(uri, code, timeoutMs = 1500) {
+  const diagnostics = await waitForDiagnostics(uri, items => items.some(d => d.code === code), timeoutMs);
+  const diagnostic = diagnostics.find(d => d.code === code);
+  assert.ok(diagnostic, `${code} diagnostic should be emitted`);
+  return diagnostic;
+}
+
+async function waitForDiagnosticCodeGone(uri, code, timeoutMs = 1500) {
+  await waitForDiagnostics(uri, items => !items.some(d => d.code === code), timeoutMs);
+  assert.ok(!vscode.languages.getDiagnostics(uri).some(d => d.code === code), `${code} diagnostic should be cleared`);
+}
+
+async function getQuickFixAction(document, diagnostic, title) {
+  const actions = await vscode.commands.executeCommand(
+    'vscode.executeCodeActionProvider',
+    document.uri,
+    diagnostic.range,
+    vscode.CodeActionKind.QuickFix.value
+  );
+  const action = actions.find(item => item.title === title);
+  assert.ok(action, `${title} quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}`);
+  return action;
+}
+
+async function applyQuickFixForCode(document, code, title) {
+  const diagnostic = await waitForDiagnosticCode(document.uri, code);
+  const action = await getQuickFixAction(document, diagnostic, title);
+  await vscode.workspace.applyEdit(action.edit);
+  await waitForDiagnosticCodeGone(document.uri, code);
+}
+
 async function openSyntecDocument(text) {
   const document = await vscode.workspace.openTextDocument({
     content: text,
@@ -200,13 +231,11 @@ const tests = [
 
       try {
         await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
-        await new Promise(resolve => setTimeout(resolve, 450));
-        let diagnostics = vscode.languages.getDiagnostics(document.uri);
+        let diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.message.includes('IF 块缺少对应的 END_')));
         assert.ok(diagnostics.some(d => d.message.includes('IF 块缺少对应的 END_')), 'diagnostics should be emitted when enabled');
 
         await config.update('enableDiagnostics', false, vscode.ConfigurationTarget.Global);
-        await new Promise(resolve => setTimeout(resolve, 450));
-        diagnostics = vscode.languages.getDiagnostics(document.uri);
+        diagnostics = await waitForDiagnostics(document.uri, items => items.length === 0);
         assert.strictEqual(diagnostics.length, 0, 'diagnostics should be cleared when disabled');
       } finally {
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
@@ -232,23 +261,8 @@ const tests = [
         assert.ok(missing, 'missing semicolon diagnostic code should be emitted');
         assert.ok(extra, 'control structure trailing semicolon diagnostic code should be emitted');
 
-        const missingActions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          missing.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const insertAction = missingActions.find(action => action.title === '补上行尾 ;');
-        assert.ok(insertAction, 'missing semicolon quick fix should be provided');
-
-        const extraActions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          extra.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const removeAction = extraActions.find(action => action.title === '移除控制结构行尾 ;');
-        assert.ok(removeAction, 'trailing semicolon quick fix should be provided');
+        const insertAction = await getQuickFixAction(document, missing, '补上行尾 ;');
+        const removeAction = await getQuickFixAction(document, extra, '移除控制结构行尾 ;');
 
         await vscode.workspace.applyEdit(insertAction.edit);
         await vscode.workspace.applyEdit(removeAction.edit);
@@ -265,32 +279,16 @@ const tests = [
       const original = config.get('enableDiagnostics');
       const document = await openSyntecDocument('%@MACRO\nIF #1 == 1 THEN\nELSIF #2 != 0 THEN\n#3 := 10 DIV 3;\n#4 := 10 % 3;\nIF (#1 = 1) && (#2 = 2) || (#3 EQ 3) THEN\nEND_IF;\nEND_IF;');
 
-      async function applyFirstFixFor(code, title) {
-        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === code));
-        const diagnostic = diagnostics.find(d => d.code === code);
-        assert.ok(diagnostic, `${code} diagnostic should be emitted`);
-        const actions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          diagnostic.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const action = actions.find(item => item.title === title);
-        assert.ok(action, `${title} quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}; diagnostic code: ${diagnostic.code}; range: ${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.character}`);
-        await vscode.workspace.applyEdit(action.edit);
-        await new Promise(resolve => setTimeout(resolve, 450));
-      }
-
       try {
         await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR', '改为 =');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_ELSIF', '改为 ELSEIF');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR', '改为 <>');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_DIV', '改为 /');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_PERCENT_OPERATOR', '改为 MOD');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR', '改为 AND');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR', '改为 OR');
-        await applyFirstFixFor('SYNTEC_UNSUPPORTED_FANUC_COMPARISON', '改为 =');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR', '改为 =');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_ELSIF', '改为 ELSEIF');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR', '改为 <>');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_DIV', '改为 /');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_PERCENT_OPERATOR', '改为 MOD');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR', '改为 AND');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR', '改为 OR');
+        await applyQuickFixForCode(document, 'SYNTEC_UNSUPPORTED_FANUC_COMPARISON', '改为 =');
 
         assert.strictEqual(document.getText(), '%@MACRO\nIF #1 = 1 THEN\nELSEIF #2 <> 0 THEN\n#3 := 10 / 3;\n#4 := 10 MOD 3;\nIF (#1 = 1) AND (#2 = 2) OR (#3 = 3) THEN\nEND_IF;\nEND_IF;');
       } finally {
@@ -307,18 +305,8 @@ const tests = [
 
       try {
         await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
-        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === 'SYNTEC_CONTROL_UNCLOSED_BLOCK'));
-        const diagnostic = diagnostics.find(d => d.code === 'SYNTEC_CONTROL_UNCLOSED_BLOCK');
-        assert.ok(diagnostic, 'unclosed IF diagnostic should be emitted');
-
-        const actions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          diagnostic.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const action = actions.find(item => item.title === '插入 END_IF;');
-        assert.ok(action, `END_IF quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}`);
+        const diagnostic = await waitForDiagnosticCode(document.uri, 'SYNTEC_CONTROL_UNCLOSED_BLOCK');
+        const action = await getQuickFixAction(document, diagnostic, '插入 END_IF;');
 
         await vscode.workspace.applyEdit(action.edit);
         assert.strictEqual(document.getText(), '%@MACRO\nIF #1 = 1 THEN\n#2 := 1;\nEND_IF;');
@@ -345,24 +333,11 @@ const tests = [
 
         for (const code of ['SYNTEC_NAMED_LOCAL_VARIABLE', 'SYNTEC_VACANT_ASSIGNMENT', 'SYNTEC_INVALID_APP_VARIABLE_NUMBER']) {
           const diagnostic = diagnostics.find(d => d.code === code);
-          const actions = await vscode.commands.executeCommand(
-            'vscode.executeCodeActionProvider',
-            document.uri,
-            diagnostic.range,
-            vscode.CodeActionKind.QuickFix.value
-          );
-          assert.ok(actions.some(action => action.title === '查看变量规则说明'), `${code} should provide a help action`);
+          await getQuickFixAction(document, diagnostic, '查看变量规则说明');
         }
 
         const assignment = diagnostics.find(d => d.code === 'SYNTEC_ASSIGNMENT_STYLE_EQUALS');
-        const assignmentActions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          assignment.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const action = assignmentActions.find(item => item.title === '改为 :=');
-        assert.ok(action, 'assignment style quick fix should be provided');
+        const action = await getQuickFixAction(document, assignment, '改为 :=');
         await vscode.workspace.applyEdit(action.edit);
         assert.strictEqual(document.lineAt(4).text, '#1 := 100;');
       } finally {
@@ -394,13 +369,7 @@ const tests = [
         ];
         for (const [code, title] of expected) {
           const diagnostic = diagnostics.find(d => d.code === code);
-          const actions = await vscode.commands.executeCommand(
-            'vscode.executeCodeActionProvider',
-            document.uri,
-            diagnostic.range,
-            vscode.CodeActionKind.QuickFix.value
-          );
-          assert.ok(actions.some(action => action.title === title), `${code} should provide ${title}`);
+          await getQuickFixAction(document, diagnostic, title);
         }
       } finally {
         await config.update('enableDiagnostics', original, vscode.ConfigurationTarget.Global);
@@ -414,29 +383,13 @@ const tests = [
       const original = config.get('enableDiagnostics');
       const document = await openSyntecDocument('%@MACRO\nMOVJ X=100. FJ50;\nMOVJ-II X100.;\nTOOLCORON P1;\nTOOLCOR T1;\nTOOLCOR CLEAR;');
 
-      async function applyFirstFixFor(code, title) {
-        const diagnostics = await waitForDiagnostics(document.uri, items => items.some(d => d.code === code));
-        const diagnostic = diagnostics.find(d => d.code === code);
-        assert.ok(diagnostic, `${code} diagnostic should be emitted`);
-        const actions = await vscode.commands.executeCommand(
-          'vscode.executeCodeActionProvider',
-          document.uri,
-          diagnostic.range,
-          vscode.CodeActionKind.QuickFix.value
-        );
-        const action = actions.find(item => item.title === title);
-        assert.ok(action, `${title} quick fix should be provided; got actions: ${actions.map(item => item.title).join(', ')}`);
-        await vscode.workspace.applyEdit(action.edit);
-        await new Promise(resolve => setTimeout(resolve, 450));
-      }
-
       try {
         await config.update('enableDiagnostics', true, vscode.ConfigurationTarget.Global);
-        await applyFirstFixFor('SYNTEC_ROBOT_DIRECT_ARG_EQUALS', '移除直接引数 =');
-        await applyFirstFixFor('SYNTEC_ROBOT_DEPRECATED_MOVJ_II', '改为 MOVJ');
-        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCORON_DEPRECATED', '改为 TOOLCOR');
-        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCOR_T_ARG', '改为 P 引数');
-        await applyFirstFixFor('SYNTEC_ROBOT_TOOLCOR_CLEAR', '改为 TOOLCOR P0');
+        await applyQuickFixForCode(document, 'SYNTEC_ROBOT_DIRECT_ARG_EQUALS', '移除直接引数 =');
+        await applyQuickFixForCode(document, 'SYNTEC_ROBOT_DEPRECATED_MOVJ_II', '改为 MOVJ');
+        await applyQuickFixForCode(document, 'SYNTEC_ROBOT_TOOLCORON_DEPRECATED', '改为 TOOLCOR');
+        await applyQuickFixForCode(document, 'SYNTEC_ROBOT_TOOLCOR_T_ARG', '改为 P 引数');
+        await applyQuickFixForCode(document, 'SYNTEC_ROBOT_TOOLCOR_CLEAR', '改为 TOOLCOR P0');
 
         assert.strictEqual(document.getText(), '%@MACRO\nMOVJ X100. FJ50;\nMOVJ X100.;\nTOOLCOR P1;\nTOOLCOR P1;\nTOOLCOR P0;');
       } finally {

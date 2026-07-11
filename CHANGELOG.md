@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.18] - 2026-07-11
+
+### Changed
+- **集成测试稳定性**: 抽取诊断等待与 Quick Fix 应用 helper，以等待诊断状态变化取代固定延迟，降低 VS Code 集成测试脆弱性并缩短运行时间。
+
 ## [2.8.17] - 2026-07-11
 
 ### Changed
