@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.16] - 2026-07-11
+
+### Changed
+- **诊断优先级过滤**: 同一区间已有错误诊断时会抑制重叠的警告诊断，减少语法错误场景下的风格提示噪音。
+
 ## [2.8.15] - 2026-07-11
 
 ### Changed

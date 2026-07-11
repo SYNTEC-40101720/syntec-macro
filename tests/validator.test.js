@@ -334,6 +334,9 @@ console.log('\n[16] 不支持的语法检测');
   eq('控制结构开头行误加分号报错',
     '%@MACRO\nWHILE #203 < 10 DO;\n  CASE #203 OF;\n  0:;\n  ELSE;\n  END_CASE;\nEND_WHILE;\nM99;',
     [['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾']]);
+  eq('错误诊断抑制同区间风格提示',
+    '%@MACRO\nCASE #1 OF\n1:;\nEND_CASE;',
+    [['error', '控制结构行不应以 ; 结尾']]);
   eq('所有控制结构开头和分支行误加分号都报错',
     '%@MACRO\nIF #1 > 50 THEN;\nELSEIF #1 > 20 THEN;\nELSE;\nEND_IF;\nFOR #1 := 1 TO 10 BY 2 DO;\nEND_FOR;\nREPEAT;\nUNTIL #1 > 10 END_REPEAT;\nCASE #10 OF;\n1:;\nEND_CASE;\nWHILE #1 > 0 DO;\nEND_WHILE;\nM99;',
     [['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾'], ['error', '控制结构行不应以 ; 结尾']]);

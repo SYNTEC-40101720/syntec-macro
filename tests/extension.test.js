@@ -19,6 +19,17 @@ test('Diagnostic dedupe key prefers stable code over localized message', () => {
   );
 });
 
+test('Warning diagnostics overlapping errors are suppressed', () => {
+  const { suppressWarningsOverlappingErrors } = require('../src/diagnosticFactory');
+  const diagnostics = suppressWarningsOverlappingErrors([
+    { line: 1, col: 4, endCol: 8, severity: 'warning', msg: 'style' },
+    { line: 1, col: 6, endCol: 7, severity: 'error', msg: 'syntax' },
+    { line: 2, col: 0, endCol: 0, severity: 'warning', msg: 'file-level' }
+  ]);
+
+  assert.deepStrictEqual(diagnostics.map(item => item.msg), ['syntax', 'file-level']);
+});
+
 // ===== v2.6.0 新增测试 =====
 
 test('Robot instructions exist in getAllKeywords', () => {
