@@ -30,6 +30,22 @@ test('Warning diagnostics overlapping errors are suppressed', () => {
   assert.deepStrictEqual(diagnostics.map(item => item.msg), ['syntax', 'file-level']);
 });
 
+test('Diagnostics normalize with stable position and severity order', () => {
+  const { normalizeDiagnostics } = require('../src/diagnosticFactory');
+  const diagnostics = normalizeDiagnostics([
+    { line: 2, col: 1, endCol: 2, severity: 'warning', msg: 'later-warning' },
+    { line: 1, col: 5, endCol: 6, severity: 'warning', msg: 'same-position-warning' },
+    { line: 1, col: 5, endCol: 6, severity: 'error', msg: 'same-position-error' },
+    { line: 1, col: 1, endCol: 2, severity: 'error', msg: 'first-error' }
+  ]);
+
+  assert.deepStrictEqual(diagnostics.map(item => item.msg), [
+    'first-error',
+    'same-position-error',
+    'later-warning'
+  ]);
+});
+
 // ===== v2.6.0 新增测试 =====
 
 test('Robot instructions exist in getAllKeywords', () => {

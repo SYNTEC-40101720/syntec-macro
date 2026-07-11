@@ -41,10 +41,33 @@ function suppressWarningsOverlappingErrors(diagnostics) {
   );
 }
 
+function getSeverityRank(severity) {
+  return severity === 'error' ? 0 : 1;
+}
+
+function compareDiagnostics(left, right) {
+  return (left.line - right.line) ||
+    (left.col - right.col) ||
+    ((left.endCol || left.col + 1) - (right.endCol || right.col + 1)) ||
+    (getSeverityRank(left.severity) - getSeverityRank(right.severity)) ||
+    String(left.code || left.msg).localeCompare(String(right.code || right.msg));
+}
+
+function sortDiagnostics(diagnostics) {
+  return [...diagnostics].sort(compareDiagnostics);
+}
+
+function normalizeDiagnostics(diagnostics) {
+  return sortDiagnostics(suppressWarningsOverlappingErrors(diagnostics));
+}
+
 module.exports = {
   createDiagnostic,
   createError,
   createWarning,
+  compareDiagnostics,
   getDiagnosticDedupeKey,
+  normalizeDiagnostics,
+  sortDiagnostics,
   suppressWarningsOverlappingErrors
 };

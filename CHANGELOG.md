@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.17] - 2026-07-11
+
+### Changed
+- **诊断结果排序**: 诊断返回前统一按位置、严重度与稳定 code/message 排序，使 UI 展示与测试结果更可预期。
+
 ## [2.8.16] - 2026-07-11
 
 ### Changed

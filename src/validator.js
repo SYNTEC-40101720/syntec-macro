@@ -20,7 +20,7 @@ const {
   validateUnclosedBlocks
 } = require('./controlFlowValidator');
 const { DiagnosticCode } = require('./diagnosticCodes');
-const { createError, createWarning, suppressWarningsOverlappingErrors } = require('./diagnosticFactory');
+const { createError, createWarning, normalizeDiagnostics } = require('./diagnosticFactory');
 const { createLineRule, getRuleIds, runLineRules } = require('./diagnosticRules');
 const {
   classifyStatement,
@@ -257,7 +257,7 @@ function validateChineseCharacters(raw, lineNum, lineStartInBlock) {
   for (const p of puncts) {
     diagnostics.push(createError(lineNum, p.col, p.col + 1, `中文标点 "${p.ch}"：宏程序应使用英文字符`));
   }
-  return suppressWarningsOverlappingErrors(diagnostics);
+  return normalizeDiagnostics(diagnostics);
 }
 
 // 括号匹配验证器：检测多余的右括号或缺少的右括号
