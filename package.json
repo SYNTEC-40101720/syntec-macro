@@ -3,7 +3,7 @@
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
   "icon": "images/icon.png",
-  "version": "2.8.18",
+  "version": "2.8.19",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
@@ -99,6 +99,7 @@
   "scripts": {
     "test": "node tests/validator.test.js && node --test tests/extension.test.js",
     "test:integration": "node tests/integration/runTest.js",
+    "docs:diagnostics": "node scripts/generateDiagnosticDocs.js",
     "package": "vsce package --allow-star-activation",
     "lint": "npx eslint src/ tests/"
   },

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.19] - 2026-07-11
+
+### Added
+- **诊断规则文档**: 新增 `docs/诊断规则与修复动作.md`，列出诊断 code、分类、严重度、Quick Fix / CodeAction 与维护说明。
+- **诊断文档生成脚本**: 新增 `npm run docs:diagnostics`，依据 `diagnosticCodes` 与 `diagnosticActions` 生成诊断规则文档。
+
 ## [2.8.18] - 2026-07-11
 
 ### Changed
