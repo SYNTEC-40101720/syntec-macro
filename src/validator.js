@@ -531,7 +531,10 @@ function validateDocument(content) {
     const line = createLineContext(lines[i], lineStartInBlock);
     inBlockComment = line.inBlockComment;
 
-    diagnostics.push(...validateRobotLineState(robotState, line.clean, line.command, lineNum));
+    const inConditionalBranch = controlFlowState.stack.some(block =>
+      block.keyword === 'IF' || block.keyword === 'CASE'
+    );
+    diagnostics.push(...validateRobotLineState(robotState, line.clean, line.command, lineNum, inConditionalBranch));
 
     // GOTO 目标引用
     const gotoTarget = extractGotoTarget(line.clean, true);

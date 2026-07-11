@@ -191,7 +191,7 @@ function addPendingMovcDiagnostic(diagnostics, lineNum) {
     'MOVC 必须成对出现：第一行为中间点，第二行为结束点', 'error', DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED);
 }
 
-function validateRobotLineState(state, clean, command, lineNum) {
+function validateRobotLineState(state, clean, command, lineNum, inConditionalBranch = false) {
   const diagnostics = [];
   if (!command) return diagnostics;
 
@@ -200,7 +200,7 @@ function validateRobotLineState(state, clean, command, lineNum) {
     state.pendingMovcLine = 0;
   }
 
-  if (command === 'MOVC' && !isSingleLineMovc(clean)) {
+  if (command === 'MOVC' && !inConditionalBranch && !isSingleLineMovc(clean)) {
     state.pendingMovcLine = state.pendingMovcLine > 0 ? 0 : lineNum;
   }
 

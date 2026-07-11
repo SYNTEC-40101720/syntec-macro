@@ -508,6 +508,8 @@ console.log('\n[20] 跨行机器人/应用诊断');
     [['error', 'MOVC 必须成对出现']]);
   eq('MOVC 成对正确',
     '%@MACRO\nMOVC X100. Y0.;\nMOVC X200. Y100.;', []);
+  eq('条件分支中的 MOVC 不要求静态成对',
+    '%@MACRO\nIF #41 <> #0 THEN\n  MOVC LP#41 FL#52 FR#53 FEJ#54 PL#55;\nELSEIF #42 <> #0 THEN\n  MOVC GP#42 FL#52 FR#53 FEJ#54 PL#55;\nELSE\n  MOVC X#1 Y#2 Z#3 A#4 B#5 C#6 A1=#21 A2=#22 A3=#23 A4=#24 A5=#25 A6=#26 P#43 Q#44 FL#52 FR#53 FEJ#54 PL#55;\nEND_IF;', []);
   eq('MOVC 单行新版写法不需要成对',
     '%@MACRO\nMOVC X1=100. Y1=0. Z1=0., X2=200. Y2=100. Z2=0. FL100.;', []);
   eq('运动单节后多个 SWAITSIG 报错',
