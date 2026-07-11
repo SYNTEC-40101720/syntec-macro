@@ -16,6 +16,7 @@ tests/
 eslint.config.js
 
 # Build tools & scripts
+scripts/
 *.py
 *.ps1
 build/

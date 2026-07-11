@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test and lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests and diagnostic docs check
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+  integration:
+    name: VS Code integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run VS Code integration tests
+        run: xvfb-run -a npm run test:integration
+
+      - name: Upload VS Code integration logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-integration-logs
+          path: |
+            .vscode-test/user-data/logs/**
+            .vscode-test/**/*.log
+          if-no-files-found: warn
+          retention-days: 7

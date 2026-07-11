@@ -3,7 +3,7 @@
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
   "icon": "images/icon.png",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
@@ -97,11 +97,17 @@
     }
   },
   "scripts": {
-    "test": "node tests/validator.test.js && node --test tests/extension.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && node tests/validator.test.js && node --test tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js",
     "test:integration": "node tests/integration/runTest.js",
+    "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
+    "smoke:installed": "node scripts/runInstalledSmoke.js",
+    "benchmark:navigation": "node scripts/benchmarkNavigation.js",
     "docs:diagnostics": "node scripts/generateDiagnosticDocs.js",
-    "package": "vsce package --allow-star-activation",
-    "lint": "npx eslint src/ tests/"
+    "docs:diagnostics:check": "node scripts/generateDiagnosticDocs.js --check",
+    "check:release": "node scripts/checkReleaseConsistency.js",
+    "check:vsix": "node scripts/checkVsixContents.js",
+    "package": "npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",
+    "lint": "npx eslint src/ scripts/ tests/"
   },
   "devDependencies": {
     "@vscode/test-electron": "3.0.0",

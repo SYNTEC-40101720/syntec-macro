@@ -95,7 +95,7 @@ function rowFor(code) {
   return `| ${cells.join(' | ')} |`;
 }
 
-function render() {
+function renderDiagnosticDocs() {
   const codes = Object.values(DiagnosticCode).sort();
   const lines = [
     '# 诊断规则与修复动作',
@@ -154,5 +154,30 @@ function render() {
   return lines.join('\n');
 }
 
-fs.writeFileSync(OUTPUT, render(), 'utf8');
-console.log(`Generated ${path.relative(ROOT, OUTPUT)}`);
+function isDiagnosticDocsCurrent(content) {
+  return content === renderDiagnosticDocs();
+}
+
+function checkDiagnosticDocs() {
+  const actual = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, 'utf8') : '';
+  if (isDiagnosticDocsCurrent(actual)) {
+    console.info(`Diagnostic docs are up to date: ${path.relative(ROOT, OUTPUT)}`);
+    return true;
+  }
+  console.error(`Diagnostic docs are stale: ${path.relative(ROOT, OUTPUT)}`);
+  console.error('Run npm run docs:diagnostics and commit the generated changes.');
+  return false;
+}
+
+function main(args = process.argv.slice(2)) {
+  if (args.includes('--check')) {
+    if (!checkDiagnosticDocs()) process.exitCode = 1;
+    return;
+  }
+  fs.writeFileSync(OUTPUT, renderDiagnosticDocs(), 'utf8');
+  console.info(`Generated ${path.relative(ROOT, OUTPUT)}`);
+}
+
+if (require.main === module) main();
+
+module.exports = { checkDiagnosticDocs, isDiagnosticDocsCurrent, renderDiagnosticDocs };

@@ -137,6 +137,126 @@ const tests = [
     }
   },
   {
+    name: 'workspace symbol provider returns static programs and labels',
+    run: async () => {
+      const openDocumentsBefore = new Set(vscode.workspace.textDocuments.map(document => document.uri.toString()));
+      const programs = await vscode.commands.executeCommand(
+        'vscode.executeWorkspaceSymbolProvider',
+        'G1000'
+      );
+      assert.ok(programs.some(symbol => symbol.name === 'G1000'), 'G1000 program entry should be provided');
+
+      const labels = await vscode.commands.executeCommand(
+        'vscode.executeWorkspaceSymbolProvider',
+        'N10'
+      );
+      assert.ok(labels.some(symbol => symbol.name === 'N10'), 'N10 workspace label should be provided');
+
+      const macroHeaders = await vscode.commands.executeCommand(
+        'vscode.executeWorkspaceSymbolProvider',
+        '%@MACRO'
+      );
+      assert.ok(
+        macroHeaders.some(symbol => symbol.name === '%@MACRO' && symbol.location.uri.fsPath.endsWith('NamedMacro')),
+        'extensionless named macro header should be provided'
+      );
+
+      const secondaryPrograms = await vscode.commands.executeCommand(
+        'vscode.executeWorkspaceSymbolProvider',
+        'G2000'
+      );
+      assert.ok(
+        secondaryPrograms.some(symbol =>
+          symbol.name === 'G2000' && symbol.location.uri.fsPath.includes('workspace-secondary')
+        ),
+        'programs from the secondary workspace root should be provided'
+      );
+
+      const secondaryLabels = await vscode.commands.executeCommand(
+        'vscode.executeWorkspaceSymbolProvider',
+        'N20'
+      );
+      assert.ok(
+        secondaryLabels.some(symbol =>
+          symbol.name === 'N20' && symbol.location.uri.fsPath.includes('workspace-secondary')
+        ),
+        'labels from the secondary workspace root should be provided'
+      );
+
+      const locationKeys = macroHeaders.map(symbol =>
+        `${symbol.location.uri.toString()}:${symbol.location.range.start.line}:${symbol.name}`
+      );
+      assert.strictEqual(new Set(locationKeys).size, locationKeys.length, 'workspace symbols should not be duplicated');
+
+      const newlyOpenedDocuments = vscode.workspace.textDocuments
+        .filter(document => !openDocumentsBefore.has(document.uri.toString()))
+        .filter(document => document.uri.scheme === 'file');
+      assert.deepStrictEqual(newlyOpenedDocuments, [], 'workspace symbol scan should not open candidate documents');
+    }
+  },
+  {
+    name: 'reference provider finds static macro calls and excludes dynamic targets',
+    run: async () => {
+      const callsDocument = await openWorkspaceDocument('sample.nc');
+      const editor = await vscode.window.showTextDocument(callsDocument);
+      await editor.edit(editBuilder => {
+        editBuilder.replace(
+          new vscode.Range(0, 0, callsDocument.lineCount - 1, callsDocument.lineAt(callsDocument.lineCount - 1).text.length),
+          '%@MACRO\nG65 P1000;\nG66.1 P1000;\nG65 P"NamedMacro";\nG65 P#1;\n// G65 P1000;\nM98 P8000;\nM198 P8000;\nM98 P#2;'
+        );
+      });
+
+      const numericTarget = await openWorkspaceDocument('G1000');
+      const numericReferences = await vscode.commands.executeCommand(
+        'vscode.executeReferenceProvider',
+        numericTarget.uri,
+        new vscode.Position(0, 2)
+      );
+      const numericCallLines = numericReferences
+        .filter(location => location.uri.fsPath.endsWith('sample.nc'))
+        .map(location => location.range.start.line);
+      assert.deepStrictEqual(numericCallLines, [1, 2], 'only static G1000 calls should be returned');
+
+      const callReferences = await vscode.commands.executeCommand(
+        'vscode.executeReferenceProvider',
+        callsDocument.uri,
+        new vscode.Position(1, 6)
+      );
+      assert.deepStrictEqual(
+        callReferences
+          .filter(location => location.uri.fsPath.endsWith('sample.nc'))
+          .map(location => location.range.start.line),
+        [1, 2],
+        'reference lookup should work from a static call token'
+      );
+
+      const namedTarget = await openWorkspaceDocument('NamedMacro');
+      const namedReferences = await vscode.commands.executeCommand(
+        'vscode.executeReferenceProvider',
+        namedTarget.uri,
+        new vscode.Position(0, 2)
+      );
+      assert.ok(
+        namedReferences.some(location => location.uri.fsPath.endsWith('sample.nc') && location.range.start.line === 3),
+        'static string macro call should be returned'
+      );
+
+      const subprogramTarget = await openWorkspaceDocument('O8000');
+      const subprogramReferences = await vscode.commands.executeCommand(
+        'vscode.executeReferenceProvider',
+        subprogramTarget.uri,
+        new vscode.Position(0, 2)
+      );
+      assert.deepStrictEqual(
+        subprogramReferences
+          .filter(location => location.uri.fsPath.endsWith('sample.nc'))
+          .map(location => location.range.start.line),
+        [6, 7],
+        'M98 and M198 static calls should reference O8000'
+      );
+    }
+  },
+  {
     name: 'definition provider resolves GOTO targets',
     run: async () => {
       const document = await openSyntecDocument('%@MACRO\nGOTO 10;\nN10;\nM99;');

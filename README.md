@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.9.0-blue)
+![Version](https://img.shields.io/badge/version-2.10.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -20,7 +20,8 @@
 - [控制器语法规则](#控制器语法规则)
 - [新代宏程序知识图谱](docs/新代宏程序知识图谱.md)
 - [诊断规则与修复动作](docs/诊断规则与修复动作.md)
-- [v2.9.0 规划](docs/v2.9.0-规划.md)
+- [v2.10.0 发布规划](docs/v2.10.0-发布规划.md)
+- [v2.9.0 历史规划](docs/v2.9.0-规划.md)
 - [开发交接说明](docs/开发交接说明.md)
 - [故障排除](#故障排除)
 - [贡献](#贡献)
@@ -36,9 +37,11 @@
 | **智能补全** | 输入函数名 → 自动弹出含签名参数的补全列表 | ✅ 增强 v2.0.0 |
 | **悬停文档** | 悬停函数名/G/M 代码/G10 L 指令 → 显示完整说明、参数解释、使用示例 | ✅ 增强 v2.8.1 |
 | **代码跳转** | Ctrl+点击 N 标签、G65/G66 Pxxx、M98/M198 Pxxx → 跳转定义 | ✅ |
+| **引用查找** | 查找静态 G/O 宏调用及命名宏调用的所有引用 | 🆕 v2.10.0 |
 | **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
 | **Quick Fix** | 分号、不支持语法、控制流闭合、变量/函数/机器人诊断说明与安全修复 | ✅ 增强 v2.8.19 |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
+| **工作区符号** | 跨文件检索 G/O 程序入口、`%@MACRO` 与 N 标签 | 🆕 v2.10.0 |
 | **代码片段** | 60+ 模板（IF/FOR/DB/IO/G10/报警等） | ✅ 增强 v2.8.1 |
 | **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令、替代 G 码 | ✅ 增强 v2.7.0 |
 | **诊断防抖** | 300ms 防抖，打字时不再卡顿 | 🆕 v2.0.0 |
@@ -89,7 +92,9 @@ M99;  // 子程序返回
 | 触发补全 | `Ctrl+Space` 或自动 | 输入函数名时自动弹出 |
 | 查看文档 | 悬停函数名 | 显示完整说明和示例 |
 | 跳转到定义 | `Ctrl+Click` | 点击 N 标签或 G65 Pxxx |
+| 查找所有引用 | `Shift+F12` | 在静态调用目标或目标文件 `%@MACRO` 上查询 |
 | 查看大纲 | `Ctrl+Shift+O` | 显示所有 N 标签 |
+| 搜索工作区符号 | `Ctrl+T` | 跨文件搜索 G/O 程序、宏入口与 N 标签 |
 | 格式化文档 | 右键 → 格式化文档 | 调整缩进并移除尾随空白 |
 
 ---
@@ -225,6 +230,16 @@ M98 P8000;   (* Ctrl+Click "P8000" → 打开 O8000 *)
 M198 P8000;  (* Ctrl+Click "P8000" → 打开 O8000 *)
 ```
 
+#### d) 静态宏调用引用
+
+在 `P1000`、`P"NamedMacro"` 或目标文件的 `%@MACRO` 上按 `Shift+F12`，可查看工作区内所有静态调用位置。支持：
+
+- `G65/G66/G66.1 P数字`
+- `G65/G66/G66.1 P"静态名称"`
+- `M98/M198 P数字`
+
+`P#变量`、计算表达式、注释和字符串中的伪调用不会进入引用结果。
+
 **搜索规则**（按优先级）：
 1. 工作区根目录：`G1000` / `O8000` 或对应常见加工档后缀
 2. 工作区子目录（递归搜索深度 5）
@@ -300,11 +315,18 @@ N100；  (* 错误：中文分号 *)
 
 **v2.0.0 优化**：诊断防抖 300ms，打字时不再卡顿。
 
-### 6. Outline 大纲
+### 6. Outline 与工作区符号
 
 按 `Ctrl+Shift+O` 打开符号导航，显示：
 - 所有 N 标签（如 `N10`, `N100`）
 - 宏程序入口（`%@MACRO`）
+
+按 `Ctrl+T` 搜索整个工作区，显示：
+- 静态 G/O 程序入口（如 `G1000`, `O8000`）
+- 各宏程序文件中的 `%@MACRO` 入口
+- 各文件中的 N 标签
+
+动态变量、表达式或运行期生成的程序目标不会作为静态程序入口列出。
 
 ---
 
@@ -537,6 +559,27 @@ npm install
 
 # 运行 ESLint 检查
 npm run lint
+
+# 生成诊断文档；npm test 会检查生成结果是否已同步
+npm run docs:diagnostics
+npm run docs:diagnostics:check
+
+# 检查 package 与 lockfile；发布时额外传入目标 tag
+npm run check:release
+npm run check:release -- --tag v2.10.0
+
+# 检查 VSIX 白名单；打包后自动输出大小与 SHA-256
+npm run check:vsix
+npm run package
+
+# 将已构建 VSIX 安装到隔离 Profile，并验证版本、路径、激活和 Workspace Symbol
+npm run smoke:installed
+
+# 运行 500 文件 / 20,000 行导航解析性能基准
+npm run benchmark:navigation
+
+# 在真实 VS Code 工作区运行 500 文件导航 I/O 基准
+npm run test:integration:navigation
 
 # 运行单元测试与 VS Code 集成测试
 npm test

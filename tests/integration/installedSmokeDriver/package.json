@@ -1,0 +1,10 @@
+{
+  "name": "syntec-macro-installed-smoke-driver",
+  "displayName": "SYNTEC Macro Installed Smoke Driver",
+  "version": "1.0.0",
+  "publisher": "syntec-team",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "main": "./extension.js"
+}

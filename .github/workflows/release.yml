@@ -34,11 +34,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify release metadata
+        run: npm run check:release -- --tag "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
       - name: Run tests
         run: npm test
 
       - name: Run lint
         run: npm run lint
+
+      - name: Run VS Code integration tests
+        run: xvfb-run -a npm run test:integration
+
+      - name: Upload VS Code integration logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-release-integration-logs
+          path: |
+            .vscode-test/user-data/logs/**
+            .vscode-test/**/*.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Package VSIX
         run: npm run package

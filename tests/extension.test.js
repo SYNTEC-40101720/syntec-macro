@@ -19,6 +19,19 @@ test('Diagnostic dedupe key prefers stable code over localized message', () => {
   );
 });
 
+test('Generated diagnostic documentation matches the committed file', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const {
+    isDiagnosticDocsCurrent,
+    renderDiagnosticDocs
+  } = require('../scripts/generateDiagnosticDocs');
+  const documentation = fs.readFileSync(path.join(__dirname, '..', 'docs', '诊断规则与修复动作.md'), 'utf8');
+  assert.strictEqual(documentation, renderDiagnosticDocs());
+  assert.strictEqual(isDiagnosticDocsCurrent(documentation), true);
+  assert.strictEqual(isDiagnosticDocsCurrent(documentation + '\n<!-- stale -->'), false);
+});
+
 test('Warning diagnostics overlapping errors are suppressed', () => {
   const { suppressWarningsOverlappingErrors } = require('../src/diagnosticFactory');
   const diagnostics = suppressWarningsOverlappingErrors([
@@ -148,6 +161,89 @@ test('Program name normalization supports G macros and O subprograms', () => {
   assert.strictEqual(normalizeProgramName('G200'), 'G0200');
   assert.strictEqual(normalizeSubprogramName('200'), 'O0200');
   assert.strictEqual(normalizeSubprogramName('O200'), 'O0200');
+});
+
+test('Navigation symbols identify macro headers, N labels, and static program files', () => {
+  const {
+    buildNavigationIndexEntry,
+    extractNavigationSymbols,
+    getMacroProgramName,
+    getProgramEntryName,
+    isMacroFileContent
+  } = require('../src/navigationSymbols');
+  assert.deepStrictEqual(
+    extractNavigationSymbols('%@MACRO\nN10;\n  n200 ;\nN#1;'),
+    [
+      { name: '%@MACRO', kind: 'macroHeader', line: 0 },
+      { name: 'N10', kind: 'label', line: 1 },
+      { name: 'N200', kind: 'label', line: 2 }
+    ]
+  );
+  assert.strictEqual(getProgramEntryName('C:\\MACRO\\G1000'), 'G1000');
+  assert.strictEqual(getProgramEntryName('C:\\MACRO\\o8000.nc'), 'O8000');
+  assert.strictEqual(getProgramEntryName('C:\\MACRO\\NamedMacro'), null);
+  assert.strictEqual(getProgramEntryName('C:\\MACRO\\G1000.txt'), null);
+  assert.strictEqual(getProgramEntryName('/opt/macro/o9000.cnc'), 'O9000');
+  assert.strictEqual(isMacroFileContent('C:\\MACRO\\NamedMacro', '%@MACRO\nM99;'), true);
+  assert.strictEqual(isMacroFileContent('/workspace/LICENSE', 'MIT License'), false);
+  assert.strictEqual(isMacroFileContent('/workspace/sample.nc', 'O0001\nM30;'), true);
+  assert.strictEqual(getMacroProgramName('C:\\MACRO\\NamedMacro', '%@MACRO\nM99;'), 'NAMEDMACRO');
+  assert.strictEqual(getMacroProgramName('/opt/macro/g1000.nc', '%@MACRO\nM99;'), 'G1000');
+  assert.strictEqual(getMacroProgramName('/opt/macro/O8000', 'O8000\nM99;'), null);
+  assert.deepStrictEqual(buildNavigationIndexEntry('/opt/macro/G1000', '%@MACRO\nN10;\nM99;'), {
+    programEntryName: 'G1000',
+    macroProgramName: 'G1000',
+    symbols: [
+      { name: '%@MACRO', kind: 'macroHeader', line: 0 },
+      { name: 'N10', kind: 'label', line: 1 }
+    ],
+    calls: []
+  });
+  assert.strictEqual(buildNavigationIndexEntry('/workspace/LICENSE', 'MIT License'), null);
+});
+
+test('Static macro calls expose normalized targets and exclude dynamic or commented calls', () => {
+  const { extractStaticMacroCalls } = require('../src/navigationSymbols');
+  const calls = extractStaticMacroCalls([
+    'G65 P1000 A1.;',
+    'G66.1 P"NamedMacro";',
+    'M198 P8000;',
+    'G65 P#1;',
+    'G65 P1000+1;',
+    'M98 P8000*2;',
+    '// G65 P2000;',
+    '(* M98 P9000; *)',
+    'MSG("G65 P3000");'
+  ].join('\n'));
+
+  assert.deepStrictEqual(calls, [
+    { targetName: 'G1000', line: 0, start: 4, end: 9 },
+    { targetName: 'NamedMacro', line: 1, start: 8, end: 18 },
+    { targetName: 'O8000', line: 2, start: 5, end: 10 }
+  ]);
+});
+
+test('Navigation index scan stops after cancellation and skips unrelated extensions', async () => {
+  const { collectNavigationIndexEntries } = require('../src/navigationIndex');
+  const files = [
+    { fsPath: '/workspace/README.md' },
+    { fsPath: '/workspace/G1000.nc' },
+    { fsPath: '/workspace/G2000.nc' }
+  ];
+  let cancelled = false;
+  const reads = [];
+  const entries = await collectNavigationIndexEntries(files, {
+    getFilePath: file => file.fsPath,
+    isCancelled: () => cancelled,
+    loadIndex: async file => {
+      reads.push(file.fsPath);
+      cancelled = true;
+      return { symbols: [], calls: [] };
+    }
+  });
+
+  assert.deepStrictEqual(reads, ['/workspace/G1000.nc']);
+  assert.deepStrictEqual(entries, []);
 });
 
 test('M198 exists in mcodes array', () => {

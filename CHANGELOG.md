@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-07-11
+
+### Added
+- **工作区符号导航**: 支持通过 `Ctrl+T` 跨文件检索静态 G/O 程序入口、`%@MACRO` 与 N 标签，并保持动态目标不参与静态解析。
+- **宏调用引用查找**: 支持从静态调用目标或宏文件入口查找 `G65/G66/G66.1`、`M98/M198` 的工作区引用；变量与表达式目标不参与解析。
+- **诊断文档同步检查**: 新增 `npm run docs:diagnostics:check`，文档与诊断元数据不一致时退出失败，并接入 `npm test`。
+- **持续集成**: 新增 main 分支与 Pull Request 的 GitHub Actions 测试、诊断文档同步检查、ESLint 和 VS Code 集成测试；release 打包前同样执行集成测试，失败日志自动上传。
+- **发布一致性检查**: 新增 package/lockfile 常规检查及 tag/package/README/CHANGELOG 发布检查，阻止版本元数据不一致时打包。
+- **VSIX 内容检查**: 新增严格文件白名单、打包前自动检查及产物大小/SHA-256 报告，开发脚本不再进入发布包。
+- **安装包冒烟**: 新增隔离 VS Code Profile 冒烟命令，验证已安装 VSIX 的版本、安装路径、激活与 Workspace Symbol。
+
+### Changed
+- **导航扫描性能**: Workspace Symbol 与 References 改用文本快照、单次解析索引和自动失效缓存，不再批量打开候选文档；新增 500 文件/20,000 行解析及真实工作区 I/O 基准。
+- **VSIX 内容收口**: 从扩展包中排除 `scripts/`，只保留运行时模块、Marketplace 元数据、语法、snippets、icon 与许可证文件。
+
 ## [2.9.0] - 2026-07-11
 
 ### Changed
