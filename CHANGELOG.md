@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.20] - 2026-07-11
+
+### Changed
+- **路线图收束**: 更新 `ROADMAP.md`，记录 v2.8.x 诊断体系完成状态、当前发布节奏建议与 v2.9.0 候选主题。
+- **README 导航**: 在功能表和目录中补充诊断规则与修复动作相关入口。
+
 ## [2.8.19] - 2026-07-11
 
 ### Added

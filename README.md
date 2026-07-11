@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.8.19-blue)
+![Version](https://img.shields.io/badge/version-2.8.20-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -35,6 +35,7 @@
 | **悬停文档** | 悬停函数名/G/M 代码/G10 L 指令 → 显示完整说明、参数解释、使用示例 | ✅ 增强 v2.8.1 |
 | **代码跳转** | Ctrl+点击 N 标签、G65/G66 Pxxx、M98/M198 Pxxx → 跳转定义 | ✅ |
 | **实时诊断** | 块配对、括号匹配、中文字符检测、命名变量与推荐写法提示 | ✅ |
+| **Quick Fix** | 分号、不支持语法、控制流闭合、变量/函数/机器人诊断说明与安全修复 | ✅ 增强 v2.8.19 |
 | **Outline 大纲** | N 标签 → VSCode 大纲/符号导航 | ✅ |
 | **代码片段** | 60+ 模板（IF/FOR/DB/IO/G10/报警等） | ✅ 增强 v2.8.1 |
 | **机器人指令** | MOVJ/MOVL/MOVC/INCMOVJ/坐标系/应用指令、替代 G 码 | ✅ 增强 v2.7.0 |
