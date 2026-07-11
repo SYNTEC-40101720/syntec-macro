@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.8.20-blue)
+![Version](https://img.shields.io/badge/version-2.8.21-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -20,6 +20,7 @@
 - [控制器语法规则](#控制器语法规则)
 - [新代宏程序知识图谱](docs/新代宏程序知识图谱.md)
 - [诊断规则与修复动作](docs/诊断规则与修复动作.md)
+- [v2.9.0 规划](docs/v2.9.0-规划.md)
 - [故障排除](#故障排除)
 - [贡献](#贡献)
 - [许可证](#许可证)

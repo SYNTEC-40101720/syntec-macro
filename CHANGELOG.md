@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.21] - 2026-07-11
+
+### Added
+- **v2.9.0 规划文档**: 新增 `docs/v2.9.0-规划.md`，明确 v2.9.0 发布目标、非目标、里程碑与验收标准。
+
+### Changed
+- **路线图入口**: `ROADMAP.md` 与 README 目录链接到 v2.9.0 详细规划，便于后续按 milestone 推进。
+
 ## [2.8.20] - 2026-07-11
 
 ### Changed
