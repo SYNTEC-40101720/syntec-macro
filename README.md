@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.8.21-blue)
+![Version](https://img.shields.io/badge/version-2.9.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -244,17 +244,31 @@ M198 P8000;  (* Ctrl+Click "P8000" → 打开 O8000 *)
 }
 ```
 
-### 5. 实时语法诊断
+### 5. 实时诊断与 Quick Fix
+
+诊断分为两类：
+
+- **Error**：控制器不支持、语法不完整或静态可确认会出错的写法，应优先修正。
+- **Warning**：兼容但不推荐、目标可能不存在或需要用户确认语义的写法。
+
+Quick Fix 也分为两类：
+
+- **自动修复**：仅用于等价或安全的机械替换，例如补上缺少的 `;`、移除控制结构行尾多余 `;`、`ELSIF` 改为 `ELSEIF`、`==` 改为 `=`。
+- **说明型动作**：用于需要现场语义判断的问题，例如命名变量应改成哪个数字编号、函数参数应落在哪个实际范围、机器人互斥参数应保留哪一项。
 
 **检测的问题**：
 
 | 类型 | 示例 | 严重度 |
 |------|------|--------|
-| 块不匹配 | `IF` 没有 `END_IF` | ❌ Error |
+| 块不匹配 | `IF` 没有 `END_IF` | ⚠️ Warning |
 | 括号不匹配 | 多余的 `)` 或缺少 `(` | ⚠️ Warning |
 | 中文字符 | 中文标点 `；` 或中文字符 `变量` | ❌ Error |
 | GOTO 目标不存在 | `GOTO 999;` 但无 `N999;` | ⚠️ Warning |
 | 不支持的语法 | 使用 `ELSIF`（应为 `ELSEIF`） | ❌ Error |
+| 分号规则 | `END_WHILE` 缺少 `;`，或 `WHILE ... DO;` 多了 `;` | ❌ Error |
+| 变量规则 | `#TEMP`、`@TEMP`、`#0 := 1;` | ❌/⚠️ |
+| 函数参数 | `READDI(512)`、`ALARM(70000)` | ❌ Error |
+| 机器人/LTP | `MOVJ X=100.`、`TOOLCORON P1;`、MOVC 未成对 | ❌/⚠️ |
 
 **示例诊断**：
 
@@ -269,6 +283,19 @@ END_FOR;  (* 正确 *)
 
 N100；  (* 错误：中文分号 *)
 ```
+
+**常见 Quick Fix**：
+
+| 场景 | Quick Fix |
+|------|-----------|
+| 完整语句缺少 `;` | 补上行尾 `;` |
+| 控制结构行误加 `;` | 移除控制结构行尾 `;` |
+| `ELSIF` / `DEFAULT` | 改为 `ELSEIF` / `ELSE` |
+| `==` / `!=` / `&&` / `||` / `%` | 改为 `=` / `<>` / `AND` / `OR` / `MOD` |
+| 未闭合 `IF/FOR/WHILE/CASE` | 插入对应 `END_*;` |
+| `MOVJ-II`、`TOOLCORON`、`TOOLCOR CLEAR` | 改为推荐机器人写法 |
+
+完整诊断 code、说明和修复动作见 [诊断规则与修复动作](docs/诊断规则与修复动作.md)。
 
 **v2.0.0 优化**：诊断防抖 300ms，打字时不再卡顿。
 

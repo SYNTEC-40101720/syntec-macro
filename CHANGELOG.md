@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-07-11
+
+### Changed
+- **诊断体验整合**: README 新增诊断与 Quick Fix 用户说明，解释 error/warning、自动修复与说明型 CodeAction 的边界。
+- **诊断规则文档增强**: `docs/诊断规则与修复动作.md` 从纯 code 表扩展为按场景阅读的诊断指南，同时保留自动生成的完整规则表。
+
+### Added
+- **诊断场景指南**: 补充分号规则、不支持语法、控制流、变量与函数参数、机器人/LTP 等常见诊断场景说明。
+
 ## [2.8.21] - 2026-07-11
 
 ### Added
