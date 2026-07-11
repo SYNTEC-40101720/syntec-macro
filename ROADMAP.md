@@ -19,6 +19,7 @@
 - v2.8.x 已集中完成诊断体系增强、Quick Fix、诊断 code、集成测试、规则注册表、诊断工厂和文档生成。
 - 后续若无紧急修复，建议暂停连续 patch release，改为积累一组用户可见能力后发布 v2.9.0。
 - 每次发布仍保留 `npm test`、`npm run test:integration`、`npm run package` 的本地验证节奏。
+- 换设备继续开发时，按 [`docs/开发交接说明.md`](docs/开发交接说明.md) 检查拉取、验证和发布流程。
 
 ## Completed
 
