@@ -278,7 +278,7 @@ const tests = [
       await editor.edit(editBuilder => {
         editBuilder.replace(
           new vscode.Range(0, 0, document.lineCount - 1, document.lineAt(document.lineCount - 1).text.length),
-          '%@MACRO\nG66 P1000;\nM98 P8000;\nM198 P8000;'
+          '%@MACRO\nG66 P1000;\nG66.1 P1000;\nM98 P8000;\nM198 P8000;'
         );
       });
 
@@ -289,17 +289,24 @@ const tests = [
       );
       assert.ok(g66Locations[0].uri.fsPath.endsWith('G1000'), 'G66 should resolve to G1000');
 
+      const g661Locations = await vscode.commands.executeCommand(
+        'vscode.executeDefinitionProvider',
+        document.uri,
+        new vscode.Position(2, 8)
+      );
+      assert.ok(g661Locations[0].uri.fsPath.endsWith('G1000'), 'G66.1 should resolve to G1000');
+
       const m98Locations = await vscode.commands.executeCommand(
         'vscode.executeDefinitionProvider',
         document.uri,
-        new vscode.Position(2, 5)
+        new vscode.Position(3, 5)
       );
       assert.ok(m98Locations[0].uri.fsPath.endsWith('O8000'), 'M98 should resolve to O8000');
 
       const m198Locations = await vscode.commands.executeCommand(
         'vscode.executeDefinitionProvider',
         document.uri,
-        new vscode.Position(3, 6)
+        new vscode.Position(4, 6)
       );
       assert.ok(m198Locations[0].uri.fsPath.endsWith('O8000'), 'M198 should resolve to O8000');
     }

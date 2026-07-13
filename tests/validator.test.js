@@ -407,14 +407,26 @@ console.log('\n[17] 风格建议');
 console.log('\n[18] 函数静态诊断');
 {
   eq('数学函数静态域检查',
-    '%@MACRO\n#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);',
-    [['error', 'ATAN2(0,0)'], ['error', 'POW 基底不可为负值'], ['error', 'LN 引数需为正数']]);
+    '%@MACRO\n#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := SQRT(0);\n#6 := ACOS(1.1);\n#7 := ASIN(-1.1);\n#8 := ACOS(1);\n#9 := ASIN(-1);',
+    [['error', 'ATAN2(0,0)'], ['error', 'POW 基底不可为负值'], ['error', 'LN 引数需为正数'], ['error', 'SQRT 引数需大于或等于 0'], ['error', 'ACOS 引数范围为 -1~1'], ['error', 'ASIN 引数范围为 -1~1']]);
   eq('I/O 函数范围检查',
     '%@MACRO\n#1 := READDI(512);\nSETDO(3, 2);\n#2 := READRREGBIT(70000, 32);',
     [['error', 'READDI 点编号范围为 0~511'], ['error', 'SETDO 写入值应为 0 或 1'], ['error', 'READRREGBIT 的 R 值编号范围为 0~65535'], ['error', 'READRREGBIT 的 bit 范围为 0~31']]);
   eq('ALARM MSG PARAM CHKINF 静态参数检查',
     '%@MACRO\nALARM(70000);\nMSG(70000, "Hi");\n#1 := PARAM(1.2);\n#2 := CHKINF(6, "A");',
     [['error', 'ALARM ID 范围为 0~65535'], ['error', 'MSG ID 范围为 0~65535'], ['error', 'PARAM 引数需为整数'], ['error', 'CHKINF 类别范围为 1~5']]);
+  eq('ALARM MSG CHKINF 合法静态参数不报错',
+    '%@MACRO\nALARM(0);\nMSG("状态");\nMSG(65535, "Status");\n#1 := CHKINF(1, "A");',
+    []);
+  eq('PARAM 整数参数形式不报错',
+    '%@MACRO\n#1 := PARAM(3204);\n#2 := PARAM(20001, 2);',
+    []);
+  eq('DRVDATA 静态引数格式检查',
+    '%@MACRO\n#1 := DRVDATA(1003, 3366);\n#2 := DRVDATA(1003, "D61h");\n#3 := DRVDATA(#1, #2);\n#4 := DRVDATA("1003", 3425);\n#5 := DRVDATA(1003.0, 3425);\n#6 := DRVDATA(1003, "G21h");\n#7 := DRVDATA(1003, "0D61H");\n#8 := DRVDATA(1003, 1.2);',
+    [['error', 'DRVDATA 站号需为整数'], ['error', 'DRVDATA 站号需为整数'], ['error', 'DRVDATA 第二引数需为十进制整数或 "xxxh" 十六进制字符串'], ['error', 'DRVDATA 第二引数需为十进制整数或 "xxxh" 十六进制字符串'], ['error', 'DRVDATA 第二引数需为十进制整数或 "xxxh" 十六进制字符串']]);
+  eq('SYSDATA 静态引数需为整数',
+    '%@MACRO\n#1 := SYSDATA("77");\n#2 := SYSDATA(77.0);\n#3 := SYSDATA(#4);\nMSG("SYSDATA(77.0)");',
+    [['error', 'SYSDATA 引数需为整数'], ['error', 'SYSDATA 引数需为整数']]);
   eq('OPEN COM1 提示普通文件名',
     '%@MACRO\nOPEN("COM1");',
     [['warning', 'OPEN("COM1") 会按普通文件名处理']]);

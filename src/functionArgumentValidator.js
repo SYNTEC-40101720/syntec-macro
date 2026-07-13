@@ -62,11 +62,23 @@ function stripCommentsKeepStringsWithState(line, lineStartInBlock = false) {
   return { text: result, inBlockComment };
 }
 
+function isInsideString(text, targetIndex) {
+  let inString = false;
+  for (let index = 0; index < targetIndex; index++) {
+    if (text[index] !== '"') continue;
+    let backslashCount = 0;
+    for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor--) backslashCount++;
+    if (backslashCount % 2 === 0) inString = !inString;
+  }
+  return inString;
+}
+
 function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
   if (!clean.trim()) return [];
 
   const diagnostics = [];
+  const commentStripped = stripCommentsKeepStringsWithState(raw || '', lineStartInBlock).text;
 
   for (const call of getStaticFunctionCalls(clean, 'ATAN2')) {
     const y = parseStaticNumber(call.args[0] || '');
@@ -82,6 +94,20 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
   for (const call of getStaticFunctionCalls(clean, 'LN')) {
     const value = parseStaticNumber(call.args[0] || '');
     if (value !== null && value <= 0) addRangeDiagnostic(diagnostics, call, lineNum, 'LN 引数需为正数', DiagnosticCode.FUNCTION_MATH_DOMAIN);
+  }
+
+  for (const call of getStaticFunctionCalls(clean, 'SQRT')) {
+    const value = parseStaticNumber(call.args[0] || '');
+    if (value !== null && value < 0) addRangeDiagnostic(diagnostics, call, lineNum, 'SQRT 引数需大于或等于 0', DiagnosticCode.FUNCTION_MATH_DOMAIN);
+  }
+
+  for (const fn of ['ACOS', 'ASIN']) {
+    for (const call of getStaticFunctionCalls(clean, fn)) {
+      const value = parseStaticNumber(call.args[0] || '');
+      if (value !== null && (value < -1 || value > 1)) {
+        addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 引数范围为 -1~1`, DiagnosticCode.FUNCTION_MATH_DOMAIN);
+      }
+    }
   }
 
   const ioSingleRanges = [
@@ -132,12 +158,37 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
     }
   }
 
+  for (const call of getStaticFunctionCalls(commentStripped, 'SYSDATA')) {
+    if (isInsideString(commentStripped, call.col)) continue;
+    const arg = call.args[0] || '';
+    const isString = /^"(?:[^"\\]|\\.)*"$/.test(arg);
+    const isDecimalLiteral = /^[+-]?\d+\.\d*$/.test(arg);
+    if (isString || isDecimalLiteral) {
+      addRangeDiagnostic(diagnostics, call, lineNum, 'SYSDATA 引数需为整数', DiagnosticCode.FUNCTION_INTEGER_ARGUMENT);
+    }
+  }
+
+  for (const call of getStaticFunctionCalls(commentStripped, 'DRVDATA')) {
+    if (isInsideString(commentStripped, call.col)) continue;
+    const station = call.args[0] || '';
+    const variable = call.args[1] || '';
+    const stationIsString = /^"(?:[^"\\]|\\.)*"$/.test(station);
+    const stationIsDecimalLiteral = /^[+-]?\d+\.\d*$/.test(station);
+    if (stationIsString || stationIsDecimalLiteral) {
+      addRangeDiagnostic(diagnostics, call, lineNum, 'DRVDATA 站号需为整数', DiagnosticCode.FUNCTION_INTEGER_ARGUMENT);
+    }
+    const isDecimalInteger = /^[+-]?\d+$/.test(variable);
+    const isHexString = /^"[0-9A-Fa-f]+h"$/.test(variable);
+    if (variable && !isDecimalInteger && !isHexString && !/^#[\d\[]/.test(variable)) {
+      addRangeDiagnostic(diagnostics, call, lineNum, 'DRVDATA 第二引数需为十进制整数或 "xxxh" 十六进制字符串', DiagnosticCode.FUNCTION_DRVDATA_ARGUMENT_FORMAT);
+    }
+  }
+
   for (const call of getStaticFunctionCalls(clean, 'CHKINF')) {
     const category = parseStaticNumber(call.args[0] || '');
     if (category !== null && (!Number.isInteger(category) || category < 1 || category > 5)) addRangeDiagnostic(diagnostics, call, lineNum, 'CHKINF 类别范围为 1~5', DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE);
   }
 
-  const commentStripped = stripCommentsKeepStringsWithState(raw || '', lineStartInBlock).text;
   const openComMatch = commentStripped.match(/\bOPEN\s*\(\s*"COM\d+"\s*\)/i);
   if (openComMatch) {
     diagnostics.push(createWarning(lineNum, openComMatch.index, openComMatch.index + openComMatch[0].length, '串口传输埠仅支持 OPEN("COM")；OPEN("COM1") 会按普通文件名处理', {

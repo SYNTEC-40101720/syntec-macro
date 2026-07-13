@@ -39,6 +39,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.FUNCTION_R_BIT_RANGE]: { title: '查看 R bit 范围说明', message: 'READRREGBIT/SETRREGBIT 的 bit 编号需为 0~31 的整数。' },
   [DiagnosticCode.FUNCTION_ID_RANGE]: { title: '查看 ID 范围说明', message: 'ALARM/MSG 的静态 ID 需为 0~65535 的整数。' },
   [DiagnosticCode.FUNCTION_INTEGER_ARGUMENT]: { title: '查看整数参数说明', message: '该函数的静态参数需为整数；请移除小数点或改用运行期变量表达式。' },
+  [DiagnosticCode.FUNCTION_DRVDATA_ARGUMENT_FORMAT]: { title: '查看 DRVDATA 引数格式', message: 'DRVDATA 第二引数需为十进制整数，或使用小写 h 结尾且内容仅含 0~F 的十六进制字串，例如 "D61h"。' },
   [DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE]: { title: '查看 CHKINF 类别说明', message: 'CHKINF 类别编号需为 1~5 的整数。' },
   [DiagnosticCode.FUNCTION_OPEN_COM_PORT]: { title: '查看 OPEN COM 说明', message: '串口传输埠语法为 OPEN("COM")；OPEN("COM1") 会按普通文件名处理。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_MOVC_POINT_ARG]: { title: '查看 MOVC 点位参数说明', message: 'MOVC 不支持 Xp/Yp/Zp 点写法；请改用成对 MOVC 的 X/Y/Z/A/B/C 直接引数，或新版 X1/X2 单行写法。' },

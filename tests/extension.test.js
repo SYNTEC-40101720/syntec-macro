@@ -94,6 +94,138 @@ test('GETPR and SETPR exist in function index', () => {
   assert.ok(setpr.sig.includes('SETPR'), 'SETPR sig should contain function name');
 });
 
+test('WAIT and MSG function docs include runtime caveats', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('WAIT').doc.includes('M98/M99/M198'), 'WAIT docs should describe subprogram call exception');
+  assert.ok(index.get('MSG').doc.includes('程序结束时自动消失'), 'MSG docs should describe its lifecycle');
+  assert.ok(index.get('MSG').doc.includes('65535'), 'MSG docs should describe default ID version boundary');
+});
+
+test('GETARG and GETTRAPARG function docs distinguish argument sources', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('GETARG').doc.includes('标准或扩充引数'), 'GETARG docs should describe standard and extended arguments');
+  assert.ok(index.get('GETARG').doc.includes('VACANT (#0)'), 'GETARG docs should describe missing arguments');
+  assert.ok(index.get('GETTRAPARG').doc.includes('Trap 单节'), 'GETTRAPARG docs should describe trap-block arguments');
+  assert.ok(index.get('GETTRAPARG').doc.includes('不同于 GETARG'), 'GETTRAPARG docs should distinguish caller arguments');
+});
+
+test('DRVDATA function docs include documented static formats', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const doc = buildFunctionIndex().get('DRVDATA').doc;
+  assert.ok(doc.includes('stationNo 必须为整数'), 'DRVDATA docs should describe station number format');
+  assert.ok(doc.includes('"xxxh"'), 'DRVDATA docs should describe hexadecimal string format');
+  assert.ok(doc.includes('小写 h'), 'DRVDATA docs should describe lowercase h suffix');
+});
+
+test('ATAN2 function docs use correct quadrant examples', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const doc = buildFunctionIndex().get('ATAN2').doc;
+  assert.ok(doc.includes('ATAN2(1,-1) -> 135'), 'ATAN2 docs should use the second-quadrant example');
+  assert.ok(doc.includes('ATAN2(1,0) -> 90'), 'ATAN2 docs should document the positive y axis');
+  assert.ok(doc.includes('不可同时为 0'), 'ATAN2 docs should describe the zero-pair domain error');
+});
+
+test('ACOS and ASIN function docs describe documented domain limits', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  for (const name of ['ACOS', 'ASIN']) {
+    const doc = index.get(name).doc;
+    assert.ok(doc.includes('-1~1'), `${name} docs should describe the inclusive domain`);
+    assert.ok(doc.includes('RS-008'), `${name} docs should describe the domain error`);
+  }
+});
+
+test('MAX, MIN, SIGN, and RANDOM function docs describe documented results', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('MAX').doc.includes('两输入值的最大值'), 'MAX docs should describe the selected result');
+  assert.ok(index.get('MIN').doc.includes('两输入值的最小值'), 'MIN docs should describe the selected result');
+  assert.ok(index.get('SIGN').doc.includes('-1/0/1'), 'SIGN docs should describe all possible sign results');
+  assert.ok(index.get('RANDOM').doc.includes('0~32767'), 'RANDOM docs should describe the documented result range');
+});
+
+test('CEIL, FLOOR, and ROUND function docs describe documented rounding behavior', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('CEIL').doc.includes('返回>=该值的最小整数'), 'CEIL docs should describe upward rounding');
+  assert.ok(index.get('FLOOR').doc.includes('返回<=该值的最大整数'), 'FLOOR docs should describe downward rounding');
+  assert.ok(index.get('ROUND').doc.includes('ROUND(1.5) -> 2'), 'ROUND docs should describe half-up rounding');
+});
+
+test('base math function docs describe documented semantics', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('ABS').doc.includes('取绝对值'), 'ABS docs should describe absolute value');
+  assert.ok(index.get('SIN').doc.includes('SIN(90) -> 1'), 'SIN docs should describe degree input');
+  assert.ok(index.get('COS').doc.includes('COS(180) -> -1'), 'COS docs should describe degree input');
+  assert.ok(index.get('TAN').doc.includes('TAN(45) -> 1'), 'TAN docs should describe degree input');
+  assert.ok(index.get('ATAN').doc.includes('±90°'), 'ATAN docs should describe its output range');
+  assert.ok(index.get('EXP').doc.includes('以自然数 e 为底'), 'EXP docs should describe its natural base');
+});
+
+test('LN and POW function docs include documented domain alarms', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('LN').doc.includes('RS-008'), 'LN docs should describe its domain alarm');
+  assert.ok(index.get('LN').doc.includes('引数需为正数'), 'LN docs should describe its positive domain');
+  assert.ok(index.get('POW').doc.includes('COR-122'), 'POW docs should describe its documented alarm');
+  assert.ok(index.get('POW').doc.includes('基底不可为负值'), 'POW docs should describe its non-negative base domain');
+});
+
+test('STR2INT and SCANTEXT function docs describe string conversion behavior', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('STR2INT').doc.includes('STR2INT("123.456") -> 123'), 'STR2INT docs should describe decimal string truncation');
+  assert.ok(index.get('STR2INT').doc.includes('含文字则不合法'), 'STR2INT docs should reject text input');
+  assert.ok(index.get('SCANTEXT').doc.includes('ASCII 转码'), 'SCANTEXT docs should describe ASCII conversion');
+  assert.ok(index.get('SCANTEXT').doc.includes('公用变数号码'), 'SCANTEXT docs should describe global variable addresses');
+});
+
+test('STD, STDAX, and stack function docs include documented conversion boundaries', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('STD').doc.includes('Pr17'), 'STD docs should describe the control precision source');
+  assert.ok(index.get('STD').doc.includes('#1600'), 'STD docs should describe the standard LIU variable');
+  assert.ok(index.get('STDAX').doc.includes('Pr3241=1'), 'STDAX docs should describe computer decimal mode');
+  assert.ok(index.get('STDAX').doc.includes('不进行数值或型别转换'), 'STDAX docs should preserve decimal input behavior');
+  assert.ok(index.get('POP').doc.includes('移除'), 'POP docs should describe destructive stack reads');
+  assert.ok(index.get('STKTOP').doc.includes('index 从 0 开始'), 'STKTOP docs should describe zero-based stack indexing');
+  assert.ok(index.get('STKTOP').doc.includes('不删除'), 'STKTOP docs should describe non-destructive reads');
+});
+
+test('SETDO and SETABIT function docs include PLC write conflict warning', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  for (const name of ['SETDO', 'SETABIT']) {
+    const doc = index.get(name).doc;
+    assert.ok(doc.includes('插值阶段'), `${name} docs should describe interpolation-stage writes`);
+    assert.ok(doc.includes('后令覆盖前令'), `${name} docs should describe PLC write ordering risk`);
+  }
+});
+
+test('OPEN and Cycle DB function docs include documented ordering constraints', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('OPEN').doc.includes('PRINT 必须在 OPEN 成功后'), 'OPEN docs should describe PRINT ordering');
+  assert.ok(index.get('OPEN').doc.includes('Pr3905'), 'OPEN docs should describe COM configuration');
+  assert.ok(index.get('DBNEW').doc.includes('先 DBINSERT'), 'DBNEW docs should describe empty file initialization');
+  assert.ok(index.get('DBNEW').doc.includes('同时间只能开启一个'), 'DBNEW docs should describe active file limit');
+  assert.ok(index.get('DBSAVE').doc.includes('DBLOAD/DBINSERT'), 'DBSAVE docs should describe required prior load or insert');
+  assert.ok(index.get('DBSAVE').doc.includes('不支援图形模拟'), 'DBSAVE docs should describe simulation limitation');
+});
+
+test('CHK function docs include return values and version baseline', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  for (const name of ['CHKMN', 'CHKSN', 'CHKMT', 'CHKMI']) {
+    const doc = index.get(name).doc;
+    assert.ok(doc.includes('1(一致) / 0(不符)'), `${name} docs should describe return values`);
+    assert.ok(doc.includes('10.116.6A'), `${name} docs should describe version baseline`);
+  }
+});
+
 test('New G codes exist in gcodes array', () => {
   const { keywords } = require('../src/keywords');
   const gcodes = keywords.gcodes;
@@ -211,6 +343,8 @@ test('Static macro calls expose normalized targets and exclude dynamic or commen
     'G65 P#1;',
     'G65 P1000+1;',
     'M98 P8000*2;',
+    'G67;',
+    'M99 P100;',
     '// G65 P2000;',
     '(* M98 P9000; *)',
     'MSG("G65 P3000");'
@@ -256,10 +390,25 @@ test('G and M code hover docs include signatures and descriptions', () => {
   const g65 = getCodeDoc('G65');
   assert.ok(g65.sig.includes('G65'), 'G65 hover doc should include signature');
   assert.ok(g65.doc.includes('非模态宏程序呼叫'), 'G65 hover doc should describe macro call');
+  assert.ok(g65.doc.includes('独立 #1~#400'), 'G65 hover doc should describe isolated local variables');
+
+  const g66 = getCodeDoc('G66');
+  assert.ok(g66.doc.includes('移动单节结束后'), 'G66 hover doc should describe motion-block triggering');
+
+  const g661 = getCodeDoc('G66.1');
+  assert.ok(g661.doc.includes('每个单节结束后'), 'G66.1 hover doc should describe every-block triggering');
 
   const m98 = getCodeDoc('M98');
   assert.ok(m98.sig.includes('M98'), 'M98 hover doc should include signature');
   assert.ok(m98.doc.includes('O 副程序'), 'M98 hover doc should describe O subprogram call');
+  assert.ok(m98.doc.includes('继承调用方 #1~#400'), 'M98 hover doc should describe inherited local variables');
+
+  const m198 = getCodeDoc('M198');
+  assert.ok(m198.doc.includes('重新读取目标档案'), 'M198 hover doc should describe file reload behavior');
+
+  const m99 = getCodeDoc('M99');
+  assert.ok(m99.sig.includes('[P_] [Q_]'), 'M99 hover doc should include optional return targets');
+  assert.ok(m99.doc.includes('指定 N 序号'), 'M99 hover doc should describe N-label returns');
 });
 
 test('G10 L1803 and L1805 have detailed hover docs', () => {

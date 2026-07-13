@@ -150,11 +150,11 @@ flowchart TD
 
 | 官方规则 | 仓库位置 |
 |---|---|
-| `%@MACRO` 格式判定、变量与控制流概览 | [新代宏程序知识图谱](新代宏程序知识图谱.md) |
+| `%@MACRO` 格式判定、变量与控制流概览 | [新代宏程序知识图谱](../新代宏程序知识图谱.md) |
 | 实际语言诊断与规则 | `src/validator.js`、`src/controlFlowValidator.js`、`src/diagnosticRules.js` |
 | 函数签名与说明 | `src/functions.js` |
 | 关键字和补全 | `src/keywords.js`、`src/completionSnippets.js` |
-| 用户可见的诊断说明 | [诊断规则与修复动作](诊断规则与修复动作.md) |
+| 用户可见的诊断说明 | [诊断规则与修复动作](../诊断规则与修复动作.md) |
 
 ## 已检索来源
 
