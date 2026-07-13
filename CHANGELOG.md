@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-07-13
+
+### Changed
+- **发布资料同步**: 将 v2.11.0 发布后的 README、路线图、交接说明和 MACRO 知识库导航纳入正式发布包，确保 GitHub Release 与当前 main 文档一致。
+
 ## [2.11.0] - 2026-07-13
 
 ### Added
