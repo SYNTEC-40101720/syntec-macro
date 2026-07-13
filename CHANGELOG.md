@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] - 2026-07-13
+
+### Fixed
+- **路径扩充引数诊断**: 不再将 `ATAN2(..., SQRT(...))` 等嵌套函数调用误判为 `,SQRT_` 路径扩充引数；仅在 `G00/G01/G02/G03` 路径单节检查 `,C_`、`,R_`、`,A_`。
+- **表达式引数识别**: 路径扩充引数的方括号表达式会参与诊断，`Z[#1 + 10]` 等未确认引数可正确提示 `COR-034` 风险。
+
 ## [2.11.1] - 2026-07-13
 
 ### Changed

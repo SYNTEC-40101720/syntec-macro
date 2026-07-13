@@ -464,11 +464,11 @@ function validateStatementTerminator(_raw, lineNum, _lineStartInBlock, cleanLine
 
 function validatePathExtensionArgs(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
-  if (!clean.trim()) return [];
+  if (!clean.trim() || !/\bG0*(?:0|1|2|3)\b/i.test(clean)) return [];
 
   const diagnostics = [];
   const allowed = new Set(['C', 'R', 'A']);
-  const pathExtensionRe = /,\s*([A-Z][0-9](?=\s*=)|[A-Z]+)(?=\s*=|[#@+\-]?(?:\d|\.|\(|#|@))/ig;
+  const pathExtensionRe = /,\s*([A-Z][0-9](?=\s*=)|[A-Z]+)(?=\s*=|[#@+\-]?(?:\d|\.|#|@|\[))/ig;
   let match;
   while ((match = pathExtensionRe.exec(clean)) !== null) {
     const arg = match[1].toUpperCase();
