@@ -2,14 +2,13 @@
 
 ## Next
 
-- `v2.10.0` 已正式发布；当前准备发布 `v2.11.0`，收口记录见 [docs/v2.11.0-发布规划.md](docs/v2.11.0-发布规划.md)。
 - 当前工作聚焦 MACRO 语义证据、保守诊断与回归测试，详见 [MACRO 知识库](docs/macro-knowledge/README.md) 和 [执行规划](docs/macro-knowledge/MACRO知识与验证规划.md)。
-- 历史规划见 [docs/v2.9.0-规划.md](docs/v2.9.0-规划.md)。
+- 已发布版本及用户可见变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## Current Release Posture
 
 - v2.8.x 已集中完成诊断体系增强、Quick Fix、诊断 code、集成测试、规则注册表、诊断工厂和文档生成。
-- v2.10.0 是当前已发布版本，包含复杂宏程序导航、性能优化与发布自动化；v2.11.0 将发布已核实的函数语义和保守诊断增强。
+- v2.10.0 包含复杂宏程序导航、性能优化与发布自动化；v2.11.0 已发布已核实的函数语义和保守诊断增强。
 - 每次发布保留 `npm run docs:diagnostics:check`、`npm test`、`npm run test:integration`、`npm run test:integration:navigation`、`npm run lint`、`npm run package` 的本地验证节奏。
 - 换设备继续开发时，按 [`docs/开发交接说明.md`](docs/开发交接说明.md) 检查拉取、验证和发布流程。
 
