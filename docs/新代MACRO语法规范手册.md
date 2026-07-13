@@ -2743,7 +2743,7 @@ G193.110 I_ Q_ R_ J_;
 - `PARAM` 不支援的参数回传 VACANT。
 - `PARAM` 引数非整数会触发 `COR-023`。
 - `PARAM` 单引数回传型态仅 Long；双引数支援 Long、Double、字符串。
-- `AXID` 推荐裸轴名，不使用字符串；`AXID("Y")` 可先做 warning。
+- `AXID` 推荐裸轴名，不使用字符串；`AXID("Y")` 会显示说明型 warning。
 
 ### 9.5 系统诊断函数
 

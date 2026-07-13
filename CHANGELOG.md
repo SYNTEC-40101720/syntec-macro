@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-07-13
+
+### Added
+- **AXID 轴名提示**: `AXID` 补全与 Hover 采用 `AXID(axis)` 裸轴名语法；`AXID("Y")` 显示说明型 warning，避免带引号写法与控制器语法不一致。
+- **Cycle 资料库说明**: 补齐 `DBLOAD/DBINSERT` 的共享 Cycle name 覆盖关系，以及 `DBDELETE` 的明确回传码。
+
+### Changed
+- **函数 Hover 语义**: 补充图形模拟、数学定义域、单位/堆栈和 Cycle 档案函数的已核实说明与回归保护。
+- **诊断文档生成**: 诊断规则表会转义 MACRO 间接变量的方括号，避免 `AR[#1]`、`#[表达式]` 被 Markdown 解析为不存在的链接。
+
 ## [2.10.0] - 2026-07-11
 
 ### Added

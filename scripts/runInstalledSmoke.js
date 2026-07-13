@@ -70,7 +70,8 @@ async function main() {
       `--extensionDevelopmentPath=${path.join(ROOT, 'tests', 'integration', 'installedSmokeDriver')}`,
       `--extensionTestsPath=${path.join(ROOT, 'tests', 'integration', 'installedSmokeSuite')}`
     ], {
-      SYNTEC_SMOKE_EXTENSIONS_DIR: extensionsDirectory
+      SYNTEC_SMOKE_EXTENSIONS_DIR: extensionsDirectory,
+      SYNTEC_SMOKE_EXPECTED_VERSION: packageJson.version
     });
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

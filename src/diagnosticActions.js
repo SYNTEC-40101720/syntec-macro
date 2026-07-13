@@ -42,6 +42,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.FUNCTION_DRVDATA_ARGUMENT_FORMAT]: { title: '查看 DRVDATA 引数格式', message: 'DRVDATA 第二引数需为十进制整数，或使用小写 h 结尾且内容仅含 0~F 的十六进制字串，例如 "D61h"。' },
   [DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE]: { title: '查看 CHKINF 类别说明', message: 'CHKINF 类别编号需为 1~5 的整数。' },
   [DiagnosticCode.FUNCTION_OPEN_COM_PORT]: { title: '查看 OPEN COM 说明', message: '串口传输埠语法为 OPEN("COM")；OPEN("COM1") 会按普通文件名处理。' },
+  [DiagnosticCode.FUNCTION_AXID_QUOTED_AXIS]: { title: '查看 AXID 轴名说明', message: 'AXID 建议使用裸轴名，例如 AXID(Y)；带引号写法可能与控制器语法不一致，请依目标控制器确认。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_MOVC_POINT_ARG]: { title: '查看 MOVC 点位参数说明', message: 'MOVC 不支持 Xp/Yp/Zp 点写法；请改用成对 MOVC 的 X/Y/Z/A/B/C 直接引数，或新版 X1/X2 单行写法。' },
   [DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT]: { title: '查看平滑引数说明', message: 'MOVL/MOVC/INCMOVL 单行只能使用 PL/PQ/PR 其中一种平滑引数；请保留实际需要的一项。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG]: { title: '查看平滑引数说明', message: 'MOVJ/INCMOVJ 不支持 PQ/PR；请使用 PL 或移除不支持的平滑引数。' },

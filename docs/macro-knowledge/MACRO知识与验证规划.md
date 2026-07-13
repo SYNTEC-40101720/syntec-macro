@@ -239,3 +239,6 @@ node -e "const fs=require('fs'); const {validateDocument}=require('./src/validat
 | 2026-07-13 | FUN-E | 完成 `CEIL/FLOOR/ROUND` 首轮审计：固定上下取整和四舍五入的 hover 回归；未取得静态失败条件，保持无诊断。 |
 | 2026-07-13 | FUN-E | 完成 `ABS/SIN/COS/TAN/ATAN/EXP` 首轮审计：固定绝对值、角度制三角函数、反正切范围和自然指数的 hover 回归；未取得静态失败条件，保持无诊断。 |
 | 2026-07-13 | FUN-E | 完成 `LN/POW` 首轮审计：补齐 `RS-008`、`COR-122` hover 报警说明并固定现有定义域诊断回归；动态引数保持不推断。 |
+| 2026-07-13 | FUN-F | 完成 `SETDRAW/DRAWHOLE` 首轮审计：补齐 BGR 色码、路径颜色恢复和当前绘图状态 hover，建立专题资料包与模块回归；颜色、半径和实际渲染不做静态诊断。 |
+| 2026-07-13 | FUN-D | 完成 Cycle 资料库函数首轮审计：补齐 `DBLOAD/DBINSERT` 的共享 Cycle name 覆盖语义与 `DBDELETE` 明确回传码，建立专题资料包与模块回归；档案状态、index 与版本差异不做静态诊断。 |
+| 2026-07-13 | FUN-B | 核实 `AXID(axis)` 的裸轴名语法：补全签名与 hover，并对静态字串轴名增加说明型 warning；不推断实际轴配置或不存在轴的运行时结果。 |

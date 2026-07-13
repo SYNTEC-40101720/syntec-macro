@@ -6,7 +6,7 @@ const EXTENSION_ID = 'syntec-team.syntec-macro';
 async function run() {
   const extension = vscode.extensions.getExtension(EXTENSION_ID);
   assert.ok(extension, `${EXTENSION_ID} should be installed in the isolated profile`);
-  assert.strictEqual(extension.packageJSON.version, '2.10.0');
+  assert.strictEqual(extension.packageJSON.version, process.env.SYNTEC_SMOKE_EXPECTED_VERSION);
   assert.ok(
     extension.extensionPath.toLowerCase().startsWith(process.env.SYNTEC_SMOKE_EXTENSIONS_DIR.toLowerCase()),
     `extension should load from the isolated extensions directory: ${extension.extensionPath}`

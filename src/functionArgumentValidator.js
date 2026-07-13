@@ -196,6 +196,15 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
     }));
   }
 
+  for (const call of getStaticFunctionCalls(commentStripped, 'AXID')) {
+    if (isInsideString(commentStripped, call.col)) continue;
+    if (/^"(?:[^"\\]|\\.)*"$/.test(call.args[0] || '')) {
+      diagnostics.push(createWarning(lineNum, call.col, call.endCol, 'AXID 建议使用裸轴名，例如 AXID(Y)', {
+        code: DiagnosticCode.FUNCTION_AXID_QUOTED_AXIS
+      }));
+    }
+  }
+
   return diagnostics;
 }
 

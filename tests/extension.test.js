@@ -174,6 +174,15 @@ test('LN and POW function docs include documented domain alarms', () => {
   assert.ok(index.get('POW').doc.includes('基底不可为负值'), 'POW docs should describe its non-negative base domain');
 });
 
+test('SETDRAW and DRAWHOLE function docs describe documented simulation state', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('SETDRAW').doc.includes('BGR码'), 'SETDRAW docs should describe BGR color encoding');
+  assert.ok(index.get('SETDRAW').doc.includes('恢复路径颜色'), 'SETDRAW docs should describe restoring the path color');
+  assert.ok(index.get('DRAWHOLE').doc.includes('仅图形模拟内有效'), 'DRAWHOLE docs should describe its simulation-only scope');
+  assert.ok(index.get('DRAWHOLE').doc.includes('当前 SETDRAW'), 'DRAWHOLE docs should describe its current draw-state dependency');
+});
+
 test('STR2INT and SCANTEXT function docs describe string conversion behavior', () => {
   const { buildFunctionIndex } = require('../src/functions');
   const index = buildFunctionIndex();
@@ -216,6 +225,15 @@ test('OPEN and Cycle DB function docs include documented ordering constraints', 
   assert.ok(index.get('DBSAVE').doc.includes('不支援图形模拟'), 'DBSAVE docs should describe simulation limitation');
 });
 
+test('Cycle DB function docs describe documented Cycle name state and delete results', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  assert.ok(index.get('DBLOAD').doc.includes('目前 Cycle name'), 'DBLOAD docs should describe Cycle name selection');
+  assert.ok(index.get('DBINSERT').doc.includes('覆盖先前 DBLOAD/DBINSERT'), 'DBINSERT docs should describe Cycle name replacement');
+  assert.ok(index.get('DBDELETE').doc.includes('-1(超出范围)'), 'DBDELETE docs should describe out-of-range result');
+  assert.ok(index.get('DBDELETE').doc.includes('-2(未开档)'), 'DBDELETE docs should describe unopened-file result');
+});
+
 test('CHK function docs include return values and version baseline', () => {
   const { buildFunctionIndex } = require('../src/functions');
   const index = buildFunctionIndex();
@@ -224,6 +242,14 @@ test('CHK function docs include return values and version baseline', () => {
     assert.ok(doc.includes('1(一致) / 0(不符)'), `${name} docs should describe return values`);
     assert.ok(doc.includes('10.116.6A'), `${name} docs should describe version baseline`);
   }
+});
+
+test('AXID function docs prefer the documented bare-axis syntax', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const axid = buildFunctionIndex().get('AXID');
+  assert.ok(axid.sig.includes('AXID(axis)'), 'AXID signature should use an axis identifier');
+  assert.ok(axid.doc.includes('裸轴名'), 'AXID docs should recommend a bare axis identifier');
+  assert.ok(axid.doc.includes('VACANT'), 'AXID docs should describe the missing-axis result');
 });
 
 test('New G codes exist in gcodes array', () => {

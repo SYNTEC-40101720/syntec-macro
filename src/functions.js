@@ -60,14 +60,14 @@ exports.functions = [
   // ===== XML/Cycle 档案操作函数 =====
   { name: 'DBOPEN',   sig: 'DBOPEN("filename")',  doc: '开启既有的 Cycle 档案\nDBOPEN("filename") -> 资料个数(成功) / 0(失败)\n范例: DBOPEN("Test.cyc");\n同时间仅能开启一个 Cycle 档案' },
   { name: 'DBNEW',    sig: 'DBNEW("filename")', doc: '新增并开启全新的 Cycle 档案\nDBNEW("filename") -> 1(成功) / 0/-1/-2(失败)\n有效版本：10.118.56L+\n新档为空，须先 DBINSERT 才能 DBLOAD/DBSAVE；同时间只能开启一个 Cycle 档，后续 DBOPEN/DBNEW 会覆盖当前档案\n失败原因: -1=档名过长, -2=已存在' },
-  { name: 'DBLOAD',   sig: 'DBLOAD(index)',  doc: '读取第 index 笔的 Cycle 资料\nDBLOAD(index) -> 1(成功) / 0(失败)\n范例: DBLOAD(0); 读取第0笔' },
+  { name: 'DBLOAD',   sig: 'DBLOAD(index)',  doc: '读取第 index 笔的 Cycle 资料\nDBLOAD(index) -> 1(成功) / 0(失败)\n会将目前 Cycle name 指定为该笔资料；随后 DBINSERT 会以其 name 覆盖\n范例: DBLOAD(0); 读取第0笔' },
   { name: 'DBSAVE',   sig: 'DBSAVE(index)', doc: '覆盖第 index 笔的 Cycle 资料\nDBSAVE(index) -> 1(成功) / 0(失败)\n有效版本：10.118.39+\n须先成功 DBOPEN/DBNEW 且 DBLOAD/DBINSERT；index 为非负整数且不超过资料范围，不支援图形模拟\n范例: DBSAVE(0);' },
-  { name: 'DBINSERT', sig: 'DBINSERT(index, "name")', doc: '新增 Cycle 资料到第 index 笔\nDBINSERT(index, "CycleName") -> 1(成功) / 0/-1/-2/-3(失败)\n有效版本：10.118.56L+\n范例: DBINSERT(0, "WarmTest");' },
-  { name: 'DBDELETE', sig: 'DBDELETE(index)', doc: '删除第 index 笔的 Cycle 资料\nDBDELETE(index) -> 1(成功) / 0/-1/-2(失败)\n有效版本：10.118.56L+\n范例: DBDELETE(0);' },
+  { name: 'DBINSERT', sig: 'DBINSERT(index, "name")', doc: '新增 Cycle 资料到第 index 笔\nDBINSERT(index, "CycleName") -> 1(成功) / 0/-1/-2/-3(失败)\n有效版本：10.118.56L+\n会将目前 Cycle name 指定为引数 name，覆盖先前 DBLOAD/DBINSERT 指定值\n范例: DBINSERT(0, "WarmTest");' },
+  { name: 'DBDELETE', sig: 'DBDELETE(index)', doc: '删除第 index 笔的 Cycle 资料\nDBDELETE(index) -> 1(成功) / 0(失败) / -1(超出范围) / -2(未开档)\n有效版本：10.118.56L+\n范例: DBDELETE(0);' },
 
   // ===== 图形模拟函数 =====
-  { name: 'SETDRAW',  sig: 'SETDRAW(color[, fill, radius])', doc: '定义图形模拟的画图样式\nSETDRAW(color) -> 原颜色值(可暂存恢复)\nSETDRAW(color, fill, radius)\n参数: color=路径颜色(BGR码), fill=填充颜色, radius=刀具半径\n范例: SETDRAW(255, 65280, 5);' },
-  { name: 'DRAWHOLE', sig: 'DRAWHOLE()', doc: '在目前位置画一个圆（图形模拟内有效）\nDRAWHOLE()\n需配合 SETDRAW 定义的颜色和刀具半径' },
+  { name: 'SETDRAW',  sig: 'SETDRAW(color[, fill, radius])', doc: '定义图形模拟的画图样式\nSETDRAW(color) -> 原路径颜色值（可暂存恢复）\nSETDRAW(color, fill, radius)\n参数: color=路径颜色（BGR码）, fill=填充颜色, radius=刀具半径\n注意：SETDRAW 同时设定路径和画圆颜色；DRAWHOLE 后可用回传值恢复路径颜色\n范例: #3 := SETDRAW(255, 65280, 5); DRAWHOLE(); SETDRAW(#3);' },
+  { name: 'DRAWHOLE', sig: 'DRAWHOLE()', doc: '在目前位置画一个圆（仅图形模拟内有效）\nDRAWHOLE()\n使用当前 SETDRAW 定义的颜色和刀具半径；需与 SETDRAW 配合' },
 
   // ===== 系统信息/检查函数 =====
   { name: 'ALARM',   sig: 'ALARM(id[, "msg"])', doc: '触发宏程序警报\nALARM(id) 或 ALARM(id, "msg")\n参数: id=警报ID(0~65535), msg=警报内容(中文≤19字,英文≤39字)\n会伴随触发警报 COR-027\n范例: ALARM(300); ALARM(301, "ALARM Content");' },
@@ -79,7 +79,7 @@ exports.functions = [
   { name: 'CHKMT',   sig: 'CHKMT("type")',  doc: '检查机床属性是否一致\nCHKMT("type") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #53 := CHKMT("MILL");' },
   { name: 'CHKMI',   sig: 'CHKMI("model")', doc: '检查控制器机型是否一致\nCHKMI("model") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #54 := CHKMI("S");' },
   { name: 'CHKINF',  sig: 'CHKINF(cat, "code")', doc: '检查代码与类别编号对应的内容是否一致\nCHKINF(cat, "code") -> 1(一致) / 0(不符)\n目标版本：10.118.22M+\ncat: 1=机械厂代码, 2=序号, 3=机床属性, 4=机型, 5=专机代码\n范例: #51 := CHKINF(1, "5566");' },
-  { name: 'AXID',    sig: 'AXID("name")',     doc: '查询轴名称对应的轴编号（1基）\nAXID("name") -> 轴编号(整数) / VACANT(不存在)\n范例: AXID(Y) -> 2, AXID(Y2) -> 6' },
+  { name: 'AXID',    sig: 'AXID(axis)',       doc: '查询轴名称对应的轴编号（1基）\nAXID(axis) -> 轴编号(整数) / VACANT(不存在)\n参数: axis 使用裸轴名，不使用字符串\n范例: AXID(Y) -> 2, AXID(Y2) -> 6' },
 
   // ===== 堆栈操作函数 =====
   { name: 'PUSH',   sig: 'PUSH(value)',      doc: '将资料塞进栈（Stack）\nPUSH(value)\n最先 PUSH 的值在栈最底层，依序往上叠加\n范例: PUSH(#1); PUSH(5);' },

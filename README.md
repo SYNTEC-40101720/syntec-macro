@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VSCode 扩展
 
-![Version](https://img.shields.io/badge/version-2.10.0-blue)
+![Version](https://img.shields.io/badge/version-2.11.0-blue)
 ![Downloads](https://img.shields.io/vscode-marketplace/d/syntec-team.syntec-macro)
 ![Rating](https://img.shields.io/vscode-marketplace/r/syntec-team.syntec-macro)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
@@ -21,6 +21,7 @@
 - [新代宏程序知识图谱](docs/新代宏程序知识图谱.md)
 - [MACRO 知识库](docs/macro-knowledge/README.md)
 - [诊断规则与修复动作](docs/诊断规则与修复动作.md)
+- [v2.11.0 发布规划](docs/v2.11.0-发布规划.md)
 - [v2.10.0 发布规划](docs/v2.10.0-发布规划.md)
 - [v2.9.0 历史规划](docs/v2.9.0-规划.md)
 - [开发交接说明](docs/开发交接说明.md)
@@ -567,7 +568,7 @@ npm run docs:diagnostics:check
 
 # 检查 package 与 lockfile；发布时额外传入目标 tag
 npm run check:release
-npm run check:release -- --tag v2.10.0
+npm run check:release -- --tag v2.11.0
 
 # 检查 VSIX 白名单；打包后自动输出大小与 SHA-256
 npm run check:vsix

@@ -50,11 +50,11 @@
 | 批次 | 函数类别 | 当前优先级 | 原因 |
 |---|---|---|---|
 | FUN-A | 调用/资料：`GETARG`、`GETTRAPARG`、`PARAM`、`SYSVAR`、`SYSDATA`、`DRVDATA`、`GETPR`、`SETPR` | P0 | 与调用、版本和控制器状态直接相关。 |
-| FUN-B | 系统控制：`ALARM`、`MSG`、`WAIT`、`SLEEP`、`CHK*`、`AXID` | P0 | 直接影响加工中断、时序和安全提示。 |
+| FUN-B | 系统控制：`ALARM`、`MSG`、`WAIT`、`SLEEP`、`CHK*`、`AXID` | P0，首轮已核实 AXID 裸轴名语法 | `AXID("axis")` 以 warning 提示改用裸轴名；不推断轴配置、实际存在性或版本差异。 |
 | FUN-C | I/O 与寄存器：`READ*`、`SET*` | P1，首轮官方范围/写入时序已核实 | 点位、R/bit 范围维持现有静态诊断；机型、PLC 配置与动态 I/O 状态不推断。 |
-| FUN-D | Cycle/文件：`OPEN`、`CLOSE`、`PRINT`、`DB*` | P1，首轮官方路径与顺序约束已核实 | hover 已说明 OPEN/PRINT、Cycle 单档案与 DBNEW/DBSAVE 前置条件；路径、档案与版本错误行为继续分批审计。 |
+| FUN-D | Cycle/文件：`OPEN`、`CLOSE`、`PRINT`、`DB*` | P1，首轮官方路径与顺序约束已核实 | hover 已说明 OPEN/PRINT、Cycle 单档案、DBNEW/DBSAVE 前置条件与 DBLOAD/DBINSERT 的 Cycle name 覆盖；路径、档案与版本错误行为继续分批审计。 |
 | FUN-E | 数学、字符串、单位与堆栈 | P2，首轮已核实 ABS/SIN/COS/TAN/ATAN/ATAN2/EXP/LN/POW/ACOS/ASIN/STR2INT/SCANTEXT/SQRT/CEIL/FLOOR/ROUND/STD/STDAX/MAX/MIN/SIGN/RANDOM/堆栈资料 | 已修正 ATAN2 象限样例与定义域说明；`LN/POW/ACOS/ASIN/SQRT` 常量定义域、基础数学函数、`CEIL/FLOOR/ROUND`、`STD/STDAX`、`MAX/MIN/SIGN/RANDOM` 与堆栈函数已建立专题资料包和回归，其余函数继续分批核实型别和版本。 |
-| FUN-F | 图形模拟：`SETDRAW`、`DRAWHOLE` | P2 | 需和模拟器能力边界一起验证。 |
+| FUN-F | 图形模拟：`SETDRAW`、`DRAWHOLE` | P2，首轮已核实 BGR 色码、状态恢复和圆形绘制语义 | 已建立专题资料包和 hover 回归；颜色、半径与实际模拟渲染仍待目标模拟器验证。 |
 
 ## 实施规则
 

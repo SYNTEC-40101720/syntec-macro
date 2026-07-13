@@ -32,6 +32,7 @@ function categoryFor(code) {
 function severityFor(code) {
   if (code === DiagnosticCode.ASSIGNMENT_STYLE_EQUALS ||
       code === DiagnosticCode.FUNCTION_OPEN_COM_PORT ||
+      code === DiagnosticCode.FUNCTION_AXID_QUOTED_AXIS ||
       code === DiagnosticCode.VACANT_ASSIGNMENT ||
       code === DiagnosticCode.CONTROL_UNCLOSED_BLOCK ||
       code === DiagnosticCode.ROBOT_TOOLCORON_DEPRECATED ||
@@ -44,7 +45,11 @@ function severityFor(code) {
 }
 
 function escapeCell(value) {
-  return String(value).replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  return String(value)
+    .replace(/\|/g, '\\|')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/\n/g, '<br>');
 }
 
 function quickFixFor(code) {

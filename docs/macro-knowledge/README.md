@@ -16,6 +16,8 @@
 - [MACRO 函数审计资料包](MACRO函数审计资料包.md)：调用与资料访问函数的来源、差异和实施清单。
 - [MACRO 系统控制函数资料包](MACRO系统控制函数资料包.md)：`ALARM/MSG/WAIT/SLEEP/CHK*/AXID` 的证据与回归状态。
 - [MACRO 单位与堆栈函数资料包](MACRO单位与堆栈函数资料包.md)：`STD/STDAX/PUSH/POP/STKTOP` 的转换、栈读取边界与回归状态。
+- [MACRO Cycle 资料库函数资料包](MACRO-Cycle资料库函数资料包.md)：`DBOPEN/DBNEW/DBLOAD/DBSAVE/DBINSERT/DBDELETE` 的档案状态与回归状态。
+- [MACRO 图形模拟函数资料包](MACRO图形模拟函数资料包.md)：`SETDRAW/DRAWHOLE` 的绘图状态、模拟范围与回归状态。
 
 ## 相邻规范
 
