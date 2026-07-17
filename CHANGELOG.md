@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.3] - 2026-07-17
+
+### Fixed
+- **控制结构同行体误报**: `IF ... THEN <stmt>; ELSE <stmt>; END_IF;` 等同行体写法虽不推荐但控制器实际支援，不再误报"控制结构行不应以 ; 结尾"。覆盖 IF/ELSEIF/WHILE/FOR/REPEAT/CASE 所有控制结构。
+- **DEFAULT 降级为 warning**: `DEFAULT:` 在 CASE 中实际可用，从 error 降级为 style warning "支援但不推荐，建议使用 ELSE"。
+
 ## [2.11.2] - 2026-07-13
 
 ### Fixed
