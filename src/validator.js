@@ -136,7 +136,7 @@ function getKeywordPositions(line, isClean = false) {
     'GOTO'
   ];
   // 检测不支持的语法
-  const unsupportedKws = ['ELSIF', 'DEFAULT', 'DIV'];
+  const unsupportedKws = ['ELSIF', 'DIV'];
   for (const kw of unsupportedKws) {
     const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp('\\b' + escaped + '\\b', 'g');

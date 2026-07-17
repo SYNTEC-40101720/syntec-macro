@@ -96,9 +96,9 @@ console.log('\n[3] CASE/END_CASE');
   eq('CASE 分支标签后同行陈述支援但不推荐',
     'CASE #51 OF\n1: #1 := 10;\nEND_CASE;',
     [['warning', 'CASE 分支标签后同行陈述支援但不推荐']]);
-  eq('CASE 不支持 DEFAULT',
+  eq('CASE 中 DEFAULT 支援但不推荐',
     'CASE #51 OF\n1: #1 := 10;\nDEFAULT: #1 := 0;\nEND_CASE;',
-    [['warning', 'CASE 分支标签后同行陈述支援但不推荐'], ['error', 'DEFAULT 不支持，请使用 ELSE']]);
+    [['warning', 'CASE 分支标签后同行陈述支援但不推荐'], ['warning', 'DEFAULT 支援但不推荐']]);
   eq('CASE OF 缺少 END_CASE', 'CASE #51 OF',
     [['warning', 'CASE 块缺少对应的 END_']]);
   eq('CASE 中 ELSE 正确', 'CASE #51 OF\n1:\nELSE\nEND_CASE;', []);

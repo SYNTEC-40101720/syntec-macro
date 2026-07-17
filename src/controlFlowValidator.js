@@ -35,7 +35,13 @@ function validateCaseLineStyle(cleanLine, lineNum, stack) {
   const top = stack[stack.length - 1];
   if (!top || top.keyword !== 'CASE') return diagnostics;
 
-  if (/^\s*DEFAULT\s*:/i.test(cleanLine)) return diagnostics;
+  // DEFAULT 支援但不推荐
+  const defaultMatch = cleanLine.match(/\bDEFAULT\b\s*:/i);
+  if (defaultMatch) {
+    diagnostics.push(createWarning(lineNum, defaultMatch.index, defaultMatch[0].length, 'DEFAULT 支援但不推荐；建议使用 ELSE'));
+    return diagnostics;
+  }
+
   if (/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:\s*;\s*$/i.test(cleanLine)) return diagnostics;
 
   const branchMatch = cleanLine.match(/^\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*)(?:\s*,\s*(?:[#@]?(?:\d+|\[[^\]]+\])|[A-Za-z][A-Za-z0-9_]*))*\s*:(?!=)\s*(\S.*)$/);
@@ -62,9 +68,6 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
     if (kw === 'ELSIF') {
       msg = 'ELSIF 不支持，请使用 ELSEIF';
       code = DiagnosticCode.UNSUPPORTED_ELSIF;
-    } else if (kw === 'DEFAULT') {
-      msg = 'DEFAULT 不支持，请使用 ELSE';
-      code = DiagnosticCode.UNSUPPORTED_DEFAULT;
     } else if (kw === 'DIV') {
       msg = 'DIV 不支持；整数除法请使用 /，分子与分母皆为整数时结果仍为整数';
       code = DiagnosticCode.UNSUPPORTED_DIV;
