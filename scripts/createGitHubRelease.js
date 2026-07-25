@@ -19,11 +19,12 @@ if (!token) {
 
 const repo = 'SYNTEC-40101720/syntec-macro';
 
-const body = `# v${tag.slice(1)} - 2026-07-17
+const body = `# v${tag.slice(1)} - 2026-07-25
 
 ## Fixed
-- **控制结构同行体误报**: \`IF ... THEN <stmt>; ELSE <stmt>; END_IF;\` 等同行体写法虽不推荐但控制器实际支援，不再误报"控制结构行不应以 ; 结尾"。覆盖 IF/ELSEIF/WHILE/FOR/REPEAT/CASE 所有控制结构。
-- **DEFAULT 降级为 warning**: \`DEFAULT:\` 在 CASE 中实际可用，从 error 降级为 style warning "支援但不推荐，建议使用 ELSE"。`;
+- **格式化器安全性**: 修复跨行块注释被误改、多个规范化操作发生位置偏移，以及同行体导致后续代码错误缩排的问题。
+- **格式化器规范化**: 自动补全需要的结尾分号，删除控制结构头多余分号，并将兼容写法和赋值运算符转为推荐写法。
+- **格式化器边界**: 同行控制体、CASE 标签后赋值、行尾注释和字符串内容均得到保护。`;
 
 const data = JSON.stringify({
   tag_name: tag,

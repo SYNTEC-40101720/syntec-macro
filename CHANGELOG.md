@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.4] - 2026-07-25
+
+### Fixed
+- **格式化器安全性**: 修复跨行块注释被误改、多个规范化操作发生位置偏移，以及同行体导致后续代码错误缩排的问题。
+- **格式化器规范化**: 自动补全需要的结尾分号，删除控制结构头多余分号，并将兼容写法 `ENDIF`、`ENDFOR`、`ENDWHILE`、`ENDCASE`、`ENDREPEAT` 和赋值 `=` 转为推荐写法。
+- **格式化器边界**: 同行控制体、CASE 标签后赋值、行尾注释和字符串内容均得到保护。
+
 ## [2.11.3] - 2026-07-17
 
 ### Fixed

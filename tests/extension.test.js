@@ -59,6 +59,68 @@ test('Diagnostics normalize with stable position and severity order', () => {
   ]);
 });
 
+test('Formatter normalizes replacement control-flow closers', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const aliases = [
+    ['IF #1 = 1 THEN', 'ENDIF', 'END_IF'],
+    ['FOR #1 = 1 TO 2 DO', 'ENDFOR', 'END_FOR'],
+    ['WHILE #1 = 1 DO', 'ENDWHILE', 'END_WHILE'],
+    ['CASE #1 OF', 'ENDCASE', 'END_CASE'],
+    ['REPEAT', 'UNTIL #1 = 1 ENDREPEAT', 'UNTIL #1 = 1 END_REPEAT']
+  ];
+
+  for (const [opener, alias, recommended] of aliases) {
+    const input = `${opener}\n#2 := 1;\n${alias};`;
+    const expected = `${opener}\n    #2 := 1;\n${recommended};`;
+    assert.strictEqual(formatSyntecMacroDocument(input), expected, `${alias} should normalize`);
+  }
+
+  assert.strictEqual(
+    formatSyntecMacroDocument('// ENDIF\n#1 := "ENDIF";'),
+    '// ENDIF\n#1 := "ENDIF";'
+  );
+});
+
+test('Formatter normalizes assignment equals without changing comparisons', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = 'IF #1 = 1 THEN\n#2 = #1 + 1;\nMSG("#2 = 2");\nEND_IF;';
+  const expected = 'IF #1 = 1 THEN\n    #2 := #1 + 1;\n    MSG("#2 = 2");\nEND_IF;';
+  assert.strictEqual(formatSyntecMacroDocument(input), expected);
+});
+
+test('Formatter adds statement terminators without changing block headers', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = 'IF #1 = 1 THEN\n#2 = #1 + 1\nELSE\nMSG("ready") // keep comment\nEND_IF';
+  const expected = 'IF #1 = 1 THEN\n    #2 := #1 + 1;\nELSE\n    MSG("ready"); // keep comment\nEND_IF;';
+  assert.strictEqual(formatSyntecMacroDocument(input), expected);
+});
+
+test('Formatter preserves multiline block comments', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = '(*\nENDIF\n#1 = 1\n*)\n#2 = 2';
+  const expected = '(*\nENDIF\n#1 = 1\n*)\n#2 := 2;';
+  assert.strictEqual(formatSyntecMacroDocument(input), expected);
+});
+
+test('Formatter keeps same-line statements from changing block indentation', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = 'IF #1 = 1 THEN #2 = 2\n#3 = 3\nEND_IF';
+  const expected = 'IF #1 = 1 THEN #2 := 2;\n#3 := 3;\nEND_IF;';
+  assert.strictEqual(formatSyntecMacroDocument(input), expected);
+});
+
+test('Formatter removes terminators from control structure headers', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  const input = 'IF #1 = 1 THEN;\n#2 = 1;\nELSE;\n#2 = 2;\nEND_IF;';
+  const expected = 'IF #1 = 1 THEN\n    #2 := 1;\nELSE\n    #2 := 2;\nEND_IF;';
+  assert.strictEqual(formatSyntecMacroDocument(input), expected);
+});
+
+test('Formatter preserves positions across multiple normalizations', () => {
+  const { formatSyntecMacroDocument } = require('../src/formatter');
+  assert.strictEqual(formatSyntecMacroDocument('#1 = 1; ENDIF;'), '#1 := 1; END_IF;');
+});
+
 // ===== v2.6.0 新增测试 =====
 
 test('Robot instructions exist in getAllKeywords', () => {
@@ -536,7 +598,10 @@ test('Formatter adjusts indentation without rewriting statements', () => {
 test('Formatter ignores keywords inside comments and strings', () => {
   const { formatSyntecMacroDocument } = require('../src/formatter');
   const input = '%@MACRO\nMSG("END_IF")\n// IF #1 THEN\n#1 := 1;';
-  assert.strictEqual(formatSyntecMacroDocument(input, { insertSpaces: true, tabSize: 4 }), input);
+  assert.strictEqual(
+    formatSyntecMacroDocument(input, { insertSpaces: true, tabSize: 4 }),
+    '%@MACRO\nMSG("END_IF");\n// IF #1 THEN\n#1 := 1;'
+  );
 });
 
 test('Snippets match function definitions (no stale parameters)', () => {
