@@ -4,7 +4,8 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 
 function parseReleaseTag(tag) {
-  if (tag === undefined) return null;
+  // 同时处理 null 和 undefined，避免 null.match 抛 TypeError
+  if (tag == null) return null;
   const match = tag.match(/^v(\d+\.\d+\.\d+)$/);
   return match ? match[1] : null;
 }
@@ -30,7 +31,7 @@ function checkReleaseConsistency(input) {
   if (input.releaseTag === undefined) return errors;
   const releaseVersion = parseReleaseTag(input.releaseTag);
   if (!releaseVersion) {
-    errors.push(`Release tag ${input.releaseTag} must match vX.Y.Z.`);
+    errors.push(`Release tag ${JSON.stringify(input.releaseTag)} must match vX.Y.Z.`);
     return errors;
   }
 

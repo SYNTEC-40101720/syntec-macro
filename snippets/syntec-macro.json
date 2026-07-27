@@ -229,7 +229,7 @@
     "body": [
       "MSG(\"${1:提示信息}\");"
     ],
-    "description": "屏幕显示消息提示"
+    "description": "屏幕显示消息提示；如需自定义 ID，可写为 MSG(100, \"提示信息\");"
   },
   "WAIT 挡预解": {
     "prefix": "wait",

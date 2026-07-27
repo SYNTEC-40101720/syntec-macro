@@ -26,24 +26,25 @@ function classifyStatement(cleanLine) {
   const isRepeat = /^REPEAT\b\s*$/i.test(statement);
 
   if (ifMatch || forMatch || whileMatch || caseMatch || isRepeat) {
-    // IF/ELSEIF: THEN 后有实际语句（以变量/指令/关键字开头，或含 ;）→ 同行体
+    // 同行体判断：THEN/DO/OF 后必须有实际语句（不能只是分号或空白）
+    const hasRealStatement = (text, startChars) =>
+      text && !/^;\s*$/.test(text) && (new RegExp(`^[${startChars}]`).test(text) || /;/.test(text));
+
     if (ifMatch) {
       const afterThen = statement.replace(/^.*\bTHEN\b/i, '').trim();
-      if (afterThen && (/^[#@A-Za-z(]/.test(afterThen) || /;/.test(afterThen))) return 'statement';
+      if (hasRealStatement(afterThen, '#@A-Za-z(')) return 'statement';
     }
-    // FOR/WHILE: DO 后有实际语句 → 同行体
     if (forMatch) {
       const afterDo = statement.replace(/^.*\bDO\b/i, '').trim();
-      if (afterDo && (/^[#@A-Za-z(]/.test(afterDo) || /;/.test(afterDo))) return 'statement';
+      if (hasRealStatement(afterDo, '#@A-Za-z(')) return 'statement';
     }
     if (whileMatch) {
       const afterDo = statement.replace(/^.*\bDO\b/i, '').trim();
-      if (afterDo && (/^[#@A-Za-z(]/.test(afterDo) || /;/.test(afterDo))) return 'statement';
+      if (hasRealStatement(afterDo, '#@A-Za-z(')) return 'statement';
     }
-    // CASE: OF 后有内容 → 同行体
     if (caseMatch) {
       const afterOf = statement.replace(/^.*\bOF\b/i, '').trim();
-      if (afterOf && (/^[#@A-Za-z(0-9]/.test(afterOf) || /;/.test(afterOf))) return 'statement';
+      if (hasRealStatement(afterOf, '#@A-Za-z(0-9')) return 'statement';
     }
     return 'blockHeader';
   }

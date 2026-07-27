@@ -269,11 +269,19 @@ function validateRobotLineState(state, clean, command, lineNum, inConditionalBra
     }
   }
 
-  if (command === 'STITCHON' && !state.inWeaveOn) state.inStitchOn = true;
-  else if (command === 'STITCHOFF') state.inStitchOn = false;
+  // STITCHON/WEAVEON 互斥：在对方生效范围内静默忽略开启指令
+  // （前述禁忌检查已覆盖报错场景，此处仅维护状态一致性）
+  if (command === 'STITCHON') {
+    if (!state.inWeaveOn) state.inStitchOn = true;
+  } else if (command === 'STITCHOFF') {
+    state.inStitchOn = false;
+  }
 
-  if (command === 'WEAVEON' && !state.inStitchOn) state.inWeaveOn = true;
-  else if (command === 'WEAVEOFF') state.inWeaveOn = false;
+  if (command === 'WEAVEON') {
+    if (!state.inStitchOn) state.inWeaveOn = true;
+  } else if (command === 'WEAVEOFF') {
+    state.inWeaveOn = false;
+  }
 
   if (command === 'WAITSYNC') state.inWaitSync = true;
   else if (command === 'ENDSYNC') state.inWaitSync = false;

@@ -3,13 +3,69 @@
 const { DiagnosticCode } = require('./diagnosticCodes');
 const { createError, createWarning } = require('./diagnosticFactory');
 
+function splitFunctionArgs(s) {
+  // 按逗号分割函数参数，跳过字符串内的逗号和嵌套括号内的逗号
+  const args = [];
+  let current = '';
+  let depth = 0;
+  let inStr = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '"') {
+      let bs = 0;
+      for (let j = i - 1; j >= 0 && s[j] === '\\'; j--) bs++;
+      if (bs % 2 === 0) inStr = !inStr;
+      current += ch;
+    } else if (inStr) {
+      current += ch;
+    } else if (ch === '(') {
+      depth++;
+      current += ch;
+    } else if (ch === ')') {
+      depth--;
+      current += ch;
+    } else if (ch === ',' && depth === 0) {
+      args.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim() !== '' || args.length > 0) {
+    args.push(current.trim());
+  }
+  return args;
+}
+
 function getStaticFunctionCalls(cleanLine, functionName) {
   const escaped = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp('\\b' + escaped + '\\s*\\(([^()]*)\\)', 'ig');
+  const headerRe = new RegExp('\\b' + escaped + '\\s*\\(', 'ig');
   const calls = [];
-  let match;
-  while ((match = re.exec(cleanLine)) !== null) {
-    calls.push({ col: match.index, endCol: match.index + match[0].length, args: match[1].split(',').map(arg => arg.trim()) });
+  let headerMatch;
+  while ((headerMatch = headerRe.exec(cleanLine)) !== null) {
+    const callStart = headerMatch.index;
+    const argsStart = headerMatch.index + headerMatch[0].length;
+    // 平衡括号扫描，支持嵌套括号
+    let depth = 1;
+    let i = argsStart;
+    let inStr = false;
+    while (i < cleanLine.length && depth > 0) {
+      const ch = cleanLine[i];
+      if (ch === '"') {
+        let bs = 0;
+        for (let j = i - 1; j >= 0 && cleanLine[j] === '\\'; j--) bs++;
+        if (bs % 2 === 0) inStr = !inStr;
+      } else if (!inStr) {
+        if (ch === '(') depth++;
+        else if (ch === ')') { depth--; if (depth === 0) break; }
+      }
+      i++;
+    }
+    if (depth !== 0) continue; // 未闭合，跳过
+    const argsEnd = i;
+    const argsStr = cleanLine.slice(argsStart, argsEnd);
+    calls.push({ col: callStart, endCol: argsEnd + 1, args: splitFunctionArgs(argsStr) });
+    headerRe.lastIndex = argsEnd + 1;
   }
   return calls;
 }

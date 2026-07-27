@@ -24,7 +24,8 @@ const BLOCK_CLOSERS = {
   IF: 'END_IF;',
   FOR: 'END_FOR;',
   WHILE: 'END_WHILE;',
-  CASE: 'END_CASE;'
+  CASE: 'END_CASE;',
+  REPEAT: 'UNTIL ;'
 };
 
 const DIAGNOSTIC_HELP = {

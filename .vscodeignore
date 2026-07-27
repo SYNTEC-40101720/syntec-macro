@@ -1,5 +1,4 @@
 # Documentation (not needed in VSIX)
-README.md
 docs/
 ROADMAP.md
 release-notes-*.md
@@ -11,7 +10,6 @@ test-demo.nc
 # Development files
 .github/
 .trae/
-config/
 tests/
 eslint.config.js
 

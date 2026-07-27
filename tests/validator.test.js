@@ -1,43 +1,37 @@
 // validator.test.js
-// 用法: node validator.test.js
+// 用法: node --test tests/validator.test.js
 // 测试覆盖: IF/END_IF配对、CASE/END_CASE、REPEAT/UNTIL、中文字符检测、括号匹配、替代关键字、EXIT、GOTO、%@MACRO
 
+const { test } = require('node:test');
+const assert = require('node:assert');
 const { validateDocument } = require('../src/validator');
 
-// 辅助: 宽松比较 - 只比较 [sev, msg片段] 对，忽略 line/col/endCol/重复
-// 格式: [['error', '精确消息'], ['warning', '包含此串']]
-function match(text, expected) {
+// 辅助: 按 severity 分组比较诊断消息。
+// 严格校验数量；消息匹配沿用 includes 以容纳动态行号/列号等后缀。
+function assertDiagnostics(text, expected) {
   const got = validateDocument(text);
-  // 按 severity 分组，逐组比较
-  const gotBySev = { error: got.filter(d => d.severity === 'error').map(d => d.msg),
-    warning: got.filter(d => d.severity === 'warning').map(d => d.msg) };
-  const expBySev = { error: (expected.filter(e => e[0] === 'error').map(e => e[1])),
-    warning: (expected.filter(e => e[0] === 'warning').map(e => e[1])) };
+  const gotBySev = {
+    error: got.filter(d => d.severity === 'error').map(d => d.msg),
+    warning: got.filter(d => d.severity === 'warning').map(d => d.msg)
+  };
+  const expBySev = {
+    error: expected.filter(e => e[0] === 'error').map(e => e[1]),
+    warning: expected.filter(e => e[0] === 'warning').map(e => e[1])
+  };
   for (const sev of ['error', 'warning']) {
-    if (gotBySev[sev].length !== expBySev[sev].length) return { ok: false, got, expected, detail: sev + ' count: got ' + gotBySev[sev].length + ', expected ' + expBySev[sev].length };
+    assert.strictEqual(gotBySev[sev].length, expBySev[sev].length,
+      `${sev} count mismatch: got ${gotBySev[sev].length}, expected ${expBySev[sev].length}\n` +
+      `got: ${JSON.stringify(gotBySev[sev])}\nexpected: ${JSON.stringify(expBySev[sev])}`);
     for (const msg of expBySev[sev]) {
-      if (!gotBySev[sev].some(g => g.includes(msg))) {
-        return { ok: false, got, expected, detail: 'missing ' + sev + ': ' + msg };
-      }
+      assert.ok(gotBySev[sev].some(g => g.includes(msg)),
+        `missing ${sev} containing: ${msg}\ngot: ${JSON.stringify(gotBySev[sev])}`);
     }
   }
-  return { ok: true };
 }
 
-let passed = 0, failed = 0;
-
+// eq 注册为 node:test 测试块，统一接入 --test 报告
 function eq(name, text, expected) {
-  const r = match(text, expected);
-  if (r.ok) {
-    console.log('  ✅ ' + name);
-    passed++;
-  } else {
-    console.log('  ❌ ' + name);
-    console.log('    got:      ' + JSON.stringify(validateDocument(text).map(d => [d.severity, d.msg])));
-    console.log('    expected: ' + JSON.stringify(expected));
-    if (r.detail) console.log('    detail:   ' + r.detail);
-    failed++;
-  }
+  test(name, () => assertDiagnostics(text, expected));
 }
 
 // ============================================================
@@ -138,7 +132,7 @@ console.log('\n[6] REPEAT/UNTIL');
   eq('UNTIL 缺少分号报错', 'REPEAT\nUNTIL #1=1 END_REPEAT',
     [['error', '语句应以 ; 结尾']]);
   eq('REPEAT 缺少 UNTIL', 'REPEAT',
-    [['warning', 'REPEAT 块缺少对应的 END_']]);
+    [['warning', 'REPEAT 块缺少对应的 UNTIL']]);
   eq('UNTIL 无匹配 REPEAT', 'UNTIL #1=1;',
     [['error', 'UNTIL 没有匹配的 REPEAT']]);
 }
@@ -212,7 +206,7 @@ console.log('\n[10] 括号匹配');
     [['warning', 'IF 块缺少对应的 END_'], ['warning', '括号不匹配：多余的右括号']]);
   // 缺少右括号时，报缺少右括号
   eq('缺少右括号', 'IF (ABS(#1)=1 THEN',
-    [['warning', 'IF 块缺少对应的 END_（文件结束）'], ['warning', '括号不匹配：缺少 1 个右括号']]);
+    [['warning', 'IF 块缺少对应的 END_IF（文件结束）'], ['warning', '括号不匹配：缺少 1 个右括号']]);
   eq('注释内括号不触发', '// IF ( #1=1 THEN', []);
   eq('字符串内括号不触发', 'MSG("(");', []);
   eq('IF 带 END_IF，括号正确', 'IF ABS(SIN(#1))=1 THEN\nEND_IF;', []);
@@ -571,12 +565,4 @@ console.log('\n[21] 参考范例回归');
     '%@MACRO\nWHILE #203 < 10 DO\n  #203 := #203 + 1\n  SLEEP();\nEND_WHILE\nM99;',
     [['error', '语句应以 ; 结尾'], ['error', '语句应以 ; 结尾']]);
 }
-
-// ============================================================
-// 结果汇总
-// ============================================================
-console.log('\n' + '========================================');
-console.log('  结果: ' + passed + ' passed, ' + failed + ' failed');
-console.log('========================================\n');
-
-if (failed > 0) process.exit(1);
+// 结果汇总由 node --test 自动输出

@@ -32,7 +32,11 @@ function stripCommentsKeepStrings(line, lineStartInBlock) {
       index++;
       continue;
     }
-    if (line[index] === '"' && line[index - 1] !== '\\') inString = !inString;
+    if (line[index] === '"') {
+      let bs = 0;
+      for (let j = index - 1; j >= 0 && line[j] === '\\'; j--) bs++;
+      if (bs % 2 === 0) inString = !inString;
+    }
     result += line[index];
   }
 
@@ -42,7 +46,11 @@ function stripCommentsKeepStrings(line, lineStartInBlock) {
 function isInsideString(text, targetIndex) {
   let inString = false;
   for (let index = 0; index < targetIndex; index++) {
-    if (text[index] === '"' && text[index - 1] !== '\\') inString = !inString;
+    if (text[index] === '"') {
+      let bs = 0;
+      for (let j = index - 1; j >= 0 && text[j] === '\\'; j--) bs++;
+      if (bs % 2 === 0) inString = !inString;
+    }
   }
   return inString;
 }

@@ -4,6 +4,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const { Worker } = require('worker_threads');
 const { functions, buildFunctionIndex } = require('./functions');
 const { keywords, getAllKeywords, getMCodeDesc, getKeywordDoc } = require('./keywords');
 const { validateDocument } = require('./validator');
@@ -451,7 +452,76 @@ function findFileRecursive(dir, targetUpperNames, maxDepth, depth = 0) {
 let diagnosticCollection;
 const diagnosticTimers = new Map();
 
+// Worker 线程管理：将 validateDocument 放到独立线程，避免阻塞 Extension Host
+let validatorWorker = null;
+let workerMsgId = 0;
+const pendingRequests = new Map();
+// 每个文档的最新验证请求 ID，用于竞态取消
+let docRequestId = 0;
+const docRequestIds = new Map();
+
+function getValidatorWorker() {
+  if (validatorWorker) return validatorWorker;
+  try {
+    validatorWorker = new Worker(require.resolve('./validatorWorker.js'));
+    validatorWorker.on('message', ({ id, diagnostics, error }) => {
+      const resolve = pendingRequests.get(id);
+      if (!resolve) return;
+      pendingRequests.delete(id);
+      resolve(error ? null : diagnostics);
+    });
+    validatorWorker.on('error', (err) => {
+      console.error('[syntec-macro] Validator worker error:', err.message);
+      for (const [id, resolve] of pendingRequests) {
+        resolve(null);
+        pendingRequests.delete(id);
+      }
+      validatorWorker = null;
+    });
+    validatorWorker.on('exit', (code) => {
+      if (code !== 0) {
+        console.warn('[syntec-macro] Validator worker exited with code', code);
+      }
+      // 清理所有 pending requests，避免 Promise 永挂
+      for (const resolve of pendingRequests.values()) resolve(null);
+      pendingRequests.clear();
+      validatorWorker = null;
+    });
+  } catch (err) {
+    console.warn('[syntec-macro] Failed to start validator worker, falling back to sync:', err.message);
+    validatorWorker = null;
+  }
+  return validatorWorker;
+}
+
+const VALIDATOR_TIMEOUT_MS = 5000;
+
+function validateDocumentAsync(text) {
+  const worker = getValidatorWorker();
+  if (!worker) {
+    // Worker 不可用时回退到同步调用
+    return Promise.resolve(validateDocument(text));
+  }
+  const id = ++workerMsgId;
+  return new Promise((resolve) => {
+    // 超时保护：worker 卡死时避免 Promise 永挂
+    const timer = setTimeout(() => {
+      if (pendingRequests.has(id)) {
+        pendingRequests.delete(id);
+        resolve(null);
+      }
+    }, VALIDATOR_TIMEOUT_MS);
+    pendingRequests.set(id, (value) => {
+      clearTimeout(timer);
+      resolve(value);
+    });
+    worker.postMessage({ id, content: text });
+  });
+}
+
 function scheduleDiagnostics(document) {
+  // 提前过滤非本语言文档，避免无谓的调度开销
+  if (document.languageId !== LANG_ID) return;
   const key = document.uri.toString();
   clearTimeout(diagnosticTimers.get(key));
   diagnosticTimers.set(key, setTimeout(() => {
@@ -460,7 +530,7 @@ function scheduleDiagnostics(document) {
   }, DIAGNOSTIC_DEBOUNCE_MS));
 }
 
-function refreshDiagnostics(document) {
+async function refreshDiagnostics(document) {
   if (!diagnosticCollection) return;
   if (document.languageId !== LANG_ID) return;
   if (!isFeatureEnabled(document.uri, 'enableDiagnostics')) {
@@ -468,16 +538,28 @@ function refreshDiagnostics(document) {
     return;
   }
 
+  const docKey = document.uri.toString();
+  const myRequestId = ++docRequestId;
+  docRequestIds.set(docKey, myRequestId);
+
   const text = document.getText();
+  const problems = await validateDocumentAsync(text);
+
+  // 竞态取消：如果等待期间又有新请求，放弃这次结果
+  if (docRequestIds.get(docKey) !== myRequestId) return;
+  docRequestIds.delete(docKey);
+
+  if (!problems) return;
+
   const seenProblems = new Set();
-  const problems = validateDocument(text).filter(p => {
+  const filtered = problems.filter(p => {
     const key = getDiagnosticDedupeKey(p);
     if (seenProblems.has(key)) return false;
     seenProblems.add(key);
     return true;
   });
 
-  const diagnostics = problems.map(p => {
+  const diagnostics = filtered.map(p => {
     const d = new vscode.Diagnostic(
       new vscode.Range(p.line - 1, p.col, p.line - 1, p.endCol || p.col + 1),
       p.msg,
@@ -559,18 +641,6 @@ function getDiagnosticCode(diagnostic) {
   return undefined;
 }
 
-function createDiagnosticFromProblem(problem) {
-  const diagnostic = new vscode.Diagnostic(
-    new vscode.Range(problem.line - 1, problem.col, problem.line - 1, problem.endCol || problem.col + 1),
-    problem.msg,
-    problem.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning
-  );
-  diagnostic.source = 'syntec-macro';
-  if (problem.code) diagnostic.code = problem.code;
-  if (problem.keyword) diagnostic.syntecKeyword = problem.keyword;
-  return diagnostic;
-}
-
 function getUnclosedBlockKeyword(diagnostic) {
   if (diagnostic.syntecKeyword) return diagnostic.syntecKeyword;
   const match = diagnostic.message.match(/^([A-Z_]+) 块缺少对应的 END_/);
@@ -593,20 +663,11 @@ function createInsertBlockCloserAction(document, diagnostic) {
   return action;
 }
 
-function rangeIntersects(a, b) {
-  return a.intersection(b) !== undefined || a.contains(b.start) || b.contains(a.start);
-}
-
 function getActionableDiagnostics(document, range, context) {
-  const diagnostics = context.diagnostics.filter(diagnostic =>
+  // 仅使用 VSCode 已上报的诊断，避免同步调用 validateDocument 阻塞 Extension Host
+  return context.diagnostics.filter(diagnostic =>
     diagnostic.source === 'syntec-macro' && getDiagnosticCode(diagnostic)
   );
-  if (diagnostics.length > 0) return diagnostics;
-
-  return validateDocument(document.getText())
-    .filter(problem => problem.code)
-    .map(createDiagnosticFromProblem)
-    .filter(diagnostic => rangeIntersects(diagnostic.range, range));
 }
 
 function provideCodeActions(document, _range, context) {
@@ -888,6 +949,19 @@ function activate(context) {
   console.info('[syntec-macro] 扩展已激活 v' + packageJson.version);
 }
 
-function deactivate() {}
+function deactivate() {
+  // 清理所有定时器，避免热重载后触发已 dispose 的 collection
+  for (const timer of diagnosticTimers.values()) clearTimeout(timer);
+  diagnosticTimers.clear();
+  docRequestIds.clear();
+  navigationIndexCache.clear();
+  if (validatorWorker) {
+    // 先 resolve 所有 pending，避免 promise 永挂
+    for (const resolve of pendingRequests.values()) resolve(null);
+    pendingRequests.clear();
+    validatorWorker.terminate();
+    validatorWorker = null;
+  }
+}
 
 module.exports = { activate, deactivate };

@@ -19,7 +19,9 @@ function createWarning(line, col, endCol, msg, extra = {}) {
 
 function getDiagnosticDedupeKey(problem) {
   const identity = problem.code || problem.msg;
-  return [problem.line, problem.col, problem.endCol || problem.col + 1, problem.severity, identity].join('|');
+  // 包含 keyword 等额外字段，避免同一位置同 code 但 keyword 不同的诊断被错误去重
+  const extraKey = problem.keyword ? '|' + problem.keyword : '';
+  return [problem.line, problem.col, problem.endCol || problem.col + 1, problem.severity, identity, extraKey].join('|');
 }
 
 function diagnosticRangesOverlap(left, right) {

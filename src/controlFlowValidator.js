@@ -192,7 +192,9 @@ function validateUnclosedBlocks(stack) {
   const diagnostics = [];
   for (const block of stack) {
     if (block.exited) continue;
-    diagnostics.push(createWarning(block.line, 0, 0, `${block.keyword} 块缺少对应的 END_（文件结束）`, {
+    // REPEAT 块由 UNTIL 关闭，其他块由 END_xxx 关闭
+    const expectedCloser = block.keyword === 'REPEAT' ? 'UNTIL' : `END_${block.keyword}`;
+    diagnostics.push(createWarning(block.line, 0, 0, `${block.keyword} 块缺少对应的 ${expectedCloser}（文件结束）`, {
       code: DiagnosticCode.CONTROL_UNCLOSED_BLOCK,
       keyword: block.keyword
     }));

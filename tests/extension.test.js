@@ -150,10 +150,27 @@ test('GETPR and SETPR exist in function index', () => {
   const index = buildFunctionIndex();
   assert.ok(index.has('GETPR'), 'GETPR should be in function index');
   assert.ok(index.has('SETPR'), 'SETPR should be in function index');
-  const getpr = index.get('GETPR');
-  assert.ok(getpr.sig.includes('GETPR'), 'GETPR sig should contain function name');
-  const setpr = index.get('SETPR');
-  assert.ok(setpr.sig.includes('SETPR'), 'SETPR sig should contain function name');
+  // 严格 sig 断言，防止签名被误改导致补全/悬停文档静默回归
+  assert.strictEqual(index.get('GETPR').sig, 'GETPR(prNo)', 'GETPR sig must match exactly');
+  assert.strictEqual(index.get('SETPR').sig, 'SETPR(prNo, val)', 'SETPR sig must match exactly');
+});
+
+test('Critical function signatures are stable', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  // 关键函数签名回归测试：防止 sig 被误改导致补全/悬停文档静默回归
+  const expectedSigs = {
+    'WAIT': 'WAIT()',
+    'OPEN': 'OPEN("path"[, "mode"])',
+    'CLOSE': 'CLOSE()',
+    'READABIT': 'READABIT(portNo)',
+    'SETABIT': 'SETABIT(portNo, val)'
+  };
+  for (const [name, expectedSig] of Object.entries(expectedSigs)) {
+    const fn = index.get(name);
+    assert.ok(fn, `${name} should exist in function index`);
+    assert.strictEqual(fn.sig, expectedSig, `${name} sig must match exactly`);
+  }
 });
 
 test('WAIT and MSG function docs include runtime caveats', () => {

@@ -52,7 +52,7 @@ async function main() {
     console.info(`Installing VSIX into isolated profile: ${tempRoot}`);
     runCli(cli, [...commonArgs, '--install-extension', artifactPath, '--force']);
     const installed = runCli(cli, [...commonArgs, '--list-extensions', '--show-versions']);
-    const expected = `syntec-team.syntec-macro@${packageJson.version}`;
+    const expected = `syntec-team.syntec-macro@${packageJson.version}`.toLowerCase();
     if (!installed.toLowerCase().split(/\r?\n/).includes(expected)) {
       throw new Error(`Installed extension was not listed as ${expected}.`);
     }

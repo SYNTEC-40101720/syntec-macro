@@ -37,11 +37,11 @@ test('Package consistency requires an X.Y.Z package version', () => {
 test('Release consistency rejects malformed or mismatched tags', () => {
   assert.deepStrictEqual(
     checkReleaseConsistency(createInput({ releaseTag: '2.10.0' })),
-    ['Release tag 2.10.0 must match vX.Y.Z.']
+    ['Release tag "2.10.0" must match vX.Y.Z.']
   );
   assert.deepStrictEqual(
     checkReleaseConsistency(createInput({ releaseTag: '' })),
-    ['Release tag  must match vX.Y.Z.']
+    ['Release tag "" must match vX.Y.Z.']
   );
   assert.ok(
     checkReleaseConsistency(createInput({ releaseTag: 'v2.9.0' }))

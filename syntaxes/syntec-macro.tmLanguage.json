@@ -88,7 +88,7 @@
       "name": "support.function.string.syntec-macro"
     },
     {
-      "match": "\\b(OPEN|CLOSE|PRINT|GETARG|GETTRAPARG|PARAM)\\b",
+      "match": "\\b(OPEN|CLOSE|PRINT|GETARG|GETTRAPARG|PARAM|GETPR|SETPR)\\b",
       "name": "support.function.io.syntec-macro"
     },
     {

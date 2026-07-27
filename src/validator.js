@@ -87,8 +87,8 @@ function stripCommentsAndStrings(line) {
   return stripCommentsAndStringsWithState(line).text;
 }
 
-function createLineContext(raw, lineStartInBlock) {
-  const stripped = stripCommentsAndStringsWithState(raw, lineStartInBlock);
+function createLineContext(raw, lineStartInBlock, precomputed) {
+  const stripped = precomputed || stripCommentsAndStringsWithState(raw, lineStartInBlock);
   const clean = stripped.text;
   return {
     raw,
@@ -102,52 +102,54 @@ function createLineContext(raw, lineStartInBlock) {
   };
 }
 
+// 预编译关键字正则（避免每行创建 26 个 RegExp 对象）
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+const LONG_KW_LIST = [
+  'ENDREPEAT', 'ENDFOR', 'ENDWHILE', 'ENDCASE', 'ENDIF',
+  'END_REPEAT', 'END_FOR', 'END_WHILE', 'END_CASE', 'END_IF'
+];
+const SHORT_KW_LIST = [
+  'REPEAT', 'FOR', 'WHILE', 'CASE', 'IF',
+  'ELSEIF', 'ELSE', 'UNTIL', 'EXIT',
+  'TO', 'BY', 'DO', 'OF', 'GOTO'
+];
+const UNSUPPORTED_KW_LIST = ['ELSIF', 'DIV'];
+
+const LONG_KW_REGEXES = LONG_KW_LIST.map(kw => ({ kw, re: new RegExp('\\b' + escapeRegex(kw) + '\\b', 'g') }));
+const SHORT_KW_REGEXES = SHORT_KW_LIST.map(kw => ({ kw, re: new RegExp('\\b' + escapeRegex(kw) + '\\b', 'g') }));
+const UNSUPPORTED_KW_REGEXES = UNSUPPORTED_KW_LIST.map(kw => ({ kw, re: new RegExp('\\b' + escapeRegex(kw) + '\\b', 'g') }));
+
 // 获取关键字在行中的位置（防止 ENDREPEAT/REPEAT 等子串冲突）
 // 策略：用下划线占位法，先把长替代关键字替换成等长占位符，再匹配
 function getKeywordPositions(line, isClean = false) {
   const clean = isClean ? line : stripCommentsAndStrings(line);
 
   // 第一步：把长替代关键字替换成等长占位符（防止 ENDREPEAT 内的 REPEAT 被误匹配）
-  // 顺序：越长越先替换（ENDREPEAT > ENDFOR > ... > REPEAT > UNTIL）
-  const subs = [
-    'ENDREPEAT', 'ENDFOR', 'ENDWHILE', 'ENDCASE', 'ENDIF',
-    'END_REPEAT', 'END_FOR', 'END_WHILE', 'END_CASE', 'END_IF'
-  ];
   let s = clean;
-  const offsetMap = []; // [{origKw, pos}] 记录占位后的位置映射
-  for (const kw of subs) {
-    const re = new RegExp('\\b' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
+  const offsetMap = [];
+  for (const { kw, re } of LONG_KW_REGEXES) {
+    re.lastIndex = 0;
     let m;
     while ((m = re.exec(s)) !== null) {
       const placeholder = '_'.repeat(kw.length);
       s = s.substring(0, m.index) + placeholder + s.substring(m.index + kw.length);
       offsetMap.push({ kw, col: m.index });
-      re.lastIndex = m.index + kw.length; // 重新定位到替换后的位置
+      re.lastIndex = m.index + kw.length;
     }
   }
 
   // 第二步：在替换后的字符串中匹配剩余关键字
   const positions = [];
-  const shortKws = [
-    'REPEAT', 'FOR', 'WHILE', 'CASE', 'IF',
-    'ELSEIF', 'ELSE',
-    'UNTIL', 'EXIT',
-    'TO', 'BY', 'DO', 'OF',
-    'GOTO'
-  ];
-  // 检测不支持的语法
-  const unsupportedKws = ['ELSIF', 'DIV'];
-  for (const kw of unsupportedKws) {
-    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('\\b' + escaped + '\\b', 'g');
+  for (const { kw, re } of UNSUPPORTED_KW_REGEXES) {
+    re.lastIndex = 0;
     let m;
     while ((m = re.exec(s)) !== null) {
       positions.push({ keyword: kw, col: m.index, endCol: m.index + kw.length, unsupported: true });
     }
   }
-  for (const kw of shortKws) {
-    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('\\b' + escaped + '\\b', 'g');
+  for (const { kw, re } of SHORT_KW_REGEXES) {
+    re.lastIndex = 0;
     let m;
     while ((m = re.exec(s)) !== null) {
       positions.push({ keyword: kw, col: m.index, endCol: m.index + kw.length });
@@ -184,17 +186,19 @@ function extractGotoTarget(line, isClean = false) {
 // 独立验证器函数
 // ============================================================
 
-// 第一遍：收集 N标签 + 检查 %@MACRO 文件头
+// 第一遍：收集 N标签 + 检查 %@MACRO 文件头 + 预计算 strip 结果
 function collectMetadata(lines) {
   const nLabels = new Set();
   let firstNonCommentIdx = -1;
   let hasMacroHeader = false;
   let firstNonCommentIsBarePercent = false; // % 后面不是 @ 或者只有 %
   let inBlockComment = false;
+  const strippedLines = [];
 
   for (let i = 0; i < lines.length; i++) {
     const stripped = stripCommentsAndStringsWithState(lines[i], inBlockComment);
     inBlockComment = stripped.inBlockComment;
+    strippedLines.push(stripped);
     const trimmed = stripped.text.trim();
 
     // 找第一个非空非注释行
@@ -223,7 +227,7 @@ function collectMetadata(lines) {
     diagnostics.push(createWarning(firstNonCommentIdx + 1, 0, first.length, '此文件缺少 %@MACRO 文件头，将被视为 ISO 格式文件'));
   }
 
-  return { nLabels, diagnostics };
+  return { nLabels, diagnostics, strippedLines };
 }
 
 // 中文字符验证器：检测代码中的中文汉字和中文标点
@@ -246,7 +250,13 @@ function validateChineseCharacters(raw, lineNum, lineStartInBlock) {
       }
       continue;
     }
-    if (raw[ci] === '"') { inStr = !inStr; continue; }
+    if (raw[ci] === '"') {
+      // 检查转义（前面有奇数个反斜杠则视为转义，不切换字符串状态）
+      let bs = 0;
+      for (let j = ci - 1; j >= 0 && raw[j] === '\\'; j--) bs++;
+      if (bs % 2 === 0) inStr = !inStr;
+      continue;
+    }
     if (inStr || inBC) continue;
     if (CJK_CHAR.test(raw[ci]) && !hasCJK) { hasCJK = true; firstCJK = ci; }
     if (CJK_PUNCT.test(raw[ci])) puncts.push({ col: ci, ch: raw[ci] });
@@ -468,7 +478,7 @@ function validatePathExtensionArgs(_raw, lineNum, _lineStartInBlock, cleanLine) 
 
   const diagnostics = [];
   const allowed = new Set(['C', 'R', 'A']);
-  const pathExtensionRe = /,\s*([A-Z][0-9](?=\s*=)|[A-Z]+)(?=\s*=|[#@+\-]?(?:\d|\.|#|@|\[))/ig;
+  const pathExtensionRe = /,\s*([A-Z]\d*(?=\s*=)|[A-Z]+)(?=\s*=|[#@+\-]?(?:\d|\.|#|@|\[))/ig;
   let match;
   while ((match = pathExtensionRe.exec(clean)) !== null) {
     const arg = match[1].toUpperCase();
@@ -518,18 +528,16 @@ function validateDocument(content) {
   const controlFlowState = createControlFlowState();
   const gotoRefs = []; // GOTO 引用 [{line, target}]
   const robotState = createRobotState();
-  let inBlockComment = false; // 跨行块注释状态追踪
 
-  // === 第一遍：收集 N标签 + 检查 %@MACRO ===
-  const { nLabels, diagnostics: metaDiagnostics } = collectMetadata(lines);
+  // === 第一遍：收集 N标签 + 检查 %@MACRO + 预计算 strip ===
+  const { nLabels, diagnostics: metaDiagnostics, strippedLines } = collectMetadata(lines);
   diagnostics.push(...metaDiagnostics);
 
   // === 主循环：逐行处理关键字 ===
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
-    const lineStartInBlock = inBlockComment;
-    const line = createLineContext(lines[i], lineStartInBlock);
-    inBlockComment = line.inBlockComment;
+    const lineStartInBlock = i > 0 ? strippedLines[i - 1].inBlockComment : false;
+    const line = createLineContext(lines[i], lineStartInBlock, strippedLines[i]);
 
     const inConditionalBranch = controlFlowState.stack.some(block =>
       block.keyword === 'IF' || block.keyword === 'CASE'

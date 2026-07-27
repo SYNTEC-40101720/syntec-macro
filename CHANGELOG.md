@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.5] - 2026-07-28
+
+### Added
+- **Worker 线程验证**: `validateDocument` 改在独立 Worker 线程执行，避免大文件诊断阻塞 Extension Host；包含 5 秒超时保护和竞态取消机制。
+- **GitHub Release 脚本**: 新增 `scripts/createGitHubRelease.js`，适配域控环境（`git credential fill` + `curl.exe` + 临时 JSON 文件），替代被阻止的 `gh` CLI。
+
+### Fixed
+- **REPEAT 未闭合诊断**: `REPEAT` 块缺少闭合时正确提示"缺少对应的 UNTIL"，而非"缺少对应的 END_"。
+- **函数参数解析**: 内置函数静态参数诊断支持嵌套括号和字符串内的逗号，不再将 `ATAN2(1, SQRT(2))` 等嵌套调用误判为多参数。
+- **STITCHON/WEAVEON 互斥状态**: 在对方生效范围内静默忽略开启指令，避免状态不一致导致后续误报。
+- **同行体检测**: `THEN/DO/OF` 后仅分号或空白不再识别为同行体，避免 `WHILE #1 DO;` 等控制结构头误加分号被当作合法同行体。
+- **中文字符诊断字符串转义**: 字符串内的转义引号不再错误切换字符串状态，避免 `MSG("含\"中文")` 误报中文字符。
+- **路径扩充引数正则**: 修正 `,C_`、`,R_`、`,A_` 匹配模式，避免误匹配。
+
+### Changed
+- **验证器性能**: 预编译关键字正则并缓存 `stripCommentsAndStrings` 结果，减少逐行重复创建 RegExp 对象。
+- **资源清理**: `deactivate()` 完整清理诊断定时器、请求 ID 缓存、导航索引缓存和 Worker 线程，避免热重载后触发已 dispose 的 collection。
+- **CodeActions 同步调用移除**: `getActionableDiagnostics` 不再在缺诊断时同步调用 `validateDocument`，避免阻塞 Extension Host。
+
+### Removed
+- **过时发布记录**: 移除 `docs/v2.10.0-发布记录.md` 和 `docs/v2.11.0-发布记录.md`（内容已在 CHANGELOG 中）。
+- **死代码**: 移除 `extension.js` 中未使用的 `createDiagnosticFromProblem` 和 `rangeIntersects` 函数。
+
 ## [2.11.4] - 2026-07-25
 
 ### Fixed
