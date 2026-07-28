@@ -1,0 +1,7 @@
+%@MACRO
+// FUN-D-02: 未开档执行 DBDELETE
+// 预期: @1=-2 (未开档时 DBDELETE 回传 -2)
+#10 := DBDELETE(0);
+@1 := #10;
+MSG("DBDELETE NO OPEN DONE");
+M30;

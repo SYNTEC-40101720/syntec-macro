@@ -1,0 +1,12 @@
+%@MACRO
+// FUN-F-03: BGR 色码与路径颜色恢复
+// 1. 设定路径颜色并记录回传值
+#10 := SETDRAW(255);
+@1 := #10;
+// 2. 在当前位置画圆
+MOVL X10.0 Y10.0 FL100.;
+DRAWHOLE();
+// 3. 恢复原路径颜色
+#11 := SETDRAW(@1);
+MSG("SETDRAW+DRAWHOLE DONE");
+M30;

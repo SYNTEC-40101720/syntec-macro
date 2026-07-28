@@ -246,3 +246,5 @@ node -e "const fs=require('fs'); const {validateDocument}=require('./src/validat
 | 2026-07-13 | FUN-F | 完成 `SETDRAW/DRAWHOLE` 首轮审计：补齐 BGR 色码、路径颜色恢复和当前绘图状态 hover，建立专题资料包与模块回归；颜色、半径和实际渲染不做静态诊断。 |
 | 2026-07-13 | FUN-D | 完成 Cycle 资料库函数首轮审计：补齐 `DBLOAD/DBINSERT` 的共享 Cycle name 覆盖语义与 `DBDELETE` 明确回传码，建立专题资料包与模块回归；档案状态、index 与版本差异不做静态诊断。 |
 | 2026-07-13 | FUN-B | 核实 `AXID(axis)` 的裸轴名语法：补全签名与 hover，并对静态字串轴名增加说明型 warning；不推断实际轴配置或不存在轴的运行时结果。 |
+| 2026-07-28 | FUN-B-12 | 通过 Atlassian MCP 查询 Confluence，`SLEEP` 和 `AXID` 的 A 级来源在 Macro Function List 确认，与现有 hover 一致；FUN-B-12 完成。 |
+| 2026-07-28 | FUN-A-13 | 通过 Confluence CQL 搜索确认 `GETPR/SETPR` 无函数页，维持证据阻塞；需控制器验证或其他 A 级来源。 |

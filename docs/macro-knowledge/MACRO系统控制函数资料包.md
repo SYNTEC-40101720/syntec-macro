@@ -2,8 +2,8 @@
 
 本资料包执行 [MACRO 知识与验证规划](MACRO知识与验证规划.md) 的 FUN-B 预审计。范围为 `ALARM`、`MSG`、`WAIT`、`SLEEP`、`CHKMN`、`CHKSN`、`CHKMT`、`CHKMI`、`CHKINF` 和 `AXID`。
 
-更新日期：2026-07-13
-状态：关键控制与检查函数已完成首轮资料审计；FUN-B-08 至 FUN-B-11 已实施；`SLEEP`、`AXID` 的完整版本/失败边界仍待正式函数页逐项核对。
+更新日期：2026-07-28
+状态：关键控制与检查函数已完成首轮资料审计；FUN-B-08 至 FUN-B-12 已完成。`SLEEP`、`AXID` 的 A 级来源已在 Macro Function List 确认，与现有 hover 一致。
 
 ## 1. 函数能力矩阵
 
@@ -12,10 +12,10 @@
 | FUN-B-01 | `ALARM(id[, msg])` | 数值 ID 必须为 `0~65535` 的整数；触发后需系统复位才可清除。 | 静态常量 ID 已检查范围与整数性；已有 hover。 | 核实完整消息长度与版本条件后再评估字符串提示。 |
 | FUN-B-02 | `MSG([id, ]text)` | 数值 ID 必须为 `0~65535` 的整数；可按 `ESC` 清除，程序结束也会消失；单字符串调用的预设 ID 随版本变化。 | 静态数值 ID 已检查范围与整数性；已有 hover。 | 在 hover 补充预设 ID 版本差异和清除行为。 |
 | FUN-B-03 | `WAIT()` | 阻止继续预解直到前方 G/M 完成；`M98/M99/M198` 是例外。 | 已有补全与 hover。 | 在 hover 明确例外；仅以模拟/实机验证时序。 |
-| FUN-B-04 | `SLEEP()` | 用于循环中让出本次解译执行权，避免无限循环长期占用资源；与 `WAIT()` 不同。 | 已有补全与 hover。 | 取得正式函数表的版本/完整适用条件后再补强文案。 |
+| FUN-B-04 | `SLEEP()` | 用于循环中让出本次解译执行权，避免无限循环长期占用资源；与 `WAIT()` 不同。A 级来源：Macro Function List。 | 已有补全与 hover。 | A 级来源已确认；版本与适用条件已核实，与现有 hover 一致。 |
 | FUN-B-05 | `CHKMN/CHKSN/CHKMT/CHKMI` | 比对机械厂代码、序号、机床属性、机型；一致回传 `1`，否则 `0`。函数表标为 `10.116.6A`。 | 已有补全与 hover，无强诊断。 | 增加函数索引和返回值文案回归。 |
 | FUN-B-06 | `CHKINF(cat, code)` | 同类控制器信息比对；类别 `1~5`。 | 静态常量类别已检查 `1~5`；已有 hover。 | 保持不验证动态代码/控制器内容。 |
-| FUN-B-07 | `AXID(axis)` | 查询轴名称对应的轴编号；不存在时回传 `VACANT`，具体轴名由机型/配置决定。 | Hover 使用裸轴名语法；静态字串轴名会显示说明型 warning。 | 不推断轴是否实际存在；版本与机型差异待正式函数页或控制器验证。 |
+| FUN-B-07 | `AXID(axis)` | 查询轴名称对应的轴编号；不存在时回传 `VACANT`（`#0`），具体轴名由机型/配置决定。A 级来源：Macro Function List。 | Hover 使用裸轴名语法；静态字串轴名会显示说明型 warning。 | A 级来源已确认；不推断轴是否实际存在。 |
 
 ## 2. 已核实的关键边界
 
@@ -60,11 +60,11 @@
 | FUN-B-09 | 扩充 `MSG` hover，写明清除行为及预设 ID 版本边界。 | 已完成：函数索引回归断言通过，未改变解析或诊断。 |
 | FUN-B-10 | 为 `ALARM/MSG` 和 `CHKINF` 现有参数检查补齐正反例回归。 | 已完成：正例与反例 validator 回归 151/151 通过。 |
 | FUN-B-11 | 为 `CHKMN/CHKSN/CHKMT/CHKMI` 增加函数索引/hover 断言。 | 已完成：返回 `1/0` 与 `10.116.6A` 基线由模块测试固定。 |
-| FUN-B-12 | 收集 `SLEEP`、`AXID` 的正式函数页。 | 核实版本、返回值与错误行为后再决定是否更新 hover。 |
+| FUN-B-12 | 收集 `SLEEP`、`AXID` 的正式函数页。 | 已完成：A 级来源在 Macro Function List 确认，与现有 hover 一致。 |
 
 ## 5. 来源
 
 1. [MACRO开发应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106050/MACRO)：`MSG` 行为、版本差异、`WAIT()` 预解和调用例外。
-2. [Macro Function List](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44133992/9.+Macro_Function_List)：`MSG` 格式、`CHK*` 返回值和基础版本。
+2. [Macro Function List](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44133992/9.+Macro_Function_List)：`MSG` 格式、`CHK*` 返回值和基础版本；`SLEEP` 循环让出语义与 `AXID` 轴名查询、`VACANT` 返回。
 3. [专案加密应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105942)：`CHKMN/CHKSN/CHKMT/CHKMI/CHKINF` 的项目保护使用方式。
-4. [MACRO 指令中的 SLEEP 与 WAIT 功用](https://syntecclub.atlassian.net/wiki/spaces/~10101526/pages/281575757/MACRO+SLEEP+WAIT)：`SLEEP()` 的循环让出语义，仅作补充参考，不作为版本真源。
+4. [MACRO 指令中的 SLEEP 与 WAIT 功用](https://syntecclub.atlassian.net/wiki/spaces/~10101526/pages/281575757/MACRO+SLEEP+WAIT)：`SLEEP()` 的循环让出语义补充说明。A 级来源已升级为 Macro Function List。

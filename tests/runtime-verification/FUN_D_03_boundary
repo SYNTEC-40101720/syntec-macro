@@ -1,0 +1,12 @@
+%@MACRO
+// FUN-D-03: 空档案、边界 index 与删除后保存
+// 验证: 空档案删除行为、边界 index、删除后 DBSAVE
+#10 := DBOPEN("TEST_EMPTY.XML");
+#11 := DBDELETE(0);
+@1 := #11;
+#12 := DBDELETE(999);
+@2 := #12;
+#13 := DBSAVE();
+@3 := #13;
+MSG("DBDELETE BOUNDARY DONE");
+M30;

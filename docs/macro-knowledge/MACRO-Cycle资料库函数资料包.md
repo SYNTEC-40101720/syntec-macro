@@ -28,3 +28,12 @@
 | FUN-D-01 | `DBLOAD` 后执行 `DBINSERT` | 确认后者的 Cycle name 覆盖前者。 |
 | FUN-D-02 | 未开档执行 `DBDELETE` | 确认回传 `-2`。 |
 | FUN-D-03 | 空档案、边界 index 与删除后保存 | 核实各控制器版本的实际行为和返回码。 |
+
+### 验证结果记录
+
+| 验证 ID | 机型 | 软件版本 | @变量实际值 | 预期值 | 结论 | 日期 |
+|---|---|---|---|---|---|---|
+| FUN-D-02 | 81RA | 10.120.44C | @1=-2.0 | -2 | 通过 | 2026-07-28 |
+| FUN-D-01 | 81RA | 10.120.44C | @1=1, @2=-3, @3=0, @4=-3 | DBINSERT返回-3 | 2026-07-28 |
+
+**FUN-D-01 说明**：DBNEW 成功（@1=1），但 DBINSERT 返回 -3。Confluence Macro Function List 记载 -3 表示"使用未定义的 Cycle name"。DBINSERT 的 Cycle name 必须是 Schema 档案中已定义的名称，不能使用任意字符串。需确认控制器上 Schema 中定义的 Cycle name 后重新测试。

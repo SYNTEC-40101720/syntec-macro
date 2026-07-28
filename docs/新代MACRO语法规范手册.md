@@ -134,7 +134,7 @@ NCFILES > MACRO
 | 常见加工档后缀 | 自动关联 `.nc`、`.cnc`、`.tap`、`.prt`、`.mpf`、`.ptp`、`.pim`、`.anc`、`.bj`、`.edit`、`.demo` |
 | 任意首行为 `%@MACRO` 的文件 | 通过 firstLine 规则识别为 `syntec-macro` |
 | `.txt` 文件 | 不默认关联，避免影响普通文本；可通过 `%@MACRO` 或手动切换语言识别 |
-| `.macro` / `.scp` / `.G` | 未在默认 Filter 中确认，不默认关联；可通过 `%@MACRO` 或手动切换语言识别 |
+| `.macro` / `.scp` / `.G` | 不默认关联 |
 | 无后缀扩充 G 码 / O 码 | 依首行 `%@MACRO` 识别；跳转搜索优先查无后缀文件 |
 
 ### 1.8 注释

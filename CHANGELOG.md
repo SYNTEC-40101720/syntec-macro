@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **知识库版本基线同步**: `MACRO能力矩阵.md` 与 `MACRO知识与验证规划.md` 的发布状态行补充 `v2.11.5`。
+- **FUN-B-12 证据阻塞解除**: 通过 Atlassian MCP 查询 Confluence，`SLEEP` 和 `AXID` 的 A 级来源在 Macro Function List 确认，与现有 hover 一致；`GETPR/SETPR` 经 CQL 搜索确认无函数页，维持证据阻塞。
 
 ## 2.11.5 - 2026-07-28
 

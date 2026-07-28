@@ -1,0 +1,9 @@
+%@MACRO
+// FUN-E-06: STD/STDAX 版本与机型差异
+// 验证: STD 和 STDAX 是否可用及返回值
+#10 := STD(1, #1600);
+@1 := #10;
+#11 := STDAX(1, X);
+@2 := #11;
+MSG("STD/STDAX DONE");
+M30;
