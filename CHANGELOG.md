@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.11.7 - 2026-07-28
+
+### Added
+- **运行时验证**: 在 81RA 机器人系统（10.120.44C）完成 14 项运行时验证，包含 CALL-RUN-01~07（调用语义）、FUN-E-06/07（单位与堆栈）、FUN-D-02（Cycle DB）、FUN-F-03/04（图形模拟）。验证程序位于 `tests/runtime-verification/`。关键发现：
+  - G65 变量隔离、M98/M198 继承、M99 返回行为确认
+  - G66/G66.1 在机器人系统上仅触发一次（与 CNC 行为不同）
+  - 空栈 POP（堆栈下溢）和 STKTOP 越界索引均触发预解或运行时报警，无静默返回值
+  - DBDELETE 未开档回传 -2，DBINSERT 未定义 Cycle name 回传 -3
+  - SETDRAW 接受色码输入并原样返回，不做有效性检查
+
+### Fixed
+- **Issue Template YAML 修复**: `feature_request.md` 的 YAML front matter 首行 `#---` 改为 `---`，修复格式失效。
+
 ## 2.11.6 - 2026-07-28
 
 ### Fixed
