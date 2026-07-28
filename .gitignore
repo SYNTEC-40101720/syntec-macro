@@ -33,6 +33,9 @@ desktop.ini
 # ==================== Release Notes (temporary) ====================
 release-notes-*.md
 
+# ==================== Release Script ====================
+release.py
+
 # ==================== Reference Macro Samples ====================
 Macro/
 
