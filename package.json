@@ -63,8 +63,7 @@
         "editor.insertSpaces": false,
         "editor.autoIndent": "advanced",
         "editor.colorDecorators": false,
-        "editor.defaultColorDecorators": "never",
-        "editor.colorDecoratorsActivatedOn": "never"
+        "editor.defaultColorDecorators": "never"
       }
     },
     "configuration": {
@@ -108,7 +107,7 @@
     "check:vsix": "node scripts/checkVsixContents.js",
     "package": "npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",
     "release:create": "node scripts/createGitHubRelease.js",
-    "lint": "npx eslint src/ scripts/ tests/"
+    "lint": "npx eslint eslint.config.js src/ scripts/ tests/"
   },
   "devDependencies": {
     "@vscode/test-electron": "3.0.0",

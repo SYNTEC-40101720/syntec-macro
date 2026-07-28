@@ -14,8 +14,8 @@ module.exports = [
         __filename: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
-        Buffer: 'readonly',
-      },
+        Buffer: 'readonly'
+      }
     },
     rules: {
       // 代码风格
@@ -32,8 +32,8 @@ module.exports = [
       // 可能的错误
       'eqeqeq': ['error', 'always', { null: 'ignore' }],
       'curly': ['error', 'multi-line'],
-      'dot-notation': 'error',
-    },
+      'dot-notation': 'error'
+    }
   },
   {
     files: ['**/*.test.js'],
@@ -45,11 +45,11 @@ module.exports = [
         before: 'readonly',
         after: 'readonly',
         beforeEach: 'readonly',
-        afterEach: 'readonly',
-      },
+        afterEach: 'readonly'
+      }
     },
     rules: {
-      'no-console': 'off',
-    },
-  },
+      'no-console': 'off'
+    }
+  }
 ];

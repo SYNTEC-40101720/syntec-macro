@@ -1,6 +1,5 @@
 # Documentation (not needed in VSIX)
 docs/
-ROADMAP.md
 release-notes-*.md
 
 # Local reference samples
