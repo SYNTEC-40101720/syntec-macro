@@ -3,7 +3,7 @@
 // 域控阻止 gh CLI，因此走 GitHub REST API + git credential fill + 临时 JSON 文件 + curl.exe。
 //
 // 用法: node scripts/createGitHubRelease.js <tag>
-//   <tag>  形如 v2.11.4，对应 package.json 的 version 与 CHANGELOG.md 的 [2.11.4] 段落
+//   <tag>  形如 v2.11.4，对应 package.json 的 version 与 CHANGELOG.md 的 2.11.4 段落
 //
 // 流程:
 //   1. 校验 tag 与 package.json version 一致
@@ -49,15 +49,15 @@ function readGithubToken() {
 function extractChangelogBody(version) {
   const changelogPath = path.join(ROOT, 'CHANGELOG.md');
   const text = fs.readFileSync(changelogPath, 'utf8');
-  // 匹配 ## [X.Y.Z] - YYYY-MM-DD 起，到下一个 ## [ 或文件尾
-  const startRe = new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\] - (\\d{4}-\\d{2}-\\d{2})`, 'm');
+  // 匹配 ## X.Y.Z - YYYY-MM-DD 起，到下一个 ## 版本号 或文件尾
+  const startRe = new RegExp(`^## ${version.replace(/\./g, '\\.')} - (\\d{4}-\\d{2}-\\d{2})`, 'm');
   const startMatch = text.match(startRe);
   if (!startMatch) fail(`CHANGELOG.md 未找到版本 ${version} 的段落`);
 
   const startIdx = startMatch.index;
   const rest = text.slice(startIdx);
-  // 找下一个 ## [ 段落
-  const nextMatch = rest.slice(startMatch[0].length).match(/\n## \[/);
+  // 找下一个 ## 版本号 段落
+  const nextMatch = rest.slice(startMatch[0].length).match(/\n## \d/);
   const section = nextMatch
     ? rest.slice(0, startMatch[0].length + nextMatch.index)
     : rest;

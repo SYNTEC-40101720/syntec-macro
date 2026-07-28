@@ -70,7 +70,7 @@ jobs:
           const inputTag = process.env.RELEASE_TAG;
           const version = inputTag.replace(/^v/, '');
           const lines = fs.readFileSync('CHANGELOG.md', 'utf8').split(/\r?\n/);
-          const start = lines.findIndex(line => line.startsWith(`## [${version}]`));
+          const start = lines.findIndex(line => line.startsWith(`## ${version} `));
 
           if (start < 0) {
             throw new Error(`CHANGELOG section for ${inputTag} was not found.`);
@@ -78,7 +78,7 @@ jobs:
 
           let end = lines.length;
           for (let i = start + 1; i < lines.length; i++) {
-            if (lines[i].startsWith('## [')) {
+            if (lines[i].startsWith('## ')) {
               end = i;
               break;
             }

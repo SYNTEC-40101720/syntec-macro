@@ -7,7 +7,7 @@ function createInput(overrides = {}) {
     packageJson: { version: '2.10.0' },
     packageLock: { version: '2.10.0', packages: { '': { version: '2.10.0' } } },
     readme: '![Version](https://img.shields.io/badge/version-2.10.0-blue)',
-    changelog: '## [2.10.0] - 2026-07-11\n\n### Added\n- Feature',
+    changelog: '## 2.10.0 - 2026-07-11\n\n### Added\n- Feature',
     ...overrides
   };
 }
@@ -53,7 +53,7 @@ test('Release consistency reports README and CHANGELOG mismatches', () => {
   const errors = checkReleaseConsistency(createInput({
     releaseTag: 'v2.10.0',
     readme: 'No version badge',
-    changelog: '## [Unreleased]\n'
+    changelog: '## Unreleased\n'
   }));
   assert.ok(errors.some(error => error.includes('README version badge (missing)')));
   assert.ok(errors.some(error => error.includes('CHANGELOG release section [2.10.0]')));

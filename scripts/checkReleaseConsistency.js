@@ -46,7 +46,7 @@ function checkReleaseConsistency(input) {
   }
 
   const escapedVersion = releaseVersion.replace(/\./g, '\\.');
-  const changelogHeading = new RegExp(`^## \\[${escapedVersion}\\] - \\d{4}-\\d{2}-\\d{2}$`, 'm');
+  const changelogHeading = new RegExp(`^## ${escapedVersion} - \\d{4}-\\d{2}-\\d{2}$`, 'm');
   if (!changelogHeading.test(input.changelog)) {
     errors.push(`CHANGELOG release section [${releaseVersion}] with a date was not found.`);
   }

@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.11.5] - 2026-07-28
+## 2.11.6 - 2026-07-28
+
+### Fixed
+- **发布脚本与 CHANGELOG 格式一致**: `checkReleaseConsistency.js`、`createGitHubRelease.js` 与 `release.yml` 原本期望 CHANGELOG 段落标题为 `## [X.Y.Z] - date`（带方括号），但 CHANGELOG 自 v1.0.0 起一致使用 `## X.Y.Z - date`（无方括号），导致 `npm run check:release -- --tag`、release notes 生成与 release body 提取都会失败。修正脚本与工作流匹配现有无括号格式。
+
+### Changed
+- **知识库版本基线同步**: `MACRO能力矩阵.md` 与 `MACRO知识与验证规划.md` 的发布状态行补充 `v2.11.5`。
+
+## 2.11.5 - 2026-07-28
 
 ### Added
 - **Worker 线程验证**: `validateDocument` 改在独立 Worker 线程执行，避免大文件诊断阻塞 Extension Host；包含 5 秒超时保护和竞态取消机制。
@@ -28,31 +36,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **过时发布记录**: 移除 `docs/v2.10.0-发布记录.md` 和 `docs/v2.11.0-发布记录.md`（内容已在 CHANGELOG 中）。
 - **死代码**: 移除 `extension.js` 中未使用的 `createDiagnosticFromProblem` 和 `rangeIntersects` 函数。
 
-## [2.11.4] - 2026-07-25
+## 2.11.4 - 2026-07-25
 
 ### Fixed
 - **格式化器安全性**: 修复跨行块注释被误改、多个规范化操作发生位置偏移，以及同行体导致后续代码错误缩排的问题。
 - **格式化器规范化**: 自动补全需要的结尾分号，删除控制结构头多余分号，并将兼容写法 `ENDIF`、`ENDFOR`、`ENDWHILE`、`ENDCASE`、`ENDREPEAT` 和赋值 `=` 转为推荐写法。
 - **格式化器边界**: 同行控制体、CASE 标签后赋值、行尾注释和字符串内容均得到保护。
 
-## [2.11.3] - 2026-07-17
+## 2.11.3 - 2026-07-17
 
 ### Fixed
 - **控制结构同行体误报**: `IF ... THEN <stmt>; ELSE <stmt>; END_IF;` 等同行体写法虽不推荐但控制器实际支援，不再误报"控制结构行不应以 ; 结尾"。覆盖 IF/ELSEIF/WHILE/FOR/REPEAT/CASE 所有控制结构。
 - **DEFAULT 降级为 warning**: `DEFAULT:` 在 CASE 中实际可用，从 error 降级为 style warning "支援但不推荐，建议使用 ELSE"。
 
-## [2.11.2] - 2026-07-13
+## 2.11.2 - 2026-07-13
 
 ### Fixed
 - **路径扩充引数诊断**: 不再将 `ATAN2(..., SQRT(...))` 等嵌套函数调用误判为 `,SQRT_` 路径扩充引数；仅在 `G00/G01/G02/G03` 路径单节检查 `,C_`、`,R_`、`,A_`。
 - **表达式引数识别**: 路径扩充引数的方括号表达式会参与诊断，`Z[#1 + 10]` 等未确认引数可正确提示 `COR-034` 风险。
 
-## [2.11.1] - 2026-07-13
+## 2.11.1 - 2026-07-13
 
 ### Changed
 - **发布资料同步**: 将 v2.11.0 发布后的 README、路线图、交接说明和 MACRO 知识库导航纳入正式发布包，确保 GitHub Release 与当前 main 文档一致。
 
-## [2.11.0] - 2026-07-13
+## 2.11.0 - 2026-07-13
 
 ### Added
 - **AXID 轴名提示**: `AXID` 补全与 Hover 采用 `AXID(axis)` 裸轴名语法；`AXID("Y")` 显示说明型 warning，避免带引号写法与控制器语法不一致。
@@ -62,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **函数 Hover 语义**: 补充图形模拟、数学定义域、单位/堆栈和 Cycle 档案函数的已核实说明与回归保护。
 - **诊断文档生成**: 诊断规则表会转义 MACRO 间接变量的方括号，避免 `AR[#1]`、`#[表达式]` 被 Markdown 解析为不存在的链接。
 
-## [2.10.0] - 2026-07-11
+## 2.10.0 - 2026-07-11
 
 ### Added
 - **工作区符号导航**: 支持通过 `Ctrl+T` 跨文件检索静态 G/O 程序入口、`%@MACRO` 与 N 标签，并保持动态目标不参与静态解析。
@@ -77,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **导航扫描性能**: Workspace Symbol 与 References 改用文本快照、单次解析索引和自动失效缓存，不再批量打开候选文档；新增 500 文件/20,000 行解析及真实工作区 I/O 基准。
 - **VSIX 内容收口**: 从扩展包中排除 `scripts/`，只保留运行时模块、Marketplace 元数据、语法、snippets、icon 与许可证文件。
 
-## [2.9.0] - 2026-07-11
+## 2.9.0 - 2026-07-11
 
 ### Changed
 - **诊断体验整合**: README 新增诊断与 Quick Fix 用户说明，解释 error/warning、自动修复与说明型 CodeAction 的边界。
@@ -86,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **诊断场景指南**: 补充分号规则、不支持语法、控制流、变量与函数参数、机器人/LTP 等常见诊断场景说明。
 
-## [2.8.21] - 2026-07-11
+## 2.8.21 - 2026-07-11
 
 ### Added
 - **v2.9.0 规划文档**: 新增 `docs/v2.9.0-规划.md`，明确 v2.9.0 发布目标、非目标、里程碑与验收标准。
@@ -94,73 +102,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **路线图入口**: `ROADMAP.md` 与 README 目录链接到 v2.9.0 详细规划，便于后续按 milestone 推进。
 
-## [2.8.20] - 2026-07-11
+## 2.8.20 - 2026-07-11
 
 ### Changed
 - **路线图收束**: 更新 `ROADMAP.md`，记录 v2.8.x 诊断体系完成状态、当前发布节奏建议与 v2.9.0 候选主题。
 - **README 导航**: 在功能表和目录中补充诊断规则与修复动作相关入口。
 
-## [2.8.19] - 2026-07-11
+## 2.8.19 - 2026-07-11
 
 ### Added
 - **诊断规则文档**: 新增 `docs/诊断规则与修复动作.md`，列出诊断 code、分类、严重度、Quick Fix / CodeAction 与维护说明。
 - **诊断文档生成脚本**: 新增 `npm run docs:diagnostics`，依据 `diagnosticCodes` 与 `diagnosticActions` 生成诊断规则文档。
 
-## [2.8.18] - 2026-07-11
+## 2.8.18 - 2026-07-11
 
 ### Changed
 - **集成测试稳定性**: 抽取诊断等待与 Quick Fix 应用 helper，以等待诊断状态变化取代固定延迟，降低 VS Code 集成测试脆弱性并缩短运行时间。
 
-## [2.8.17] - 2026-07-11
+## 2.8.17 - 2026-07-11
 
 ### Changed
 - **诊断结果排序**: 诊断返回前统一按位置、严重度与稳定 code/message 排序，使 UI 展示与测试结果更可预期。
 
-## [2.8.16] - 2026-07-11
+## 2.8.16 - 2026-07-11
 
 ### Changed
 - **诊断优先级过滤**: 同一区间已有错误诊断时会抑制重叠的警告诊断，减少语法错误场景下的风格提示噪音。
 
-## [2.8.15] - 2026-07-11
+## 2.8.15 - 2026-07-11
 
 ### Changed
 - **诊断去重稳定性**: 诊断去重 key 优先使用稳定 `code` 而非中文提示文字，避免未来调整文案影响诊断去重行为。
 
-## [2.8.14] - 2026-07-11
+## 2.8.14 - 2026-07-11
 
 ### Changed
 - **诊断对象工厂推广**: 将 `controlFlowValidator`、`functionArgumentValidator` 与 `robotValidator` 的诊断对象创建统一迁移到 `diagnosticFactory`，进一步收敛诊断结构。
 
-## [2.8.13] - 2026-07-11
+## 2.8.13 - 2026-07-11
 
 ### Changed
 - **诊断对象工厂**: 新增统一诊断对象工厂，并将 `validator` 中的手写诊断对象改为通过工厂创建，减少字段遗漏和重复结构。
 
-## [2.8.12] - 2026-07-11
+## 2.8.12 - 2026-07-11
 
 ### Changed
 - **诊断规则注册表**: 将行级诊断器改为带稳定 `id` 的规则注册表，并通过统一 helper 执行，便于后续新增、重排和测试诊断规则。
 
-## [2.8.11] - 2026-07-11
+## 2.8.11 - 2026-07-11
 
 ### Changed
 - **诊断动作元数据**: 将 Quick Fix 替换规则、说明文案与控制流闭合词抽取到独立 `diagnosticActions` 模块，降低后续新增诊断和 CodeAction 的维护成本。
 
-## [2.8.10] - 2026-07-11
+## 2.8.10 - 2026-07-11
 
 ### Added
 - **机器人/LTP 诊断 code**: 为机器人直接引数误用 `=`、旧式/非正式写法、平滑引数冲突、MOVC 成对规则、同步输出限制与特殊区间禁用等诊断提供稳定 code。
 - **机器人/LTP Quick Fix**: 为安全可判定的写法提供自动修复，包括移除直接引数 `=`、`MOVJ-II` 改为 `MOVJ`、`TOOLCORON` 改为 `TOOLCOR`、`T_` 改为 `P_`、`TOOLCOR CLEAR` 改为 `TOOLCOR P0`。
 - **机器人/LTP 集成测试**: 覆盖机器人语法 Quick Fix 在 VS Code 宿主中的实际应用结果。
 
-## [2.8.9] - 2026-07-11
+## 2.8.9 - 2026-07-11
 
 ### Added
 - **函数静态诊断 code**: 为数学函数定义域、I/O 点位范围、I/O 写入值、R 寄存器/bit 范围、ALARM/MSG ID、整数参数、CHKINF 类别与 OPEN COM 口径提供稳定诊断 code。
 - **函数诊断说明 action**: 对无法安全自动修复的函数静态参数问题提供规则说明 Quick Fix。
 - **函数诊断集成测试**: 覆盖函数静态诊断说明 action 在 VS Code 宿主中的行为。
 
-## [2.8.8] - 2026-07-11
+## 2.8.8 - 2026-07-11
 
 ### Added
 - **变量诊断 code**: 为命名局部/公用变量、`#0/@0` VACANT 赋值、AR/MAR 非法编号与赋值 `=` 风格建议提供稳定诊断 code。
@@ -168,14 +176,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **赋值风格 Quick Fix**: 对赋值语句中的 `=` 提供一键替换为推荐 `:=`。
 - **变量诊断集成测试**: 覆盖变量诊断说明 action 与赋值风格 Quick Fix 在 VS Code 宿主中的行为。
 
-## [2.8.7] - 2026-07-10
+## 2.8.7 - 2026-07-10
 
 ### Added
 - **控制流诊断 code**: 为未匹配结束符、嵌套顺序错误、未匹配 `ELSE/ELSEIF/UNTIL`、`ELSEIF` 位于 `ELSE` 之后，以及文件结束时未闭合块提供稳定诊断 code。
 - **未闭合块 Quick Fix**: 对文件结束时未闭合的 `IF/FOR/WHILE/CASE` 提供插入对应 `END_*;` 的 Quick Fix。
 - **控制流集成测试**: 覆盖未闭合控制块 Quick Fix 在真实 VS Code 宿主中的应用结果。
 
-## [2.8.6] - 2026-07-10
+## 2.8.6 - 2026-07-10
 
 ### Added
 - **不支持语法 Quick Fix**: 为 `ELSIF`、`DEFAULT`、`DIV`、`==`、`!=`、`&&`、`||`、`%` 与 FANUC 比较关键字提供稳定诊断 code 和安全替换 Quick Fix。
@@ -184,7 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **CodeAction 稳定性**: Quick Fix provider 可在 VS Code 未传入完整诊断上下文时回退到当前文档诊断，提升 CodeAction 查询稳定性。
 
-## [2.8.5] - 2026-07-10
+## 2.8.5 - 2026-07-10
 
 ### Added
 - **诊断 Quick Fix**: 为缺少行尾 `;` 与控制结构行误加 `;` 提供一键修复。
@@ -196,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **测试样例策略**: 保持 `test-demo.nc` 为无诊断合法语法覆盖样例，错误场景改由测试内联样例覆盖。
 - **代码片段**: 调整控制流与函数片段的行尾分号和占位符写法，确保插入结果符合当前诊断规则，并消除 VS Code snippet 语法警告。
 
-## [2.8.4] - 2026-07-10
+## 2.8.4 - 2026-07-10
 
 ### Changed
 - **语法诊断架构**: 新增行上下文与语句分类层，收敛分号诊断、控制流行处理与机器人旧语法规则表，降低后续规则维护成本。
@@ -205,12 +213,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **分号诊断**: 按新代 MACRO 控制流语法区分控制结构行与完整语句；`END_*` 与 `UNTIL ... END_REPEAT` 等完整语句缺少 `;` 会报错。
 - **控制结构诊断**: `IF/ELSEIF/FOR/WHILE/CASE/REPEAT/ELSE` 与空 `CASE` 标签等结构行误加行尾 `;` 会报错。
 
-## [2.8.3] - 2026-07-10
+## 2.8.3 - 2026-07-10
 
 ### Added
 - **扩展图标**: 新增 VS Code 扩展图标资源，并随 VSIX 一起打包发布。
 
-## [2.8.2] - 2026-07-09
+## 2.8.2 - 2026-07-09
 
 ### Added
 - **新代宏程序知识图谱**: 新增 `docs/新代宏程序知识图谱.md`，并从 README 链接，便于快速理解语法与能力边界。
@@ -223,7 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **语法诊断**: 对不支持的 `DIV`、`==` 与 `!=` 运算子提供明确报错与替代写法提示。
 - **语法诊断**: 支援合法不等号 `<>`，避免被误判为不支持语法。
 
-## [2.8.1] - 2026-06-28
+## 2.8.1 - 2026-06-28
 
 ### Added
 - **G10 L1803/L1805 Hover**: 补充 MACRO IO TYPE-1/TYPE-2 的悬停文档，覆盖指令格式、引数范围、Q 引数范例、版本与限制说明。
@@ -236,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **语法手册**: 补充 ENIP、EtherCAT 物件字典、Modbus-TCP/RS485 相关 `G10` 通讯指令说明。
 - **语法手册**: 补充 `G10 L1000` R 寄存器写入与 `G10 L1810/L1820` 讯号等待说明。
 
-## [2.8.0] - 2026-06-28
+## 2.8.0 - 2026-06-28
 
 ### Added
 - **后续路线图**: 新增 `ROADMAP.md`，记录 validator 拆分、VS Code 集成测试、formatter 评估和跳转能力扩展等后续待办。
@@ -256,7 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **配置贡献结构**: `package.json` 直接贡献 `syntecMacro.*` 设置键，与 README 和代码读取口径保持一致。
 - **DocumentSymbol Provider**: 修复 VS Code 大纲 Provider 方法名，避免集成测试宿主报 `provideDocumentSymbols is not a function`。
 
-## [2.7.0] - 2026-06-28
+## 2.7.0 - 2026-06-28
 
 ### Added
 - **单一语法真源手册**: 新增并扩充 `docs/新代MACRO语法规范手册.md`，覆盖文件格式、变量、运算子、控制流、宏呼叫、登录 G/M/T 码、函数、机器人 LTP 指令、预解流程和撰写规范。
@@ -280,7 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **测试隔离**: 将纯文件解析逻辑从 `extension.js` 拆出，避免 Node 单元测试直接加载 VS Code API。
 - **递归跳转候选一致性**: 递归搜索与 includePath 搜索统一使用 `fileResolver` 后缀策略。
 
-## [2.6.5] - 2026-06-27
+## 2.6.5 - 2026-06-27
 
 ### Added
 - **AI 语法覆盖 Demo**: 重构 `test-demo.nc` 为紧凑语法速查文件，覆盖变量规格、控制流、运算符、函数、宏调用、机器人指令与 G/M 码形态
@@ -299,7 +307,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **VSIX 打包内容**: 排除本地参考 `Macro/` 目录，避免参考宏程序进入发布包
 
-## [2.6.4] - 2026-06-26
+## 2.6.4 - 2026-06-26
 
 ### Fixed
 - **多文档诊断防抖**: 按文档 URI 独立维护诊断 timer，避免多个打开文件互相取消诊断
@@ -311,7 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **控制流诊断**: 关闭关键字必须匹配当前栈顶，交叉嵌套会报明确的嵌套顺序错误
 - **语法高亮同步**: 补齐 `MOD`/`&`、`AR[#n]`/`MAR[#n]`、`$1`~`$4` 的高亮规则
 
-## [2.6.3] - 2026-06-26
+## 2.6.3 - 2026-06-26
 
 ### Fixed
 - **代码片段 API 一致性**: 修复 14 个过时代码片段，使其与 functions.js 和技术手册一致
@@ -330,7 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **测试用例**: "SLEEP doc mentions milliseconds" 重命名为 "SLEEP takes no parameters"，验证无参数签名
 - **片段回归测试**: 新增 snippets 一致性测试，锁定 SLEEP/WAIT/OPEN/CLOSE/READABIT/SETABIT 正确签名
 
-## [2.6.2] - 2026-06-25
+## 2.6.2 - 2026-06-25
 
 ### Changed
 - **版本统一管理**: 移除源文件中的硬编码版本号，统一从 package.json 读取
@@ -344,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SLEEP 函数签名**: 修正为 `SLEEP()`（无参数），移除了错误的毫秒参数描述
 - **测试文件版本号**: 移除测试文件中的硬编码版本号注释
 
-## [2.6.1] - 2026-06-23
+## 2.6.1 - 2026-06-23
 
 ### Changed
 - **validator.js 重构**: 将 validateDocument 函数（约290行）按职责拆分为6个独立验证器函数
@@ -357,7 +365,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **策略模式**: 引入 LINE_VALIDATORS 数组，行级验证器可插拔扩展
 - **版本号统一**: 更新至 v2.6.1
 
-## [2.6.0] - 2026-06-23
+## 2.6.0 - 2026-06-23
 
 ### Added
 - **机器人指令代码片段**: 新增 18 个代码片段（MOVJ/MOVL/MOVC/INCMOVJ/INCMOVL/USERCOR/OBJCORON/TOOLCOR/SKIPCOND/SWAITSIG/SYNCOUT/WEAVEON/PAUSE/GETPR/SETPR/SLEEP/M198/G66.1）
@@ -372,7 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **跨行块注释中文字符误报**: 修复 `(* ... *)` 跨行注释内的中文字符被误报为错误的问题
 
-## [2.5.0] - 2026-06-22
+## 2.5.0 - 2026-06-22
 
 ### Changed
 - **版本号统一**: 统一所有源码文件版本注释为 v2.5.0
@@ -387,7 +395,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 移除失效的 `build` 脚本（引用不存在的 `build/build_grammar.py`）
 - 清理 `src/validator.js` 头部过时的 v1.3.6 历史注释
 
-## [2.4.0] - 2026-06-22
+## 2.4.0 - 2026-06-22
 
 ### Changed
 - **函数说明全部中文化**: 所有内置函数的悬停文档说明改为中文（参考《新代控制器技术参考手册》）
@@ -397,7 +405,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 修复 `#` 变量前显示黑色方块的问题（`editor.colorDecorators: false`）
 - 修复 REPEAT/UNTIL/EXIT 嵌套语法诊断误报
 
-## [2.3.0] - 2026-06-22
+## 2.3.0 - 2026-06-22
 
 ### Added
 - **机器人指令完整支持** (参考《新代控制器技术参考手册》)
@@ -428,7 +436,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SLEEP: `SLEEP()` 无参数，暂时放弃宏程序循环执行权
   - GETPR/SETPR: `GETPR(prNumber)` 和 `SETPR(prNumber, value)`
 
-## [2.2.0] - 2026-06-22
+## 2.2.0 - 2026-06-22
 
 ### Added
 - 嵌套深度检测 (最高 10 层)
@@ -441,14 +449,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 块注释多行处理
 - CASE 块验证逻辑优化
 
-## [2.1.0] - 2026-06-22
+## 2.1.0 - 2026-06-22
 
 ### Added
 - 代码片段模板
 - 诊断防抖 (300ms)
 - includePath 配置支持
 
-## [2.0.0] - 2026-06-22
+## 2.0.0 - 2026-06-22
 
 ### Added
 - 智能补全增强
@@ -457,7 +465,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 实时诊断
 - Outline 大纲
 
-## [1.0.0] - 2026-06-22
+## 1.0.0 - 2026-06-22
 
 ### Added
 - 初始版本
