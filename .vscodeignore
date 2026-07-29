@@ -1,6 +1,7 @@
 # Documentation (not needed in VSIX)
 docs/
 release-notes-*.md
+项目审查报告.md
 
 # Local reference samples
 Macro/
@@ -11,6 +12,8 @@ test-demo.nc
 .trae/
 tests/
 eslint.config.js
+jsconfig.json
+.workbuddy/
 
 # Build tools & scripts
 scripts/

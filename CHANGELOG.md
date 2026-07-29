@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.11.8 - 2026-07-29
+
+### Changed
+- **扩展主入口按 Provider 拆分**: 将 `extension.js`（967 行）按职责拆分为 `providerShared`、`completionProvider`、`hoverProvider`、`definitionProvider`、`diagnosticsProvider`、`navigationProvider`、`formattingProvider` 七个模块，`extension.js` 仅保留注册与生命周期管理；各 Provider 自行管理状态与 `dispose`，行为保持不变。
+- **注释/字符串剥离逻辑统一**: 将 `validator.js` 与 `formatter.js` 中重复的 `stripCommentsAndStrings` 实现抽取到共享模块 `src/lexer.js`，消除两份状态机实现的行为漂移风险（formatter 闭合引号处理已对齐 validator 的规范行为：引号始终替换为空格）。
+- **函数参数校验常量化**: `functionArgumentValidator.js` 中内联的控制器范围数字（I/O 点位 0~511、写入值 0/1、R 寄存器 0~65535、bit 0~31、ALARM/MSG ID 0~65535、CHKINF 类别 1~5）提取为模块顶部命名常量并标注手册出处，便于与《新代控制器技术参考手册》对照。
+- **类型检查基础**: 新增 `jsconfig.json` 与 `@types/node` devDependency，为 `diagnosticFactory.js`、`lexer.js` 启用 `// @ts-check` 并补充 `DiagnosticProblem` 等 JSDoc 类型定义；`validator.js` 的 `validateDocument` 标注返回类型。无需构建即可在 IDE 获得局部类型检查收益。
+
+### Fixed
+- **README 徽章一致性校验前置**: `checkReleaseConsistency.js` 的 README 版本徽章校验原本只在 `--tag` 发布路径执行，常规 `npm run check:release`（无 tag，接入 `npm test`）会跳过；现改为始终与 `package.json` 版本对比，使徽章漂移在开发阶段即可被发现。
+
 ## 2.11.7 - 2026-07-28
 
 ### Added

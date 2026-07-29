@@ -28,6 +28,17 @@ function checkReleaseConsistency(input) {
     errors.push(`package-lock.json root package version ${lockRootVersion || '(missing)'} does not match package.json ${packageVersion}.`);
   }
 
+  // README 版本徽章必须始终与 package.json 版本一致，
+  // 这样常规 `npm run check:release`（无 --tag，接入 npm test）也能及早发现徽章漂移。
+  // 仅在 package.json 版本本身合法时校验，避免在版本格式错误时叠加噪音。
+  if (/^\d+\.\d+\.\d+$/.test(packageVersion || '')) {
+    const badgeMatch = input.readme.match(/version-(\d+\.\d+\.\d+)-/);
+    const badgeVersion = badgeMatch ? badgeMatch[1] : undefined;
+    if (badgeVersion !== packageVersion) {
+      errors.push(`README version badge ${badgeVersion || '(missing)'} does not match package.json ${packageVersion}.`);
+    }
+  }
+
   if (input.releaseTag === undefined) return errors;
   const releaseVersion = parseReleaseTag(input.releaseTag);
   if (!releaseVersion) {
@@ -37,12 +48,6 @@ function checkReleaseConsistency(input) {
 
   if (releaseVersion !== packageVersion) {
     errors.push(`Release tag ${input.releaseTag} does not match package.json ${packageVersion}.`);
-  }
-
-  const badgeMatch = input.readme.match(/version-(\d+\.\d+\.\d+)-/);
-  const badgeVersion = badgeMatch ? badgeMatch[1] : undefined;
-  if (badgeVersion !== releaseVersion) {
-    errors.push(`README version badge ${badgeVersion || '(missing)'} does not match release ${releaseVersion}.`);
   }
 
   const escapedVersion = releaseVersion.replace(/\./g, '\\.');

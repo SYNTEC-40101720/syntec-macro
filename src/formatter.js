@@ -1,6 +1,7 @@
 // Conservative formatter: indentation and syntax-preserving normalization.
 
 const { classifyStatement, getStatementTerminatorInfo } = require('./statementClassifier');
+const { stripCommentsAndStringsWithState } = require('./lexer');
 
 const OPENERS = new Set(['IF', 'FOR', 'WHILE', 'CASE', 'REPEAT']);
 const MIDDLE_KEYWORDS = new Set(['ELSE', 'ELSEIF']);
@@ -8,45 +9,6 @@ const CLOSERS = new Set([
   'END_IF', 'END_FOR', 'END_WHILE', 'END_CASE', 'END_REPEAT',
   'ENDIF', 'ENDFOR', 'ENDWHILE', 'ENDCASE', 'ENDREPEAT'
 ]);
-
-function stripCommentsAndStrings(line, initialInBlockComment = false) {
-  let result = '';
-  let inString = false;
-  let inBlockComment = initialInBlockComment;
-  let i = 0;
-  while (i < line.length) {
-    if (inBlockComment) {
-      if (line.substring(i, i + 2) === '*)') {
-        result += '  ';
-        inBlockComment = false;
-        i += 2;
-        continue;
-      }
-      result += ' ';
-      i++;
-      continue;
-    }
-    if (!inString && line.substring(i, i + 2) === '//') {
-      result += ' '.repeat(line.length - i);
-      break;
-    }
-    if (!inString && line.substring(i, i + 2) === '(*') {
-      result += '  ';
-      inBlockComment = true;
-      i += 2;
-      continue;
-    }
-    if (line[i] === '"') {
-      let backslashes = 0;
-      let j = i - 1;
-      while (j >= 0 && line[j] === '\\') { backslashes++; j--; }
-      if (backslashes % 2 === 0) inString = !inString;
-    }
-    result += inString ? ' ' : line[i];
-    i++;
-  }
-  return { text: result, inBlockComment };
-}
 
 function getKeywords(cleanLine) {
   const keywords = [];
@@ -146,7 +108,7 @@ function formatSyntecMacroDocument(text, options = {}) {
     }
 
     const lineStartInBlockComment = inBlockComment;
-    const scanned = stripCommentsAndStrings(trimmed, lineStartInBlockComment);
+    const scanned = stripCommentsAndStringsWithState(trimmed, lineStartInBlockComment);
     const clean = scanned.text;
     inBlockComment = scanned.inBlockComment;
     const keywords = getKeywords(clean);
@@ -161,11 +123,11 @@ function formatSyntecMacroDocument(text, options = {}) {
       : '';
 
     let normalizedLine = removeControlStructureTerminator(trimmed, clean, statementKind);
-    let normalizedClean = stripCommentsAndStrings(normalizedLine, lineStartInBlockComment).text;
+    let normalizedClean = stripCommentsAndStringsWithState(normalizedLine, lineStartInBlockComment).text;
     normalizedLine = normalizeStatementTerminator(normalizedLine, normalizedClean);
-    normalizedClean = stripCommentsAndStrings(normalizedLine, lineStartInBlockComment).text;
+    normalizedClean = stripCommentsAndStringsWithState(normalizedLine, lineStartInBlockComment).text;
     normalizedLine = normalizeAssignmentOperator(normalizedLine, normalizedClean);
-    normalizedClean = stripCommentsAndStrings(normalizedLine, lineStartInBlockComment).text;
+    normalizedClean = stripCommentsAndStringsWithState(normalizedLine, lineStartInBlockComment).text;
     normalizedLine = normalizeKeywordAliases(normalizedLine, normalizedClean);
     formatted.push(leading + normalizedLine);
 

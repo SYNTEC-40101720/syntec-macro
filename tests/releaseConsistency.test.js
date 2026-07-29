@@ -58,3 +58,14 @@ test('Release consistency reports README and CHANGELOG mismatches', () => {
   assert.ok(errors.some(error => error.includes('README version badge (missing)')));
   assert.ok(errors.some(error => error.includes('CHANGELOG release section [2.10.0]')));
 });
+
+test('Package consistency catches README badge drift without a release tag', () => {
+  const errors = checkReleaseConsistency(createInput({
+    readme: '![Version](https://img.shields.io/badge/version-2.9.0-blue)'
+  }));
+  assert.ok(errors.some(error => error.includes('README version badge 2.9.0 does not match package.json 2.10.0')));
+});
+
+test('Package consistency accepts a matching README badge without a release tag', () => {
+  assert.deepStrictEqual(checkReleaseConsistency(createInput()), []);
+});

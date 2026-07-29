@@ -27,65 +27,11 @@ const {
   getStatementTerminatorInfo,
   isMacroHeaderLine
 } = require('./statementClassifier');
+const { stripCommentsAndStrings, stripCommentsAndStringsWithState } = require('./lexer');
 
 // ============================================================
 // 工具函数
 // ============================================================
-
-// 去除字符串和注释，保留代码逻辑
-// 字符串和注释内容用空格替换，保留列宽
-function stripCommentsAndStringsWithState(line, lineStartInBlock = false) {
-  let result = '';
-  let inString = false;
-  let inBlockComment = lineStartInBlock;
-  let i = 0;
-  while (i < line.length) {
-    if (inBlockComment) {
-      if (line.substring(i, i + 2) === '*)') {
-        result += '  ';
-        inBlockComment = false;
-        i += 2;
-        continue;
-      }
-      result += ' ';
-      i++;
-      continue;
-    }
-
-    // 行注释 //
-    if (!inString && line.substring(i, i + 2) === '//') {
-      result += ' '.repeat(line.length - i);
-      break;
-    }
-    // 块注释 (* *)
-    if (!inString && line.substring(i, i + 2) === '(*') {
-      result += '  ';
-      inBlockComment = true;
-      i += 2;
-      continue;
-    }
-    // 字符串（双引号）
-    if (line[i] === '"') {
-      // 检查是否被转义（前面有奇数个反斜杠）
-      let bs = 0;
-      let j = i - 1;
-      while (j >= 0 && line[j] === '\\') { bs++; j--; }
-      if (bs % 2 === 0) {
-        // 未被转义，正常切换 inString
-        inString = !inString;
-      }
-      result += ' ';
-    } else {
-      result += inString ? ' ' : line[i];
-    }
-    i++;
-  }
-  return { text: result, inBlockComment };
-}
-
-function stripCommentsAndStrings(line) {
-  return stripCommentsAndStringsWithState(line).text;
-}
 
 function createLineContext(raw, lineStartInBlock, precomputed) {
   const stripped = precomputed || stripCommentsAndStringsWithState(raw, lineStartInBlock);
@@ -522,6 +468,11 @@ const LINE_VALIDATOR_RULES = [
   createLineRule('style-preferences', validateStylePreferences)
 ];
 
+/**
+ * 对宏程序文本执行全量语法诊断。
+ * @param {string} content
+ * @returns {import('./diagnosticFactory').DiagnosticProblem[]}
+ */
 function validateDocument(content) {
   const lines = content.split(/\r?\n/);
   const diagnostics = [];

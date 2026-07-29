@@ -3,6 +3,22 @@
 const { DiagnosticCode } = require('./diagnosticCodes');
 const { createError, createWarning } = require('./diagnosticFactory');
 
+// ============================================================
+// 控制器范围常量（源自《新代控制器技术参考手册》）
+// 集中定义以便与手册对照，避免散落在校验逻辑中
+// ============================================================
+const IO_POINT_MIN = 0;          // DI/DO/A 点编号下限
+const IO_POINT_MAX = 511;        // DI/DO/A 点编号上限
+const IO_WRITE_VALUES = [0, 1];  // DO/A 点 / R-bit 写入值
+const R_REGISTER_MIN = 0;        // R 值编号下限
+const R_REGISTER_MAX = 65535;    // R 值编号上限
+const R_BIT_MIN = 0;             // R 值 Bit 下限
+const R_BIT_MAX = 31;            // R 值 Bit 上限
+const ALARM_MSG_ID_MIN = 0;      // ALARM/MSG ID 下限
+const ALARM_MSG_ID_MAX = 65535;  // ALARM/MSG ID 上限
+const CHKINF_CATEGORY_MIN = 1;   // CHKINF 类别下限
+const CHKINF_CATEGORY_MAX = 5;   // CHKINF 类别上限
+
 function splitFunctionArgs(s) {
   // 按逗号分割函数参数，跳过字符串内的逗号和嵌套括号内的逗号
   const args = [];
@@ -167,8 +183,8 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
   }
 
   const ioSingleRanges = [
-    ['READDI', 0, 511], ['READDO', 0, 511], ['READABIT', 0, 511],
-    ['SETDO', 0, 511], ['SETABIT', 0, 511]
+    ['READDI', IO_POINT_MIN, IO_POINT_MAX], ['READDO', IO_POINT_MIN, IO_POINT_MAX], ['READABIT', IO_POINT_MIN, IO_POINT_MAX],
+    ['SETDO', IO_POINT_MIN, IO_POINT_MAX], ['SETABIT', IO_POINT_MIN, IO_POINT_MAX]
   ];
   for (const [fn, min, max] of ioSingleRanges) {
     for (const call of getStaticFunctionCalls(clean, fn)) {
@@ -183,7 +199,7 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
   for (const fn of ioValueFns) {
     for (const call of getStaticFunctionCalls(clean, fn)) {
       const value = parseStaticNumber(call.args[fn === 'SETRREGBIT' ? 2 : 1] || '');
-      if (value !== null && ![0, 1].includes(value)) addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 写入值应为 0 或 1`, DiagnosticCode.FUNCTION_IO_VALUE_RANGE);
+      if (value !== null && !IO_WRITE_VALUES.includes(value)) addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 写入值应为 0 或 1`, DiagnosticCode.FUNCTION_IO_VALUE_RANGE);
     }
   }
 
@@ -191,11 +207,11 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
     for (const call of getStaticFunctionCalls(clean, fn)) {
       const reg = parseStaticNumber(call.args[0] || '');
       const bit = parseStaticNumber(call.args[1] || '');
-      if (reg !== null && (!Number.isInteger(reg) || reg < 0 || reg > 65535)) {
-        addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 的 R 值编号范围为 0~65535`, DiagnosticCode.FUNCTION_R_REGISTER_RANGE);
+      if (reg !== null && (!Number.isInteger(reg) || reg < R_REGISTER_MIN || reg > R_REGISTER_MAX)) {
+        addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 的 R 值编号范围为 ${R_REGISTER_MIN}~${R_REGISTER_MAX}`, DiagnosticCode.FUNCTION_R_REGISTER_RANGE);
       }
-      if (bit !== null && (!Number.isInteger(bit) || bit < 0 || bit > 31)) {
-        addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 的 bit 范围为 0~31`, DiagnosticCode.FUNCTION_R_BIT_RANGE);
+      if (bit !== null && (!Number.isInteger(bit) || bit < R_BIT_MIN || bit > R_BIT_MAX)) {
+        addRangeDiagnostic(diagnostics, call, lineNum, `${fn} 的 bit 范围为 ${R_BIT_MIN}~${R_BIT_MAX}`, DiagnosticCode.FUNCTION_R_BIT_RANGE);
       }
     }
   }
@@ -203,7 +219,7 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
   for (const fn of ['ALARM', 'MSG']) {
     for (const call of getStaticFunctionCalls(clean, fn)) {
       const id = parseStaticNumber(call.args[0] || '');
-      if (id !== null && (!Number.isInteger(id) || id < 0 || id > 65535)) addRangeDiagnostic(diagnostics, call, lineNum, `${fn} ID 范围为 0~65535`, DiagnosticCode.FUNCTION_ID_RANGE);
+      if (id !== null && (!Number.isInteger(id) || id < ALARM_MSG_ID_MIN || id > ALARM_MSG_ID_MAX)) addRangeDiagnostic(diagnostics, call, lineNum, `${fn} ID 范围为 ${ALARM_MSG_ID_MIN}~${ALARM_MSG_ID_MAX}`, DiagnosticCode.FUNCTION_ID_RANGE);
     }
   }
 
@@ -242,7 +258,7 @@ function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLi
 
   for (const call of getStaticFunctionCalls(clean, 'CHKINF')) {
     const category = parseStaticNumber(call.args[0] || '');
-    if (category !== null && (!Number.isInteger(category) || category < 1 || category > 5)) addRangeDiagnostic(diagnostics, call, lineNum, 'CHKINF 类别范围为 1~5', DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE);
+    if (category !== null && (!Number.isInteger(category) || category < CHKINF_CATEGORY_MIN || category > CHKINF_CATEGORY_MAX)) addRangeDiagnostic(diagnostics, call, lineNum, `CHKINF 类别范围为 ${CHKINF_CATEGORY_MIN}~${CHKINF_CATEGORY_MAX}`, DiagnosticCode.FUNCTION_CHKINF_CATEGORY_RANGE);
   }
 
   const openComMatch = commentStripped.match(/\bOPEN\s*\(\s*"COM\d+"\s*\)/i);
