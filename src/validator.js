@@ -223,6 +223,7 @@ function validateParentheses(line, lineNum, _lineStartInBlock, cleanLine) {
 
   const diagnostics = [];
   const parenStack = [];
+  const bracketStack = [];
   let inStr = false;
   for (let ci = 0; ci < clean.length; ci++) {
     if (clean[ci] === '"') inStr = !inStr;
@@ -232,10 +233,18 @@ function validateParentheses(line, lineNum, _lineStartInBlock, cleanLine) {
       if (parenStack.length === 0) {
         diagnostics.push(createWarning(lineNum, ci, ci + 1, '括号不匹配：多余的右括号'));
       } else { parenStack.pop(); }
+    } else if (clean[ci] === '[') bracketStack.push(ci);
+    else if (clean[ci] === ']') {
+      if (bracketStack.length === 0) {
+        diagnostics.push(createWarning(lineNum, ci, ci + 1, '括号不匹配：多余的右方括号'));
+      } else { bracketStack.pop(); }
     }
   }
   if (parenStack.length > 0) {
     diagnostics.push(createWarning(lineNum, parenStack[0], parenStack[0] + 1, `括号不匹配：缺少 ${parenStack.length} 个右括号`));
+  }
+  if (bracketStack.length > 0) {
+    diagnostics.push(createWarning(lineNum, bracketStack[0], bracketStack[0] + 1, `括号不匹配：缺少 ${bracketStack.length} 个右方括号`));
   }
   return diagnostics;
 }

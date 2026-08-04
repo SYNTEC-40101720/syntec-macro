@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VS Code 扩展
 
-![Version](https://img.shields.io/badge/version-2.11.8-blue)
+![Version](https://img.shields.io/badge/version-2.11.9-blue)
 
 为新代宏程序（syntec-macro）提供语法高亮、补全、悬停说明、代码跳转和实时诊断。
 

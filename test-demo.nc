@@ -373,7 +373,7 @@ END_FOR;
 
 N300;
 #203 := 0;
-WHILE #203 < 10 DO
+WHILE #203 < 10 DO]
   CASE #203 OF
     0:
     MOVJ C1=#203 C2=0 FJ50;
