@@ -15,6 +15,7 @@ const CATEGORY_LABELS = [
   ['SYNTEC_MISSING_', '分号'],
   ['SYNTEC_CONTROL_STRUCTURE_', '分号'],
   ['SYNTEC_UNSUPPORTED_', '不支持语法'],
+  ['SYNTEC_CALL_', '调用'],
   ['SYNTEC_CONTROL_', '控制流'],
   ['SYNTEC_NAMED_', '变量'],
   ['SYNTEC_VACANT_', '变量'],
@@ -33,6 +34,7 @@ function severityFor(code) {
   if (code === DiagnosticCode.ASSIGNMENT_STYLE_EQUALS ||
       code === DiagnosticCode.FUNCTION_OPEN_COM_PORT ||
       code === DiagnosticCode.FUNCTION_AXID_QUOTED_AXIS ||
+      code === DiagnosticCode.CALL_MACRO_NOT_LAST_G_CODE ||
       code === DiagnosticCode.VACANT_ASSIGNMENT ||
       code === DiagnosticCode.CONTROL_UNCLOSED_BLOCK ||
       code === DiagnosticCode.ROBOT_TOOLCORON_DEPRECATED ||

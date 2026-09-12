@@ -6,7 +6,7 @@
 
 ## 首轮知识框架
 
-新代 MACRO 不能只按“关键字和函数”理解；其正确性同时由格式、控制器执行模型、变量作用域、运动语义与控制器版本决定。本仓库后续的语法支持和问题分析，统一按以下五层定位：
+新代 MACRO 不能只按“关键字和函数”理解；其正确性同时由格式、控制器执行模型、变量作用域、运动语义与控制器版本决定。本插件的目标是统一吸收新代 MACRO 规则，通用 CNC、LTP 机器人、Script 与 APP Macro 的共通规则复用同一分析基础，专项规则再按载体和产品范围限定。本仓库后续的语法支持和问题分析，统一按以下五层定位：
 
 ```mermaid
 flowchart TD
@@ -35,7 +35,7 @@ flowchart TD
 | 等级 | 资料类型 | 可用于插件规则 | 处理方式 |
 |---|---|---|
 | A | TechManual 控制器正式手册、变量规格、函数表 | 可以，仍须附版本条件 | 摘要结论与 URL 写入本文或语法规范手册 |
-| B | LTP 正式产品/机器人手册 | 可用于该产品范围 | 注明机型和版本，不能外推到通用 CNC |
+| B | LTP 正式产品/机器人手册 | 可作为统一插件中 LTP 专项规则的正式依据 | 注明机型和版本；通用规则可复用，LTP 专属限制不能外推到通用 CNC |
 | C | 内部编辑器、开发笔记、个人总结 | 仅作线索与交叉参考 | 不单独作为强诊断或语法真源 |
 | D | 推断、未提供完整上下文的搜索片段 | 不可以 | 放入待验证清单，补到 A/B 来源后再升级 |
 
@@ -131,7 +131,7 @@ flowchart TD
 | 函数 | `src/functions.js` | 函数说明包含有效版本，但需与官方函数表持续同步。 | 抽样审查函数签名、版本和 `WAIT()` 前置条件。 |
 | 调用导航 | `src/navigationIndex.js`、`src/fileResolver.js` | 导航解析目标文件，不等价于控制器运行时的变量/时序正确性。 | 保持命名与路径规则和官方手册同步。 |
 | 变量诊断 | `src/validator.js`、`src/diagnosticRules.js` | 变量语法可静态检查；开放区段、读写性、机型权限通常为版本相关。 | 优先补可静态判定的 `#0/@0` 写入和已知 R 保留区风险提示。 |
-| 机器人语法 | `src/robotValidator.js`、`src/keywords.js` | 属 LTP/机器人专项能力，不能以通用 CNC 手册替代。 | 按机器人《语法指令规格》独立维护版本和测试。 |
+| 机器人语法 | `src/robotValidator.js`、`src/keywords.js` | 属统一 MACRO 支持中的 LTP 专项扩展；LTP《语法指令规格》和版本矩阵已确认主要指令、替代 G 码与部分最低版本，共通语法沿用统一分析链路，LTP 专属限制需有产品范围证据。 | 按 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 逐项维护参数、警报、版本和测试，并纳入统一能力矩阵。 |
 
 ## 待验证清单
 
@@ -143,7 +143,7 @@ flowchart TD
 | `G66/G66.1/G67` 模态宏的调用与区域变量细节 | 现有语法手册有整理，首轮未逐行复核。 | 《MACRO开发应用手册》对应章节与版本条件。 |
 | 公用变量/R 映射的所有可写区间 | 现有手册较完整，但强依控制器系统与配置。 | 《Macro变数规格》加 PLC/控制器型号条件。 |
 | 60 KB 以上档案的实际行为 | 已核实 10.120.32+ 支持范围语法；细节仍依版本。 | 目标控制器版本的手册与图形模拟/实机测试。 |
-| 机器人 MOV 指令和替代语法 | 已有 LTP 语法页面，尚未做逐条对应。 | 《语法指令规格》与版本矩阵。 |
+| 机器人 MOV 指令和替代语法 | 已取得 LTP《语法指令规格》与《机器人语法对应 G 码与支援版本》，主要移动指令、替代 G 码和部分最低版本已登记，尚未逐条核对参数/警报/机型条件。 | 按 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 逐项对照正式指令页和目标机器人验证。 |
 | 控制器诊断变量效能阈值 | 仓库语法手册含部分指标，首轮未逐项对照。 | 《控制器诊断变数》相关变量条目与实机量测。 |
 
 ## 与本仓库的对应关系
@@ -165,6 +165,11 @@ flowchart TD
 3. [G65：单一宏程序程式呼叫](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44112481/G65)：`G65` 调用格式与字母引数映射示例。
 4. [M码指令说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44107225/M)：`M98`、`M99`、`M198` 与子程序结束行为。
 5. [新代Macro轻量编辑器](https://syntecclub.atlassian.net/wiki/spaces/SZJS/pages/810777362/Macro)：内部编辑器的已实现功能记录，仅作交叉参考，不作为控制器语法规范。
+6. [20_模态呼叫宏程序(G66)](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/66265307/20_+G66)：LTP 的 G66 每移动单节触发范例。
+7. [21_非模态呼叫宏程序(G66.1)](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44116428/21_+G66.1)：G66.1 每单节触发范例。
+8. [22_G65及G66/G66.1必须是该行最后一个G码](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/66265319/22_G65+G66+G66.1+G)：最后 G 码限制与 `COR-013` 示例。
+9. [语法指令规格](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815294)：LTP 机器人语法总表与替代语法分类。
+10. [机器人语法对应 G 码与支援版本](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816914/G)：机器人指令对应 G 码、最低支援版本和旧版本替代说明。
 
 ## 后续查询约定
 

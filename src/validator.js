@@ -380,6 +380,35 @@ function validateUnsupportedOperators(_raw, lineNum, _lineStartInBlock, cleanLin
   return diagnostics;
 }
 
+function validateMacroCallGCodeOrder(_raw, lineNum, _lineStartInBlock, cleanLine) {
+  const clean = cleanLine === undefined ? '' : cleanLine;
+  if (!clean.trim()) return [];
+
+  const gCodes = [];
+  const gCodeRe = /\bG\d+(?:\.\d+)?\b/ig;
+  let match;
+  while ((match = gCodeRe.exec(clean)) !== null) {
+    gCodes.push({ code: match[0].toUpperCase(), col: match.index, endCol: match.index + match[0].length });
+  }
+  if (gCodes.length < 2) return [];
+
+  const diagnostics = [];
+  const macroCallRe = /^G(?:65|66(?:\.1)?)$/i;
+  const lastGCodeIndex = gCodes.length - 1;
+  for (let i = 0; i < lastGCodeIndex; i++) {
+    const gCode = gCodes[i];
+    if (!macroCallRe.test(gCode.code)) continue;
+    diagnostics.push(createWarning(
+      lineNum,
+      gCode.col,
+      gCode.endCol,
+      `${gCode.code} 必须是该行最后一个 G 码；请调整 G 码顺序`,
+      { code: DiagnosticCode.CALL_MACRO_NOT_LAST_G_CODE }
+    ));
+  }
+  return diagnostics;
+}
+
 function validateDanglingComparisonExpression(_raw, lineNum, _lineStartInBlock, cleanLine) {
   const clean = cleanLine === undefined ? '' : cleanLine;
   const trimmed = clean.trim();
@@ -468,6 +497,7 @@ const LINE_VALIDATOR_RULES = [
   createLineRule('named-variables', validateNamedVariables),
   createLineRule('variable-access', validateVariableAccess),
   createLineRule('unsupported-operators', validateUnsupportedOperators),
+  createLineRule('macro-call-g-code-order', validateMacroCallGCodeOrder),
   createLineRule('dangling-comparison-expression', validateDanglingComparisonExpression),
   createLineRule('statement-terminator', validateStatementTerminator),
   createLineRule('robot-syntax-preferences', validateRobotSyntaxPreferences),

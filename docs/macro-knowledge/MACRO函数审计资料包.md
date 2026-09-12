@@ -2,7 +2,7 @@
 
 本资料包执行 [MACRO 知识与验证规划](MACRO知识与验证规划.md) 的 FUN-A 首轮审计：调用与资料访问函数。它只记录已核实的控制器规则与代码审查差异；运行时或证据不足的结论不升级为静态诊断。
 
-更新日期：2026-07-13
+更新日期：2026-09-12
 范围：`GETARG`、`GETTRAPARG`、`PARAM`、`SYSVAR`、`SYSDATA`、`DRVDATA`、`GETPR`、`SETPR`。
 
 ## 1. 函数能力矩阵
@@ -12,7 +12,7 @@
 | FUN-A-01 | `GETARG(name)` | 读取调用引数；扩充引数如 `Z1` 用此函数读取。不存在的引数回传 VACANT `#0`。 | 已有补全与 hover；未做调用上下文静态推断。 | 保持无强诊断；在 hover 保留 VACANT 失败语义。 |
 | FUN-A-02 | `GETTRAPARG(name)` | 读取 `G66/G66.1` Trap 单节的引数，与 `GETARG` 的调用引数来源不同。 | 已有补全与 hover。 | 补充与 `GETARG` 对比的 hover/文档测试。 |
 | FUN-A-03 | `PARAM(prNo[, axisGroup])` | 已有参数号/轴群号整数性规则；不同参数和机型的可用性依控制器配置。 | 静态诊断已检查前两个常量引数为整数。 | 不推断具体参数号有效性；新增正反例回归。 |
-| FUN-A-04 | `SYSVAR(group, code)` | 读取指定轴群的系统变量；参数可用性依轴群与系统变量定义。 | 已有补全与 hover，无专用参数诊断。 | 先收集正式签名、轴群范围和错误行为，再评估整数 warning。 |
+| FUN-A-04 | `SYSVAR(group, code)` | TechManual `Macro Function List` 已确认签名、轴群识别码和系统变量码语义，并给出 `SYSVAR(1, 1000)` 示例；具体系统变量可用性仍依轴群和控制器定义。 | 已有补全与 hover，无专用参数诊断。 | CF 基础语义已收口；不根据未知轴群或系统变量码新增强诊断。 |
 | FUN-A-05 | `SYSDATA(diagNo)` | 读取系统诊断变量；函数表列出版本并要求整数诊断号；建议先 `WAIT()`。字符串、小数和超出诊断范围会触发对应错误。 | 已有补全、hover、`WAIT()` 提示和静态字符串/小数诊断。 | 范围上限待正式变量目录确认。 |
 | FUN-A-06 | `DRVDATA(stationNo, varNo)` | 读取驱动器状态；支援十进位整数或格式正确的十六进位字符串；站号、驱动器类型、状态变量和开机时机影响结果。 | 已有补全、hover 和常量格式诊断。 | 不检查动态值、设备存在性或状态变量支援范围。 |
 | FUN-A-07 | `GETPR(prNo)` | 读取系统参数；仓库文案标为 `10.118.56Z`、`10.118.60T+`，尚未以 A 级页面复核。 | 已有补全与 hover，无参数诊断。 | 证据阻塞：待取得 A 级函数页或控制器验证后复核版本、型别和失败行为。 |
@@ -50,7 +50,8 @@
 | 已实现 | `SYSDATA` 对静态字符串和小数引数使用稳定的整数参数诊断；动态表达式和字符串文本不误报。 |
 | 已实现 | `DRVDATA` 对静态站号字符串/小数及第二引数非法常量格式给出稳定诊断；动态变量不误报。 |
 | 有意保留 | 不对 `GETARG/GETTRAPARG` 是否处在调用上下文中报错，因为这依调用模型和运行时引数。 |
-| 有意保留 | 不对 `SYSVAR/GETPR/SETPR` 的具体编号、权限、机型或轴群做强诊断。 |
+| 有意保留 | 不对 `SYSVAR` 的具体变量码、机型配置或轴群可用性做强诊断。 |
+| 有意保留 | 不对 `GETPR/SETPR` 的具体编号、权限、机型或写入时机做强诊断。 |
 
 ## 4. 发布后的最小实施清单
 
@@ -60,17 +61,18 @@
 | FUN-A-10 | 为 `GETARG/GETTRAPARG` 增加 hover 与函数索引回归断言。 | 已完成：文案区分调用者与 Trap 单节引数，并固定 VACANT 行为。 |
 | FUN-A-11 | 为 `PARAM` 增加现有整数检查的正反例测试。 | 已完成：单参数与轴群参数正例、静态小数反例均已覆盖；不校验未知参数号和机型配置。 |
 | FUN-A-12 | 收集 `DRVDATA` 十六进位字符串完整格式来源。 | 已完成：以函数表的 `"xxxh"` / `x=0~F` / 小写 `h` 规则实施常量格式诊断与 hover。 |
-| FUN-A-13 | 收集 `GETPR/SETPR` 的 A 级函数页。 | 证据阻塞：2026-07-13 的 Rovo 精确检索未命中函数页；在正式来源或控制器验证前，不新增静态规则。 |
+| FUN-A-13 | 收集 `GETPR/SETPR` 的 A 级函数页。 | 证据阻塞：当前 TechManual `Macro Function List` 正文未出现这两个函数，针对页面、博客和附件的全站 CQL 检索也未命中专页；在正式来源或控制器验证前，不新增静态规则。 |
 
 ## 4.1 证据阻塞记录
 
-- `GETPR/SETPR`：已用函数名、示例调用和仓库记录的版本号做 Rovo 精确检索，未找到可确认函数签名、权限、参数型别或失败行为的 A 级页面。
+- `GETPR/SETPR`：当前 TechManual `Macro Function List` 正文未出现这两个函数；截至 2026-09-12，已用函数名、示例调用和仓库记录的版本号检索页面、博客和附件，仍未找到可确认函数签名、权限、参数型别或失败行为的 A 级页面。
+- `SYSVAR`：TechManual `Macro Function List` 已确认 `SYSVAR(轴群识别码,系统变数码)` 及 `SYSVAR(1, 1000)` 示例；具体变量码、轴群范围和控制器可用性仍属于配置/版本边界。
 - 现有 hover 的版本文字保留为仓库历史资料，不升级为正式版本承诺；不据此添加参数范围、权限或写入时机诊断。
 - 恢复条件：取得 TechManual/LTP 正式函数页、控制器版本公告明确列出该函数，或在目标控制器上完成记录化验证。
 
 ## 5. 来源
 
 1. [MACRO开发应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106050/MACRO)：`GETARG`、扩充引数、AR/MAR 与格式/运行时背景。
-2. [Macro Function List](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44133992/9.+Macro_Function_List)：`GETARG`、`GETTRAPARG`、`SYSDATA`、`DRVDATA` 的示例、版本和错误边界。
+2. [Macro Function List](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44133992/9.+Macro_Function_List)：`GETARG`、`GETTRAPARG`、`SYSVAR`、`SYSDATA`、`DRVDATA` 的签名、示例、版本和错误边界；当前页面未出现 `GETPR`/`SETPR`。
 3. [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246/Macro)：区域变量生命周期和模态变量背景。
 4. [COR-016 不合法的变量存取](https://syntecclub.atlassian.net/wiki/spaces/TechManualTW/pages/47989976/COR-016)：`SYSDATA`、`DRVDATA`、AR/MAR 的非法存取原因。

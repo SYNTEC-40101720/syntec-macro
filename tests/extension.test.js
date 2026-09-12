@@ -346,6 +346,12 @@ test('New G codes exist in gcodes array', () => {
   assert.ok(gcodes.includes('G142.102'), 'G142.102 should be in gcodes');
   assert.ok(gcodes.includes('G192.1'), 'G192.1 should be in gcodes');
   assert.ok(gcodes.includes('G192.2'), 'G192.2 should be in gcodes');
+  for (const gcode of ['G1.15', 'G1.16', 'G2.15', 'G4.15', 'G11.15', 'G11.16', 'G11.17',
+    'G31.15', 'G43.15', 'G52.15', 'G52.16', 'G52.17', 'G52.20', 'G52.21',
+    'G53.15', 'G53.16', 'G53.17', 'G53.18', 'G68.15', 'G141.1', 'G142.1',
+    'G190.1', 'G190.2', 'G191.1', 'G191.2']) {
+    assert.ok(gcodes.includes(gcode), `${gcode} should be in gcodes`);
+  }
 });
 
 test('New robot application keywords have hover docs', () => {
@@ -693,6 +699,15 @@ test('Validator diagnostics expose stable codes for semicolon fixes', () => {
   assert.ok(diagnostics.some(d => d.code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON), 'control structure trailing semicolon should expose a stable code');
 });
 
+test('Validator diagnostics expose stable code for macro call G-code order', () => {
+  const { validateDocument } = require('../src/validator');
+  const { DiagnosticCode } = require('../src/diagnosticCodes');
+
+  const diagnostics = validateDocument('%@MACRO\nG65 P1000 G01 X10.;');
+  assert.ok(diagnostics.some(d => d.code === DiagnosticCode.CALL_MACRO_NOT_LAST_G_CODE),
+    'macro call G-code order should expose a stable code');
+});
+
 test('Validator diagnostics expose stable codes for unsupported syntax fixes', () => {
   const { validateDocument } = require('../src/validator');
   const { DiagnosticCode } = require('../src/diagnosticCodes');
@@ -803,6 +818,7 @@ test('Validator line rules are registered with stable ids', () => {
     'named-variables',
     'variable-access',
     'unsupported-operators',
+    'macro-call-g-code-order',
     'dangling-comparison-expression',
     'statement-terminator',
     'robot-syntax-preferences',
