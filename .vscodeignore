@@ -5,7 +5,7 @@ release-notes-*.md
 
 # Local reference samples
 Macro/
-test-demo.nc
+tests/fixtures/test-demo.nc
 
 # Development files
 .github/

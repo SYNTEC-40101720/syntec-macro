@@ -124,14 +124,7 @@ flowchart TD
 
 ## 当前插件认知地图
 
-| 主题 | 主要实现位置 | 当前认知 | 首轮后续动作 |
-|---|---|---|---|
-| 文件识别与格式 | `src/validator.js`、语法配置 | `%@MACRO` 决定 MACRO/ISO，是根规则。 | 确认首行与分号诊断是否完整覆盖。 |
-| 控制流 | `src/controlFlowValidator.js`、`src/keywords.js` | 控制流结构可静态配对；嵌套上限和大文件性能属于运行时/版本语义。 | 评估是否增加超过 10 层的 warning，并避免无版本依据的 error。 |
-| 函数 | `src/functions.js` | 函数说明包含有效版本，但需与官方函数表持续同步。 | 抽样审查函数签名、版本和 `WAIT()` 前置条件。 |
-| 调用导航 | `src/navigationIndex.js`、`src/fileResolver.js` | 导航解析目标文件，不等价于控制器运行时的变量/时序正确性。 | 保持命名与路径规则和官方手册同步。 |
-| 变量诊断 | `src/validator.js`、`src/diagnosticRules.js` | 变量语法可静态检查；开放区段、读写性、机型权限通常为版本相关。 | 优先补可静态判定的 `#0/@0` 写入和已知 R 保留区风险提示。 |
-| 机器人语法 | `src/robotValidator.js`、`src/keywords.js` | 属统一 MACRO 支持中的 LTP 专项扩展；LTP《语法指令规格》和版本矩阵已确认主要指令、替代 G 码与部分最低版本，共通语法沿用统一分析链路，LTP 专属限制需有产品范围证据。 | 按 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 逐项维护参数、警报、版本和测试，并纳入统一能力矩阵。 |
+各主题的当前插件状态、主要实现位置与后续动作见 [MACRO 能力矩阵](MACRO能力矩阵.md) 的能力总览表(FMT-001 / CALL-001 / CALL-002 / FLOW-001 / VAR-001 / FUN-001 / ROB-001 等)。本文不再重复登记,避免状态副本漂移;新增或修改能力状态时,只更新 [能力矩阵](MACRO能力矩阵.md) 与 [MACRO 知识与验证规划](MACRO知识与验证规划.md),不动本文。
 
 ## 待验证清单
 
@@ -141,10 +134,20 @@ flowchart TD
 |---|---|---|
 | 每个内置函数的签名、返回型别和版本 | 函数表已有实现，首轮只抽样核对 `SYSDATA`、`DRVDATA`、`GETARG`。 | 《Macro_Function_List》的逐函数页面或完整正式表。 |
 | `G66/G66.1/G67` 模态宏的调用与区域变量细节 | 现有语法手册有整理，首轮未逐行复核。 | 《MACRO开发应用手册》对应章节与版本条件。 |
-| 公用变量/R 映射的所有可写区间 | 现有手册较完整，但强依控制器系统与配置。 | 《Macro变数规格》加 PLC/控制器型号条件。 |
-| 60 KB 以上档案的实际行为 | 已核实 10.120.32+ 支持范围语法；细节仍依版本。 | 目标控制器版本的手册与图形模拟/实机测试。 |
-| 机器人 MOV 指令和替代语法 | 已取得 LTP《语法指令规格》与《机器人语法对应 G 码与支援版本》，主要移动指令、替代 G 码和部分最低版本已登记，尚未逐条核对参数/警报/机型条件。 | 按 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 逐项对照正式指令页和目标机器人验证。 |
-| 控制器诊断变量效能阈值 | 仓库语法手册含部分指标，首轮未逐项对照。 | 《控制器诊断变数》相关变量条目与实机量测。 |
+| 公用变量 / R 映射的所有可写区间 | 《Macro变数规格》与《PLC 介面说明》已核实 @→R 映射与完整区段语义；详情回填到 [语法规范手册 §2.5](../新代MACRO语法规范手册.md#25-公用变量--1)。 | `Pr3811`/`Pr3813`/`Pr3829` 参数格式与颗粒度，需《控制器参数总表》。 |
+
+## A 级与 B 级主来源补充（SOURCES 轮次）
+
+下表补充 SOURCES 轮次已达 A 级正式来源的文档。未列入 CF 页面的仍保持待验证。
+
+| 来源 | 用途 | 文档状态 |
+|---|---|---|
+| [PLC 介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796) | R 寄存器完整区段语义、可写区段、轴群控制介面、S/C bit 系统/宏程序旗标 | A 级。R 完整区段表已回填到 [§2.5](../新代MACRO语法规范手册.md#25-公用变量--1)；S/C bit 与轴群介面后续依需求采编。 |
+| [控制器诊断变数](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106009) | D320/D324/D376 解译与减速诊断、D388 Script executor 平均时间 | A 级；SOURCES-2 采编完成；手册 §1.10 已回填。未在 CF 证实 D978/D979/D994/D995。 |
+| [NetPLC 使用说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106337/NetPLC) | D932/D933 NetPLC 同步时间诊断（起始版本 10.118.86K 、 10.120.16K 、 10.120.24B 、 10.120.27+） | A 级；SOURCES-2 采编完成。 |
+| [控制器参数总表](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105816) | Pr3811/Pr3813/Pr3598/Pr3601/Pr3701/Pr3215/Pr3829 等参数语义 | A 级窗口可见；SOURCES-3 已查明：CF 公开页面只证实 Pr3811/Pr3813 功能本体，未提供精确参数条目格式与颗粒度；需实机页面或 PDF 补齐。 |
+| [扩充参数使用说明手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105791) | 参数与 R bit 关联机制；区别主参数与扩充参数 | A 级；证实了 @1~@400 与 Pr 参数体系背后的扩充机制；但 Pr3811/3813 仍是 Pr 级别，本手册仅给出「扩充 Pr 由 R bit 连接」框架。 |
+| LTP 机器人指令单页规格（SOURCES-4 首轮采编） | MOVL/MOVJ/MOVC/INCMOV*/STITCHON/WEAVEON 等指令独立规格 | A 级；SOURCES-4 首轮已登记 8 个指令的 CF 页面 URL 与核心引数范围，见 [LTP 专项资料包 §3.5](MACRO-LTP专项资料包.md#35-逐指令-cf-公开页面入口sources-4-首轮采编2026-09-14)。待补页见资料包同节末尾清单。 |
 
 ## 与本仓库的对应关系
 

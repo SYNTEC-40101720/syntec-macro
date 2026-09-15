@@ -140,7 +140,7 @@
 
 - 每个变量 warning 都有精确的区间、来源和适用系统。
 - 不对表达式索引或未知机型做不可靠范围推断。
-- `test-demo.nc` 保持零诊断。
+- `tests/fixtures/test-demo.nc` 保持零诊断。
 
 ### Phase 4：函数与控制流专题
 
@@ -185,8 +185,86 @@
 | 单元测试 | 词法、静态变量范围、函数参数、控制流配对 | `tests/validator.test.js` |
 | 扩展模块测试 | 导航解析、hover、补全、诊断动作 | `tests/extension.test.js` |
 | VS Code 集成测试 | Provider 注册与编辑器内可见行为 | `npm.cmd run test:integration` |
-| 离线样例 | 每项能力的最小通过/警告/错误输入 | `test-demo.nc` 与测试内联/工作区样例 |
+| 离线样例 | 每项能力的最小通过/警告/错误输入 | `tests/fixtures/test-demo.nc` 与测试内联/工作区样例 |
 | 图形模拟 | 运动、预解、调用、状态及返回时序 | 控制器模拟器记录 |
+
+## 5. 文档治理迭代记录
+
+本节登记文档架构治理的版本、动机与后续路径,避免重复登记状态与规则漂移。详细分层与职责边界见 [macro-knowledge/README.md](README.md#文档分层与职责边界)。
+
+### 批次1:去重 + 加固导航 + CF 首轮补全(2026-09-14)
+
+- [macro-knowledge/README.md](README.md) 新增"文档分层与职责边界"小节,明示四层架构与状态唯一登记点。
+- [Atlassian-MACRO知识记录.md](Atlassian-MACRO知识记录.md) 的"已核实核心规则"压缩为索引摘要,"当前插件认知地图"全部链接到 [能力矩阵](MACRO能力矩阵.md),上文不再重复登记。
+- 6 份函数资料包顶部统一加"状态登记边界"说明,指向能力矩阵,不再重复登记插件状态。
+- [开发交接说明.md](../开发交接说明.md) 补"文档治理基线"约定。
+- CF 首轮补全:[语法规范手册](../新代MACRO语法规范手册.md) 的 G04.102 升级为已确认/部分待确认(版本 `10.118.40G`、`10.118.44`,I/X 引数与 `ms` 时间单位依官方页面与同语系推定);MOVC 跨行规则补齐 CF 官方页面确认的模态/坐标系/RBT-124/RBT-127 边界;G193.110 标注 CF 未找到独立规格页面;§13 待确认清单同步更新。
+
+### SOURCES-1:PLC 介面说明 → R 寄存器完整区段语义(2026-09-14)
+
+- CF 两个 A 级页面首次采编: [PLC 介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796) 、 [Macro 变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246) 的 @→R 映射后可写范围。
+- [§2.5 公用变量 @](../新代MACRO语法规范手册.md#25-公用变量--1) 新增 "R 寄存器完整区段语义" 与 "R 寄存器经 @ 昻射后可写范围" 两小节,补足区段语义(包括 R81~R100 对应 Pr3401~3420 唯读、R101~R102 刀具状态唯读 FRAM、R512~R639 不支持位元存取等 PLC 侧细节)。
+- [能力矩阵 VAR-002](MACRO能力矩阵.md) 状态从"部分核实"升级为"R 语义已核实",后续可评估静态可判定 R 保留区写入 warning 的实现路径。
+- [Atlassian-MACRO知识记录.md](Atlassian-MACRO知识记录.md) 新增 "A 级与 B 级主来源补充(SOURCES 轮次)"表,同时登记控制器诊断变数、控制器参数总表等待采编主来源。
+- §13 待确认项更新: `Pr3811` 保留范围表达方式转移至 SOURCES-3(需《控制器参数总表》)。
+- [开发交接说明.md](../开发交接说明.md) 与 [诊断规则与修复动作](../诊断规则与修复动作.md) 未变;静态诊断实现改动未入本批,留待后续代码批次。
+
+### SOURCES-2:控制器诊断变数 → 执行线程诊断变量(2026-09-14)
+
+- CF 三个 A 级页面采编: [控制器诊断变数](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106009) 、 [MACRO开发应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106050/MACRO) 、 [NetPLC 使用说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106337/NetPLC)。
+- [§1.10 MACRO 读取/处理流程](../新代MACRO语法规范手册.md) 的诊断变量表从原 6 项重整:
+  - CF 证实 `D320`/`D324`/`D376` 解译与减速三角(加工中消耗序列化);
+  - CF 证实 `D388` Script executor 平均时间,后续如需 Script executor 监控优先用此号而不是原手册的 D994/D995;
+  - CF 证实 NetPLC `D932`/`D933` 同步时间诊断(起始版本 10.118.86K、10.120.16K、10.120.24B、10.120.27+),作为 NetPLC 同步寄存器性能诊断入口;
+  - 列出 `D978/D979/D994/D995` 在 CF 未获证实的诚实结论;删除原手册中缺乏 CF 背书的 "D978/D979 大于4倍 PLC 扫描时间" 原则。
+- [能力矩阵](MACRO能力矩阵.md) 新增 `DIAG-001` 能力行,状态 "D 语义已核实";`§13` 待确认项同步更新 D 诊断号项标题。
+- [Atlassian-MACRO知识记录.md](Atlassian-MACRO知识记录.md) 主来源表升级"控制器诊断变数"状态为已采编,新增 NetPLC 主来源。
+- 后续: `D978/D979/D994/D995` 需实机或控制器内部规格复核;SOURCES-3 进入《控制器参数总表》。
+
+### SOURCES-3:控制器参数总表 → Pr3811/Pr3813 精确参数格式(2026-09-14)
+
+- CF 评审: [控制器参数总表](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105816) 入口可见; [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246/Macro) 证实 Pr3811(控制 @1~@400 断电保留)与 Pr3813(开启 CE 扩充 @60000~@79999) 功能本体。
+- CF 未提供的内容: Pr3811/Pr3813 的精确参数条目格式、颗粒度与默认值,以及 Pr3598/Pr3601/Pr3701/Pr3215/Pr3829 其他参数的详细页面。
+- 手册与规划同步:
+  - [§2.5 公用变量 @](../新代MACRO语法规范手册.md#25-公用变量--1) 补充 "Pr3811/Pr3813 功能本体 CF 证实,但精确参数格式需 PDF 或实机查表" 的说明。
+  - [§13 待确认项](../新代MACRO语法规范手册.md) 中 Pr3811/Pr3813 条目更新为「功能本体 CF 证实,精确格式需实机/PDF」。
+  - [Atlassian-MACRO知识记录.md](Atlassian-MACRO知识记录.md) 主来源表升级 "控制器参数总表" 状态,新增 "扩充参数使用说明手册" 来源行。
+  - [能力矩阵 VAR-002](MACRO能力矩阵.md) 能力状态保持「R 语义已核实」; Pr3811/Pr3813 精确格式列入后续实机证据依赖。
+- 后续: Pr3811/Pr3813/Pr3598 等参数精细格式需实机页面、控制器参数总表 PDF 或 CF 未公开页面获取; CF 公开页面已到边界。
+
+### SOURCES-4:LTP 语法指令规格总表 → 逐指令 CF 单页入口(2026-09-15)
+
+- CF LTP 空间单页规格首次采编: `MOVL`、`MOVJ` 第一/第二语法、`MOVC`、`INCMOVL`、`INCMOVJ`、`STITCHON/STITCHOFF`、`WEAVEON/WEAVEOFF` 共 8 个指令独立页面 URL；本轮再补 `SWAITSIG`、`SYNCOUT`、`TOOLCOR`、`USERCOR`、`OBJCORON/OFF/CLEAR`、`POSEMAP`、`SHIFTON/SHIFTOFF`、`SKIPCOND/SKIP`、`WAITSYNC/ENDSYNC`、`CIRMODE`、`G192.1/G192.2`、`G68.18` 共 12 个入口，合计 20 个。
+- [MACRO-LTP专项资料包.md](MACRO-LTP专项资料包.md) 新增 `## 3.5 逐指令 CF 公开页面入口` 小节,登记每个指令的 CF 页面 URL 与核心引数范围(避免与手册 §6 完整引数表重复)。
+- CF 摘要证实的关键警報线索已登记: `RBT-103`(PL/PQ/PR 三选一)、`RBT-115`(STITCHON 中间不可 MOVJ)、`RBT-124`(MOVC 座标系必须相同)、`RBT-127`(MOVC 中间指令上限 10)、`RBT-322`(WEAVEON 中间不可 MOVJ)、`COR-064`(WEAVEON P 非整数)。
+- 本轮已登记的 12 个入口中，CF 摘要明确 `SWAITSIG` 的 `P/Q/R/L/T` 引数集合；其余页面的完整参数、警报、版本、机型和运行时条件仍需逐页审计，不将入口发现升级为规则实现。
+
+### 代码批次 1:R 保留区写入 warning(WARN-R001,2026-09-15)
+
+- SOURCES-1 把 VAR-002 推进到「R 语义已核实」后,本代码批次把可静态判定的 R 保留区段写入从手册规则升级为诊断 warning。
+- 新增诊断码 `SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE`(`src/diagnosticCodes.js`),默认 warning 级别。
+- 新增说明型 CodeAction 「查看 R 寄存器保留区说明」(`src/diagnosticActions.js`),提示可写区段替代。
+- `src/validator.js` `validateVariableAccess` 末尾新增 R 保留区检测:仅检查一行范围内「赋值左侧」,@401~655/@10000~14095/@100000~165535 三段 @→R 映射后,若 R 区段落在 `R0~R49`/`R81~R102`/`R512~R639`/`R640~R1023` 保留区则报 warning;表达式索引 `@[#1]` 不静态可判定,不报。
+- `tests/validator.test.js` 新增 8 条回归断言:映射到保留区报 warning、映射到可写区不报、@1~@400 不映射不报、表达式索引不报等边界。
+- `tests/fixtures/test-demo.nc` 零诊断保持不受影响(确认未新增误报)。
+- 诊断文档重生成;lint、validator 测试(新增 8 个断言)与 `npm.cmd test`(243/243)全部通过。
+
+### 批次2:独有函数细节回填到手册 §9(2026-09-15)
+
+- 五处独有运行时边界从资料包回填到 [语法规范手册 §9](../新代MACRO语法规范手册.md#9-函数规则):
+  1. `DRVDATA`(§9.5): `"D61h"` 十六进制字符串格式 `x=0~F` 结尾 `h` 小写;未支援状态变量 `COR-016`、格式错误 `COR-023`。
+  2. Cycle(§9.8): `DBLOAD` 会设为 Cycle name 为当前资料 name,`DBINSERT` 连续调用覆盖前者是官方语义;`DBDELETE` 四档返回码语义;`DBSAVE` 前置条件含 `DBINSERT`。`
+DBLOAD`/`DBINSERT` 连续调用規范为官方运行时行为。
+  3. `ALARM`/`MSG`(§9.10): `ALARM` 需复位清除;`MSG` ESC清除与程序结束自动消失;`MSG("text")` 预设 ID 版本差异表。`
+  4. `STD`/`STDAX`(§9.3): `#1600` 为 LIU 及运算前官方建议标准化;`Pr17`/`Pr3241`/单位制均为控制器配置。
+  5. `SETDRAW`/`DRAWHOLE`(§9.12): RGB `0xFF0000` ↔ BGR `0x0000FF=255` 示例;`DRAWHOLE` 后原色回写恢复顺序。
+- 5 份资料包顶部状态登记说明从「只维护审计细节与运行时证据」升级为「独有细节已回填到手册§9,本包转为运行时验证+审计归档」。
+- 手册§9 现在拥有与资料包一致的完备细节,后续修改源代码时只需查手册。
+
+### 批次3:资料包合并 6→1(按需)
+
+- 当 LTP 专项资料包膨胀到一定程度或函数审计批次完成整合后,评估把 6 份函数资料包合并为 1 个 `MACRO函数审计资料包.md`,按 FUN-A → FUN-F 排列,统一三段式骨架。
+- 当前不合并:各资料包已有标准三段式结构,合并需同步更新 `README.md` 与 `能力矩阵.md` 链接,且 LTP 资料仍在增长,过早合并可能捆住手脚。
 | 实机验证 | I/O、PLC R、驱动器数据、选配与机型差异 | 版本、机型、程序、观察结果与风险说明 |
 
 新规则的最低验收组合：A/B 级来源 + 单元测试 + 扩展集成测试；涉及运动、预解或外部 I/O 时，额外要求图形模拟或实机记录。
@@ -215,7 +293,7 @@ npm.cmd test
 npm.cmd run lint
 npm.cmd run test:integration
 npm.cmd run test:integration:navigation
-node -e "const fs=require('fs'); const {validateDocument}=require('./src/validator'); const diagnostics=validateDocument(fs.readFileSync('test-demo.nc','utf8')); console.log(diagnostics.length ? diagnostics : 'test-demo.nc diagnostics: none')"
+node -e "const fs=require('fs'); const {validateDocument}=require('./src/validator'); const diagnostics=validateDocument(fs.readFileSync('tests/fixtures/test-demo.nc','utf8')); console.log(diagnostics.length ? diagnostics : 'tests/fixtures/test-demo.nc diagnostics: none')"
 ```
 
 涉及发布时，追加 `npm.cmd run package` 和 `npm.cmd run smoke:installed`。文档或资料收集阶段只需执行 Markdown/链接检查和 `git diff --check`，不制造无关测试噪音。

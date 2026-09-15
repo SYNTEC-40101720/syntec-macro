@@ -18,13 +18,13 @@
 
 | 能力 ID | 主题 | 官方基线 | 插件当前覆盖 | 状态 | 后续验证 |
 |---|---|---|---|---|---|
-| FMT-001 | `%@MACRO` 格式与分号 | 首行 `%@MACRO` 才按完整 MACRO 解释；MACRO 多数单节需分号。 | 语言首行识别、语法高亮、分号诊断。 | 已核实 | 维持 `test-demo.nc` 与 validator 回归。 |
+| FMT-001 | `%@MACRO` 格式与分号 | 首行 `%@MACRO` 才按完整 MACRO 解释；MACRO 多数单节需分号。 | 语言首行识别、语法高亮、分号诊断。 | 已核实 | 维持 `tests/fixtures/test-demo.nc` 与 validator 回归。 |
 | CALL-001 | `G65/G66/G66.1/G67` | CF 已确认 G66/G66.1 基础触发语义和最后 G 码顺序；变量空间、模式取消及产品差异仍分开记录。 | 静态定义/引用解析，G/M hover，非最后 G 码 warning。 | 部分核实 | 仅对 81RA 与 CF 不一致的 CNC 运行时行为复核，见 [调用语义资料包](MACRO调用语义资料包.md)。 |
 | CALL-002 | `M98/M198/M99` | `P/H/L`、返回、变量继承、`M198` 重读已整理。 | 静态定义/引用解析，G/M hover。 | 部分核实 | 见 [调用语义资料包](MACRO调用语义资料包.md)。 |
 | FLOW-001 | 范围控制流 | 超过 60 KB 时，`IF/CASE/REPEAT/FOR/WHILE` 需要 `10.120.32+`；旧版可能 `COR-204`。 | 结构配对、关键字、补全与格式化。 | 已核实 | 大档案和目标版本须图形模拟/实机验证。 |
 | FLOW-002 | 控制流深度与性能 | 嵌套上限与语法范围过大可能影响加工。 | 块配对；当前未按深度/文件大小给强诊断。 | 部分核实 | 确认上限对应版本后评估 warning。 |
 | VAR-001 | `#` 区域变量和引数 | `#1~#26` 是引数区，`#27~#400` 为区域变量；调用方式决定继承或隔离。 | 变量识别与基础诊断。 | 已核实 | 调用生命周期由 CALL-RUN 系列验证。 |
-| VAR-002 | `@` 公用变量与 R 映射 | 变量区间、R 映射与可写范围依系统/版本而异。 | 变量识别；未对范围做强判断。 | 部分核实 | 先实现低风险 `#0/@0` 写入提示评估。 |
+| VAR-002 | `@` 公用变量与 R 映射 | 变量区间与 @→R 映射以 [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246) 证实；R 完整区段语义以 [PLC 介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796) 证实。`Pr3811`/`Pr3813`/`Pr3829` 参数格式不在当前 A 级页面内。 | 变量识别；R 区段选型参考与保留区 warning 候选已落在手册 §2.5；R 保留区写入 warning 已在代码批次1 实现于 `src/validator.js`(`SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE`)。 | R 语义已核实→保留区 warning 已实现 | 评估扩展到不可写 R5800~R7999 之前段(如 `R13001~R14095`)静态检测的可行性；`Pr3811`/`Pr3813` 格式待 CF 控制器参数总表补齐。 |
 | VAR-003 | AR/MAR APP 变量 | `10.118.39+`；仅 APP 专用 Macro 可访问，越界/非 APP 存取会报警。 | 语法识别与示例覆盖。 | 已核实 | 不在普通 Macro 中实施强静态判断，须有 APP 路径上下文。 |
 | RUN-001 | 预解与 `WAIT()` | `WAIT()` 仅保证前方 G/M 完成；`M98/M99/M198` 为例外。 | `WAIT` 函数补全/hover。 | 已核实 | 仅模拟/实机验证；不实现通用同步诊断。 |
 | RUN-002 | `SLEEP()` 与循环 | 用于让出执行权，降低无限循环造成的人机卡死风险。A 级来源：Macro Function List。 | 函数补全/hover。 | 已核实 | 循环实测待模拟器/控制器验证。 |
@@ -33,6 +33,7 @@
 | FUN-003 | 系统控制函数 | `ALARM/MSG` ID 边界、`WAIT` 预解例外和 `CHK*` 返回值已核实。 | 参数诊断、hover、补全。 | 已核实 | 详见 [系统控制函数资料包](MACRO系统控制函数资料包.md)。 |
 | ROB-001 | LTP 机器人专项语法 | LTP 正式《语法指令规格》与《机器人语法对应 G 码与支援版本》已确认主要指令类别、替代 G 码和部分最低版本；完整参数、警报、机型和运行时条件仍待逐项核对。通用 MACRO 规则与其他载体共用，LTP 专属限制按产品范围限定。 | `robotValidator.js`、关键字、hover，并纳入统一 validator 流程。 | 部分核实 | 逐项对照 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 的正式页面，补齐参数/警报/测试；不把 LTP 专属限制误报到通用 MACRO。 |
 | SCR-001 | 常驻 Script | 开机运行、独立执行、最多 8 个，仅可透过 `@` 沟通。 | 未作为独立语言模式实现。 | 已核实 | 保持与 MACRO 规则分离，不将其限制套用至 MACRO。 |
+| DIAG-001 | 控制器诊断变量 | `D320`/`D324`/`D376` 解译与减速诊断、`D388` Script executor 平均时间、`D932`/`D933` NetPLC同步时间以 [控制器诊断变数](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106009) 、[MACRO开发应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106050/MACRO) 、[NetPLC使用说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106337/NetPLC) 证实；原手册中 `D978`/`D979`/`D994`/`D995` 这 4 个诊断号在 CF 未找到独立条目，可能是编号有误或内部变量，待实机复核。 | 手册 §1.10 hover 与文档说明；不提供诊断号静态诊断（依赖运行时）。 | D 语义已核实 | 手册 §1.10 与 §13 已同步；D978/D979/D994/D995 需实机或控制器内部规格复核。 |
 
 ## 已核实的版本基线
 

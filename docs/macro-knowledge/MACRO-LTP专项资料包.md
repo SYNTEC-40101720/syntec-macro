@@ -2,9 +2,9 @@
 
 本资料包记录 LTP 机器人语法的正式页面证据，并把 LTP 专属语法与共享 MACRO 核心分开。它不把机器人指令的版本或限制外推到一般 CNC MACRO。
 
-更新日期：2026-09-12
-状态：ROB-001 部分核实；已取得 LTP《语法指令规格》和《机器人语法对应 G 码与支援版本》页面，完成指令类别、主要替代语法和版本基线登记；完整参数、警报边界、机型范围和运行时行为仍需逐项审计。
-
+更新日期：2026-09-15
+状态：ROB-001 部分核实；已取得 LTP《语法指令规格》和《机器人语法对应 G 码与支援版本》页面，并登记 20 个独立指令规格页面入口；完整参数、警报边界、机型范围和运行时行为仍需逐项审计。
+> 插件状态与后续动作见 [能力矩阵](MACRO能力矩阵.md) 对应能力 ID(ROB-001)。本资料包只维护审计细节与运行时证据,不重复登记状态。
 ## 1. 适用范围
 
 - 来源空间：Atlassian `LTP`（联达产品/LEANTEC Products）。
@@ -36,6 +36,35 @@
 | 直接引数与第二语法 | `src/robotValidator.js` | 已有 `MOVJ/MOVL/MOVC/INCMOV*` 等直接引数检查和 `MOVJ-II` 保守提示；不新增版本推断。 |
 | 跨行状态 | `src/robotValidator.js` | 已有 `MOVC` 成对、`SWAITSIG/SYNCOUT` 次数和若干机器人区间互斥检查；需按 LTP 页面逐项核对警报与适用范围。 |
 | 文档与样例 | `docs/新代MACRO语法规范手册.md` | 已登记主要指令与部分版本；本资料包补充正式 LTP URL、版本表和产品边界。 |
+
+## 3.5 逐指令 CF 公开页面入口（SOURCES-4 首轮采编，2026-09-15）
+
+本节为每个已找到 CF 公开独立页面的 LTP 指令登记单页 URL 与核心引数范围；完整引数表以 [语法规范手册 §6](../新代MACRO语法规范手册.md#6-机器人移动指令) 为准，资料包不重复登记。CF 页面 fetch 全文需要登录态，通过 Rovo Search 摘要可获取核心引数与版本；后续逐项实机复核仍按 [能力矩阵 ROB-001](MACRO能力矩阵.md) 的"后续验证"推进。
+
+| 指令 | CF 页面 | 关键引数与版本线索（CF 摘要证实） |
+|---|---|---|
+| `MOVL` | [MOVL-末端直线运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815333/MOVL-) | `P`(指定用户座标系)范围 `0~20`，自 `10.118.12` 起；`Q`(指定工具)范围 `0~20`，自 `10.118.12` 起；`FL` 范围 `0.1~Pr405`；`PL/PQ/PR` 三选一，否则 `RBT-103`。 |
+| `MOVJ` 第一语法 | [MOVJ-关节运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815337/MOVJ-) | `C1~C6`/`A1~A6` 用 `=`；不支持 `P`；自 `10.118.0A` 起；`GP/LP` 参考点语法自 `10.118.40I`、`10.118.41I`、`10.118.45` 起。 |
+| `MOVJ` 第二语法 | [MOVJ-关节运动II-末端位置输入](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815339/MOVJ-+II-) | `LP`/`GP` 参考点编号范围 `1~1000`，需整数；区域参考点自 `10.120.32.x/10.120.x/12.0.x` 起；副程序使用参考点规格见 CF 页面注意事项。 |
+| `MOVC` | [MOVC-圆弧运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815341/MOVC-) | `P`/`Q` 范围 `0~20`，自 `10.118.12` 起；`FL` 范围 `0.1~Pr405`；中间点与结束点单节模态相同，座标系必须相同，否则 `RBT-124`；中间允许指令上限 10 个，否则 `RBT-127`。 |
+| `INCMOVL` | [INCMOVL-增量末端直线运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815409/INCMOVL-) | `P_` 必填范围 `1~2`；`PL/PQ/PR` 三选一，否则 `RBT-103`；`FL` 范围同 `MOVL`。 |
+| `INCMOVJ` | [INCMOVJ-增量关节运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815405/INCMOVJ-) | 各轴同动，运动过程中末端点非直线；自 `10.118.9` 起；`Q` 范围 `0~20`，自 `10.118.82B` 起；外部轴单位 mm/deg，不支援英制命令输入。 |
+| `STITCHON/STITCHOFF` | [STITCHON/STITCHOFF-连续脉冲输出](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815646/STITCHON+STITCHOFF-) | 中间不可使用 `MOVJ`，否则 `RBT-115`；RESET/加工结束视为自动执行 `STITCHOFF`。 |
+| `WEAVEON/WEAVEOFF` | [WEAVEON/WEAVEOFF-摆动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815586/WEAVEON+WEAVEOFF-) | `P` 范围 `1~50`，需整数，否则 `COR-064`；自 `10.120.28.x/10.120.32.x/10.120.x` 起；`L` 范围 `0~1000000` ms，不可加小数点；`R` 摆动方向 `0~1`，不可加小数点；中间不可使用 `MOVJ`，否则 `RBT-322`。 |
+| `SWAITSIG` | [SWAITSIG 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815315) | CF 摘要确认引数集合 `P/Q/R/L/T`；完整数值范围、版本条件与警报仍待逐页核对。 |
+| `SYNCOUT` | [SYNCOUT 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815335) | 独立规格页面入口已确认；当前摘要不足以确认完整引数、版本条件与警报，不作强结论。 |
+| `TOOLCOR` | [TOOLCOR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815465) | 对应 `G43.15`；版本表登记自 `10.118.11` 起；完整引数范围、警报与机型条件仍待逐页核对。 |
+| `USERCOR` | [USERCOR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815329) | 对应 `G68.15`；版本表登记自 `10.118.0A` 起；完整引数范围、警报与机型条件仍待逐页核对。 |
+| `OBJCORON/OFF/CLEAR` | [OBJCORON/OFF/CLEAR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815319) | 对应 `G52.15/G52.16/G52.17`；工件坐标支持自 `10.118.28E`/`10.118.32` 分阶段登记；完整引数与警报仍待逐页核对。 |
+| `POSEMAP` | [POSEMAP 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816822) | 对应 `G142.1`；独立规格页面入口已确认；完整引数、版本条件与警报仍待逐页核对。 |
+| `SHIFTON/SHIFTOFF` | [SHIFTON/SHIFTOFF 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816348) | 对应 `G52.20/G52.21`；版本表登记 `10.118.28E`/`10.118.32` 分阶段支援；完整引数与警报仍待逐页核对。 |
+| `SKIPCOND/SKIP` | [SKIPCOND/SKIP 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816276) | `SKIPCOND` 对应 `G31.15`、版本表登记自 `10.118.28G`；`SKIP` 自 `10.118.33`，总表未列替代 G 码；完整引数与警报仍待逐页核对。 |
+| `WAITSYNC/ENDSYNC` | [WAITSYNC/ENDSYNC 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815317) | 对应 `G190.1/G190.2`；版本表登记自 `10.118.0A` 起；完整引数、同步边界与警报仍待逐页核对。 |
+| `CIRMODE` | [CIRMODE 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815775) | 对应 `G141.1`；版本表登记自 `10.118.25` 起；完整引数、姿态条件与警报仍待逐页核对。 |
+| `G192.1/G192.2` | [G192.1/G192.2 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64817515) | 独立 G 码规格页面入口已确认；当前摘要不足以确认完整语法、版本条件与警报，不作强结论。 |
+| `G68.18` | [G68.18 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64817502) | 替代语法页面列入 `G68.18`；替代语法版本线索为 `10.118.40G`、`10.118.44` 及后续；独立页面的完整引数与警报仍待逐页核对。 |
+
+入口登记已完成：上述 12 个页面与前述 8 个页面合计 20 个独立规格入口。入口已登记不等于参数、警报、版本、机型和运行时审计完成；后续按能力矩阵 ROB-001 逐页补证据。
 
 ## 4. 未完成项与验证边界
 
