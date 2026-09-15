@@ -249,6 +249,26 @@
 - `tests/fixtures/test-demo.nc` 零诊断保持不受影响(确认未新增误报)。
 - 诊断文档重生成;lint、validator 测试(新增 8 个断言)与 `npm.cmd test`(243/243)全部通过。
 
+### 代码批次 2:R 保留区检测扩展 R11000~R14999(WARN-R002,2026-09-15)
+
+- 承接能力矩阵 VAR-002 后续验证条目,把手册 §2.5 明确点名的「未列出保留段」`R11000~R14999`(含 `R13001~R14095` 原手册点名的子段)纳入 `SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE` 检测范围。
+- `src/validator.js` `validateVariableAccess` 的 `isReserved` 条件新增 `rNum >= 11000 && rNum <= 14999`,并补充对应 reason 文本;R5800~R7999/R10000~R10999/R15000~R65535 三段可写区段保持不报。
+- `src/diagnosticActions.js` 说明型 CodeAction 消息同步更新保留区段列表与可写区段列表。
+- `tests/validator.test.js` 新增 3 条回归断言:`@111000`/`@113001`/`@114999` 映射到 R11000~R14999 报 warning,`@115000`/`@165535` 映射到 R15000~R65535 可写段不报,`@105800`/`@110000` 映射到 R5800/R10000 可写段不报。
+- 手册 `R4096~R5111`/`R5112~R5799`/`R8000~R9999` 等"未列出"段虽在手册口语含义内,但未明确点名且可能涉及 DOS/WinCE/Linux 系统差异,暂不静态检测,待实机复核后再评估。
+- 策略:黑名单扩展(只报手册明确点名的区段)而非白名单(只放行明确可写段),以把误报成本压到最低,系统差异由 hover 说明承担。
+
+### 代码批次 3:控制流嵌套深度 warning(FLOW-002,2026-09-15)
+
+- 手册 §4 已明确列出 `IF/CASE/REPEAT/WHILE/FOR` 互相嵌套上限为 10 层,超过会触发控制器 `COM-007` 巢状超过 10 层;本批次据此把"超过 10 层"从规划候选升级为静态 warning。
+- 新增诊断码 `SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED`(`src/diagnosticCodes.js`),默认 warning 级别;对应控制器 `COM-007`。
+- 新增说明型 CodeAction 「查看嵌套深度说明」(`src/diagnosticActions.js`),提示拆分子程序或扁平化嵌套结构。
+- `src/controlFlowValidator.js` 新增 `NESTING_DEPTH_LIMIT = 10` 常量;`validateControlFlowKeyword` 在 OPENER 分支 push 前判断 `stack.length >= NESTING_DEPTH_LIMIT` 即报 warning,确保第 11 个 opener 触发而第 1~10 个不报。
+- `tests/validator.test.js` 新增「7b. 控制流嵌套深度」测试组:10 层 IF/END_IF 不报、11 层 IF/END_IF 触发 1 条 warning;fixture `tests/fixtures/test-demo.nc` 最深仅 3 层(FOR > IF > IF),未新增误报。
+- 设计选择:Threshold 用 `stack.length >= 10` 而非 `> 10`,以确保"达到 10 层后再 push 第 11 个"才报,避免 10 层合法深度被误报;阈值保持硬编码,版本差异由 hover 说明承担,不做配置化以维持插件简洁。
+- `scripts/generateDiagnosticDocs.js` 把新码加入 `severityFor` 的 warning 集合;`npm.cmd run docs:diagnostics` 已重生成诊断表。
+- lint、`npm.cmd test`(248/248)全部通过。
+
 ### 批次2:独有函数细节回填到手册 §9(2026-09-15)
 
 - 五处独有运行时边界从资料包回填到 [语法规范手册 §9](../新代MACRO语法规范手册.md#9-函数规则):

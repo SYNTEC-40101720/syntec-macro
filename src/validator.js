@@ -301,8 +301,9 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
   // - @10000~@14095 → R0~R4095
   // - @100000~@165535 → R0~R65535
   // 依据 PLC 介面说明（见 docs/新代MACRO语法规范手册.md §2.5）：
-  //   保留段不可写或只读：R0~R49 / R81~R102 / R512~R639 / R640~R1023；R101~R102 为 FRAM 刀具状态；
-  //   可写区段：R50~R80 / R103~R511 / R1024~R4095。
+  //   保留段不可写或只读：R0~R49 / R81~R102 / R512~R639 / R640~R1023 / R11000~R14999；
+  //   R101~R102 为 FRAM 刀具状态；R11000~R14999 为手册明确点名的未列出保留段（含 R13001~R14095）。
+  //   可写区段：R50~R80 / R103~R511 / R1024~R4095 / R5800~R7999 / R10000~R10999 / R15000~R65535。
   // 表达式索引 (如 @[#1]) 不静态可判定，本检查不报。
   const publicVarAssignRe = /^\s*@(?:\d+)\s*(?::=|=(?!=))/;
   if (publicVarAssignRe.test(clean)) {
@@ -316,7 +317,8 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
       const isReserved =
         rNum !== null &&
         (rNum <= 49 || (rNum >= 81 && rNum <= 102) ||
-          (rNum >= 512 && rNum <= 639) || (rNum >= 640 && rNum <= 1023));
+          (rNum >= 512 && rNum <= 639) || (rNum >= 640 && rNum <= 1023) ||
+          (rNum >= 11000 && rNum <= 14999));
       if (isReserved) {
         const col = numMatch.index + numMatch[0].length - numMatch[1].length;
         let reason = 'CNC 系统介面区';
@@ -324,6 +326,7 @@ function validateVariableAccess(_raw, lineNum, _lineStartInBlock, cleanLine) {
         else if (rNum >= 81 && rNum <= 100) reason = '对应参数 Pr3401~Pr3420 唯读区';
         else if (rNum >= 101 && rNum <= 102) reason = '刀具状态 FRAM 唯读区';
         else if (rNum >= 512 && rNum <= 639) reason = 'CNC 系统介面区（不支持位元存取）';
+        else if (rNum >= 11000 && rNum <= 14999) reason = '未列出保留区段（写入可能导致不可预期行为）';
         diagnostics.push(createWarning(
           lineNum,
           col,

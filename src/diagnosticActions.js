@@ -32,7 +32,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.NAMED_LOCAL_VARIABLE]: '新代 MACRO 局部变量使用数字编号，例如 #1、#100 或 #[表达式]；#TEMP 这类命名局部变量不支持，需改为规划好的数字变量。',
   [DiagnosticCode.NAMED_GLOBAL_VARIABLE]: '新代 MACRO 公用变量使用数字编号，例如 @1、@1000 或 @[表达式]；@TEMP 这类命名公用变量不支持，需改为规划好的数字变量。',
   [DiagnosticCode.VACANT_ASSIGNMENT]: '#0/@0 为 VACANT，只读并表示空值；请不要作为赋值目标，可改用可写的数字变量。',
-  [DiagnosticCode.PUBLIC_VAR_R_RESERVED_WRITE]: { title: '查看 R 寄存器保留区说明', message: '@ 映射的 R 寄存器保留区段（R0~R49 / R81~R102 / R512~R639 / R640~R1023）不可写或唯读，写入可能导致不可预期行为；可改用可写区段 R50~R80 / R103~R511 / R1024~R4095 / R5800~R7999 / R15000~R65535。' },
+  [DiagnosticCode.PUBLIC_VAR_R_RESERVED_WRITE]: { title: '查看 R 寄存器保留区说明', message: '@ 映射的 R 寄存器保留区段（R0~R49 / R81~R102 / R512~R639 / R640~R1023 / R11000~R14999）不可写或唯读，写入可能导致不可预期行为；可改用可写区段 R50~R80 / R103~R511 / R1024~R4095 / R5800~R7999 / R10000~R10999 / R15000~R65535。' },
   [DiagnosticCode.INVALID_APP_VARIABLE_NUMBER]: 'AR/MAR APP 变量编号必须为非负整数；请使用 AR0、MAR53、AR[#1] 这类合法编号形式。',
   [DiagnosticCode.FUNCTION_MATH_DOMAIN]: { title: '查看函数定义域说明', message: '该数学函数的静态参数落在控制器定义域外；请调整为控制器允许的数值范围，避免运行时 COR 运算域错误。' },
   [DiagnosticCode.FUNCTION_IO_POINT_RANGE]: { title: '查看 I/O 点位范围说明', message: 'READ/SET I/O 点编号需为静态整数且落在控制器支持范围内；常见 DI/DO/A 点编号范围为 0~511。' },
@@ -59,7 +59,8 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED]: { title: '查看 MOVC 成对规则', message: '旧式 MOVC 圆弧需要成对出现：第一行为中间点，第二行为结束点；新版单行写法需使用 X1/X2 点位组。' },
   [DiagnosticCode.ROBOT_SWAITSIG_LIMIT]: { title: '查看 SWAITSIG 限制', message: '同一运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用对应等待指令。' },
   [DiagnosticCode.ROBOT_SYNCOUT_LIMIT]: { title: '查看 SYNCOUT 限制', message: '同一有移动量移动单节最多允许 10 个 SYNCOUT；请拆分运动单节或减少同步输出。' },
-  [DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND]: { title: '查看机器人区间限制', message: '当前指令位于 STITCHON/WEAVEON/WAITSYNC/G192.1 等特殊区间内，控制器不支持该组合；请移出区间或关闭对应模式后再使用。' }
+  [DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND]: { title: '查看机器人区间限制', message: '当前指令位于 STITCHON/WEAVEON/WAITSYNC/G192.1 等特殊区间内，控制器不支持该组合；请移出区间或关闭对应模式后再使用。' },
+  [DiagnosticCode.CONTROL_NESTING_DEPTH_EXCEEDED]: { title: '查看嵌套深度说明', message: '控制流 IF/CASE/REPEAT/WHILE/FOR 互相嵌套上限为 10 层，超过触发 COM-007 巢状超过 10 层。建议拆分子程序或扁平化嵌套结构。' }
 };
 
 module.exports = {

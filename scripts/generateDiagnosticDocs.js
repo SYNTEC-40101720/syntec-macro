@@ -37,6 +37,7 @@ function severityFor(code) {
       code === DiagnosticCode.CALL_MACRO_NOT_LAST_G_CODE ||
       code === DiagnosticCode.VACANT_ASSIGNMENT ||
       code === DiagnosticCode.CONTROL_UNCLOSED_BLOCK ||
+      code === DiagnosticCode.CONTROL_NESTING_DEPTH_EXCEEDED ||
       code === DiagnosticCode.ROBOT_TOOLCORON_DEPRECATED ||
       code === DiagnosticCode.ROBOT_TOOLCOR_CLEAR ||
       code === DiagnosticCode.ROBOT_STITCH_MISSING_ARG ||

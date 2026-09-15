@@ -5,6 +5,9 @@ const { createError, createWarning } = require('./diagnosticFactory');
 
 const OPENER_KEYWORDS = new Set(['IF', 'FOR', 'WHILE', 'CASE', 'REPEAT']);
 
+// 控制流嵌套深度上限（手册 §4：IF/CASE/REPEAT/WHILE/FOR 互相嵌套上限 10 层，超过触发 COM-007）
+const NESTING_DEPTH_LIMIT = 10;
+
 const CLOSER_TO_OPENER = {
   'END_IF':     'IF',    'END_FOR':    'FOR',    'END_WHILE':  'WHILE',
   'END_CASE':   'CASE',  'END_REPEAT': 'REPEAT',
@@ -77,6 +80,11 @@ function validateControlFlowKeyword(pos, lineNum, lineFacts, state, diagnostics)
   }
 
   if (OPENER_KEYWORDS.has(kw)) {
+    if (stack.length >= NESTING_DEPTH_LIMIT) {
+      diagnostics.push(createWarning(lineNum, pos.col, pos.endCol, `${kw} 嵌套深度已达 ${NESTING_DEPTH_LIMIT} 层，超过可能触发控制器 COM-007（巢状超过 10 层）`, {
+        code: DiagnosticCode.CONTROL_NESTING_DEPTH_EXCEEDED
+      }));
+    }
     stack.push({ line: lineNum, keyword: kw, hasElse: false });
     return;
   }

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.12.0 - 2026-09-15
+
+### Added
+- **R 寄存器保留区写入诊断扩展**: `SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE` 检测范围从 `R0~R1023` 扩展到 `R11000~R14999`（含手册点名的 `R13001~R14095`），依据 PLC 介面说明与 Macro 变数规格。采用黑名单扩展策略：只报手册明确点名的保留段，`R4096~R5111`/`R5112~R5799`/`R8000~R9999` 等"未列出"段暂不静态检测，避免 DOS/WinCE/Linux 系统差异导致的误报。
+- **控制流嵌套深度 warning**: 新增 `SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED` warning，检测 `IF/CASE/REPEAT/WHILE/FOR` 互相嵌套超过 10 层（对应控制器 `COM-007` 巢状超过 10 层）。阈值 `stack.length >= 10`，确保 10 层合法深度不报、第 11 个 opener 触发。
+
+### Changed
+- `docs/macro-knowledge/MACRO能力矩阵.md` 更新：VAR-002 后续验证条目从"评估 R13001~R14095 可行性"升级为"R11000~R14999 已实现"；FLOW-002 状态从"部分核实"升级为"深度 warning 已实现"。
+- `docs/macro-knowledge/MACRO知识与验证规划.md` 新增代码批次 2（R 保留区扩展）与代码批次 3（嵌套深度 warning）迭代记录，标注设计选择、证据来源与未推进项的证据阻塞状态。
+
 ## 2.11.9 - 2026-08-05
 
 ### Fixed
