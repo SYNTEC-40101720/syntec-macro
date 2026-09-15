@@ -13,6 +13,7 @@ tests/fixtures/test-demo.nc
 tests/
 eslint.config.js
 jsconfig.json
+.markdownlint.json
 .workbuddy/
 
 # Build tools & scripts

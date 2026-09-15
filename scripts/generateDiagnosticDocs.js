@@ -149,7 +149,7 @@ function renderDiagnosticDocs() {
     '- 平滑参数互斥、MOVC 成对规则、特殊区间禁用指令等需要用户判断加工语义的问题提供说明型 CodeAction。',
     '',
     '| Code | 分类 | 默认严重度 | Quick Fix / CodeAction | 说明 |',
-    '|---|---|---|---|---|',
+    '| --- | --- | --- | --- | --- |',
     ...codes.map(rowFor),
     '',
     '## 维护说明',
