@@ -43,6 +43,7 @@ async function main() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'syntec-macro-smoke-'));
   const userDataDirectory = path.join(tempRoot, 'user-data');
   const extensionsDirectory = path.join(tempRoot, 'extensions');
+  let smokePassed = false;
   const commonArgs = [
     `--user-data-dir=${userDataDirectory}`,
     `--extensions-dir=${extensionsDirectory}`
@@ -73,8 +74,19 @@ async function main() {
       SYNTEC_SMOKE_EXTENSIONS_DIR: extensionsDirectory,
       SYNTEC_SMOKE_EXPECTED_VERSION: packageJson.version
     });
+    smokePassed = true;
   } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
+    try {
+      fs.rmSync(tempRoot, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 1000
+      });
+    } catch (error) {
+      const outcome = smokePassed ? 'passed' : 'failed before cleanup';
+      console.warn(`Installed VSIX smoke ${outcome}, but temporary profile cleanup failed: ${error.message}`);
+    }
   }
 }
 

@@ -57,6 +57,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.ROBOT_STITCH_L_INTEGER]: { title: '查看 STITCHON L 引数说明', message: 'STITCHON 的 L 引数不可带小数点；请使用整数距离值。' },
   [DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS]: { title: '查看 WEAVEON 引数说明', message: 'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 细节引数混用；请选择参数组或细节参数其中一种写法。' },
   [DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL]: { title: '查看 WEAVEON Q 引数说明', message: 'WEAVEON 的 Q 频率建议使用小数形式，例如 Q1.0。' },
+  [DiagnosticCode.ROBOT_UNSUPPORTED_COORDINATE_SYNTAX]: { title: '查看坐标系指令语法说明', message: 'USERCOR、TOOLCOR 和 G68.18 只接受官方坐标系引数，不可混入 CNC/机器人进给、G 码、轴向命令或移动指令。' },
   [DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED]: { title: '查看 MOVC 成对规则', message: '旧式 MOVC 圆弧需要成对出现：第一行为中间点，第二行为结束点；新版单行写法需使用 X1/X2 点位组。' },
   [DiagnosticCode.ROBOT_SWAITSIG_LIMIT]: { title: '查看 SWAITSIG 限制', message: '同一运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用对应等待指令。' },
   [DiagnosticCode.ROBOT_SYNCOUT_LIMIT]: { title: '查看 SYNCOUT 限制', message: '同一有移动量移动单节最多允许 10 个 SYNCOUT；请拆分运动单节或减少同步输出。' },

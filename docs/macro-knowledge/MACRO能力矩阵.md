@@ -2,8 +2,8 @@
 
 本矩阵是 [MACRO 知识与验证规划](MACRO知识与验证规划.md) 的 Phase 1 产物初稿。它用于把控制器能力、版本、插件行为和验证证据放在同一张表中；“已登记”不等于“已在所有控制器/机型实测”。
 
-更新日期：2026-09-16
-状态：G0/G1 已完成；`v2.10.0` 至 `v2.13.0` 已正式发布，G2 已完成调用资料、静态导航边界、CALL-13 warning、R 保留区扩展、控制流嵌套深度 warning、共享词法状态机、LTP 静态范围诊断、导航有界并发和 FUN-A 至 FUN-F 首轮审计；ROB-001 已取得 LTP 语法总表与版本矩阵，逐机型、CNC/机器人差异与运行时证据仍持续补齐。
+更新日期：2026-09-17
+状态：G0/G1/G3 已完成；`v2.10.0` 至 `v2.14.0` 已正式发布，G2 已完成调用资料、静态导航边界、CALL-13 warning、R 保留区扩展、控制流嵌套深度 warning、共享词法状态机、LTP 静态范围/Q 联动诊断、导航文件监听缓存和 FUN-A 至 FUN-F 首轮审计；逐机型、CNC/机器人差异与运行时证据仍持续补齐。
 
 ## 状态定义
 
@@ -31,7 +31,7 @@
 | FUN-001 | 62 个内置函数 | 函数表是正式来源，已完成多类别首轮审计，仍未逐项核实全部签名、版本和失败行为。 | `src/functions.js` 定义 62 个函数，补全和 hover 已覆盖。 | 部分核实 | 按类别继续核对并为每类新增正反例。 |
 | FUN-002 | `SYSDATA/DRVDATA` | `SYSDATA` 需整数诊断号与 `WAIT()`；`DRVDATA` 对版本、站号和启动时间敏感。 | 参数诊断、hover、补全。 | 已核实 | 详见 [函数审计资料包](MACRO函数审计资料包.md)。 |
 | FUN-003 | 系统控制函数 | `ALARM/MSG` ID 边界、`WAIT` 预解例外和 `CHK*` 返回值已核实。 | 参数诊断、hover、补全。 | 已核实 | 详见 [系统控制函数资料包](MACRO系统控制函数资料包.md)。 |
-| ROB-001 | LTP 机器人专项语法 | LTP 正式《语法指令规格》与《机器人语法对应 G 码与支援版本》已确认主要指令类别、替代 G 码和部分最低版本；完整参数、警报、机型和运行时条件仍待逐项核对。通用 MACRO 规则与其他载体共用，LTP 专属限制按产品范围限定。 | `robotValidator.js`、关键字、hover，并纳入统一 validator 流程。 | 部分核实 | 逐项对照 [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md) 的正式页面，补齐参数/警报/测试；不把 LTP 专属限制误报到通用 MACRO。 |
+| ROB-001 | LTP 机器人专项语法 | LTP 正式《语法指令规格》与《机器人语法对应 G 码与支援版本》及 20 个独立页面已通过 Rovo MCP 复核；静态范围、Q 联动和坐标系禁用写法已取得可实现证据，完整警报、机型和运行时条件仍待逐项核对。通用 MACRO 规则与其他载体共用，LTP 专属限制按产品范围限定。 | `robotValidator.js`、关键字、hover，并纳入统一 validator 流程；已覆盖 `USERCOR/TOOLCOR/G68.18/POSEMAP/SHIFTON/SKIPCOND/SWAITSIG/SYNCOUT/CIRMODE/G192.1/WAITSYNC` 等静态范围。 | 部分核实→静态范围扩展已实现 | 继续逐项补齐产品/机型/运行时警报；不把 LTP 专属限制误报到通用 MACRO。 |
 | SCR-001 | 常驻 Script | 开机运行、独立执行、最多 8 个，仅可透过 `@` 沟通。 | 未作为独立语言模式实现。 | 已核实 | 保持与 MACRO 规则分离，不将其限制套用至 MACRO。 |
 | DIAG-001 | 控制器诊断变量 | `D320`/`D324`/`D376` 解译与减速诊断、`D388` Script executor 平均时间、`D932`/`D933` NetPLC同步时间以 [控制器诊断变数](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106009) 、[MACRO开发应用手册](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106050/MACRO) 、[NetPLC使用说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106337/NetPLC) 证实；原手册中 `D978`/`D979`/`D994`/`D995` 这 4 个诊断号在 CF 未找到独立条目，可能是编号有误或内部变量，待实机复核。 | 手册 §1.10 hover 与文档说明；不提供诊断号静态诊断（依赖运行时）。 | D 语义已核实 | 手册 §1.10 与 §13 已同步；D978/D979/D994/D995 需实机或控制器内部规格复核。 |
 

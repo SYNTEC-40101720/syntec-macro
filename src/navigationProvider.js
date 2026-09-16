@@ -2,7 +2,10 @@
 // 文档/工作区符号导航与宏调用引用查找
 
 const vscode = require('vscode');
-const { collectNavigationIndexEntries } = require('./navigationIndex');
+const {
+  collectNavigationIndexEntries,
+  isPotentialNavigationFile
+} = require('./navigationIndex');
 const {
   buildNavigationIndexEntry,
   extractNavigationSymbols,
@@ -12,6 +15,19 @@ const {
 
 const navigationIndexCache = new Map();
 const NAVIGATION_INDEX_CONCURRENCY = 32;
+let navigationFileWatcher;
+
+function ensureNavigationFileWatcher() {
+  if (navigationFileWatcher) return;
+  navigationFileWatcher = vscode.workspace.createFileSystemWatcher('**/*');
+  const invalidate = uri => {
+    if (isPotentialNavigationFile(uri.fsPath)) {
+      navigationIndexCache.delete(uri.toString());
+    }
+  };
+  navigationFileWatcher.onDidChange(invalidate);
+  navigationFileWatcher.onDidDelete(invalidate);
+}
 
 function provideDocumentSymbol(document) {
   return extractNavigationSymbols(document.getText()).map(symbol => {
@@ -44,6 +60,7 @@ function getReferenceTargetName(document, position) {
 }
 
 async function getWorkspaceMacroFiles(token) {
+  ensureNavigationFileWatcher();
   const files = await vscode.workspace.findFiles('**/*', '**/{node_modules,.git,dist}/**');
   const openDocuments = new Map(vscode.workspace.textDocuments.map(document => [document.uri.toString(), document]));
   const currentUris = new Set(files.map(uri => uri.toString()));
@@ -63,6 +80,8 @@ async function getWorkspaceMacroFiles(token) {
         signature = `document:${openDocument.version}`;
         text = openDocument.getText();
       } else {
+        const cached = navigationIndexCache.get(uriKey);
+        if (cached && cached.source === 'file') return cached.index;
         const stat = await vscode.workspace.fs.stat(uri);
         signature = `file:${stat.mtime}:${stat.size}`;
       }
@@ -73,7 +92,11 @@ async function getWorkspaceMacroFiles(token) {
         text = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
       }
       const index = buildNavigationIndexEntry(filePath, text);
-      navigationIndexCache.set(uriKey, { signature, index });
+      navigationIndexCache.set(uriKey, {
+        signature,
+        source: openDocument ? 'document' : 'file',
+        index
+      });
       return index;
     }
   });
@@ -146,6 +169,10 @@ async function provideReferences(document, position, context, token) {
 
 function dispose() {
   navigationIndexCache.clear();
+  if (navigationFileWatcher) {
+    navigationFileWatcher.dispose();
+    navigationFileWatcher = null;
+  }
 }
 
 module.exports = {

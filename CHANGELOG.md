@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.14.0 - 2026-09-17
+
+### Added
+
+- **LTP 静态引数与 Q 联动诊断**: 依据 Atlassian Rovo MCP Server 复核的 LTP 正式页面，为 `USERCOR`、`TOOLCOR`、`G68.18`、`POSEMAP`、`SHIFTON`、`SKIPCOND`、`SWAITSIG`、`SYNCOUT`、`CIRMODE`、`WAITSYNC/ENDSYNC` 和 `G192.1` 增加可静态确认的引数范围与信号 Q 联动检查；动态变量和表达式保持不推断。
+- **坐标系语法边界诊断**: 新增 `SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX`，提示 `USERCOR`、`TOOLCOR`、`G68.18` 不可混入 CNC/机器人进给、G 码、轴向命令或移动指令。
+- **语言数据一致性门禁**: 新增 `npm.cmd run check:data`，检查内置函数、机器人关键字 Hover 和诊断元数据的一致性，并接入 `npm test`。
+
+### Changed
+
+- **导航缓存失效**: 工作区导航缓存通过文件监听主动失效，保留取消、删除文件清理和结果顺序；500 文件集成基准重复查询降至 281ms。
+- **FUN-A 证据边界**: 完善 `SYSVAR`、`GETPR`、`SETPR` 的 Hover 和资料说明；`GETPR/SETPR` 在缺少 A 级来源或控制器记录时继续不提供强诊断。
+- **发布冒烟清理**: Windows 临时 profile 清理增加重试，清理竞态只输出明确 warning，不再把已通过的安装冒烟误报为失败。
+
+### Documentation
+
+- 同步 LTP/FUN-A 官方证据、能力矩阵、语法手册、交接说明和发布规划。
+
 ## 2.13.0 - 2026-09-16
 
 ### Added

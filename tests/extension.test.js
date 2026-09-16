@@ -839,7 +839,7 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
   const { validateDocument } = require('../src/validator');
   const { DiagnosticCode } = require('../src/diagnosticCodes');
 
-  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nMOVL P21;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;');
+  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nUSERCOR P1 F100.;\nMOVL P21;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;');
   for (const code of [
     DiagnosticCode.ROBOT_DEPRECATED_MOVJ_II,
     DiagnosticCode.ROBOT_DIRECT_ARG_EQUALS,
@@ -856,6 +856,7 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
     DiagnosticCode.ROBOT_STITCH_L_INTEGER,
     DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS,
     DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL,
+    DiagnosticCode.ROBOT_UNSUPPORTED_COORDINATE_SYNTAX,
     DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED,
     DiagnosticCode.ROBOT_SWAITSIG_LIMIT
   ]) {

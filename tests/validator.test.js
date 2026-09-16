@@ -564,6 +564,57 @@ console.log('\n[19] 机器人/坐标系旧语法诊断');
   eq('LTP 静态引数边界和动态值不误报',
     '%@MACRO\nMOVL P0 Q20;\nINCMOVL P1;\nINCMOVJ Q0;\nWEAVEON P50;\nWEAVEON E5. L1000000 R1;\nMOVL P#1 Q#2;',
     []);
+  eq('LTP 坐标、信号和模式引数范围检查',
+    '%@MACRO\nUSERCOR P21;\nTOOLCOR P-1;\nSHIFTON P3;\nG68.18 P0 R4;\nPOSEMAP Q21 R0;\nSKIPCOND E4 Q512 R2 P2;\nSWAITSIG P4 Q512 R2 L2147483649 T-1;\nSYNCOUT S4 Q512 P101 R2 L10001 K-10001;\nG192.1 P21 Q65531 R0 E11;\nG192.2;\nCIRMODE P3;\nWAITSYNC P5;\nENDSYNC P0;',
+    [
+      ['error', 'USERCOR 的 P 引数范围为 0~20'],
+      ['error', 'TOOLCOR 的 P 引数范围为 0~20'],
+      ['error', 'SHIFTON 的 P 引数范围为 1~2'],
+      ['error', 'G68.18 的 P 引数范围为 1~20'],
+      ['error', 'G68.18 的 R 引数范围为 0~3'],
+      ['error', 'POSEMAP 的 Q 引数范围为 0~20'],
+      ['error', 'POSEMAP 的 R 引数范围为 1~2'],
+      ['error', 'SKIPCOND 的 E 引数范围为 1~3'],
+      ['error', 'SKIPCOND 的 R 引数范围为 0~1'],
+      ['error', 'SKIPCOND 的 P 引数范围为 0~1'],
+      ['error', 'SWAITSIG 的 P 引数范围为 1~3'],
+      ['error', 'SWAITSIG 的 R 引数范围为 0~1'],
+      ['error', 'SWAITSIG 的 L 引数范围为 0~2147483648'],
+      ['error', 'SWAITSIG 的 T 引数范围为 0~2147483648'],
+      ['error', 'SYNCOUT 的 S 引数范围为 1~3'],
+      ['error', 'SYNCOUT 的 P 引数范围为 0~100'],
+      ['error', 'SYNCOUT 的 R 引数范围为 0~1'],
+      ['error', 'SYNCOUT 的 L 引数范围为 0~10000'],
+      ['error', 'SYNCOUT 的 K 引数范围为 -10000~10000'],
+      ['error', 'G192.1 的 P 引数范围为 0~20'],
+      ['error', 'G192.1 的 Q 引数范围为 0~65530'],
+      ['error', 'G192.1 的 R 引数范围为 1~2'],
+      ['error', 'G192.1 的 E 引数范围为 -10~10'],
+      ['error', 'CIRMODE 的 P 引数范围为 0~2'],
+      ['error', 'WAITSYNC 的 P 引数范围为 1~4'],
+      ['error', 'ENDSYNC 的 P 引数范围为 1~4']
+    ]);
+  eq('LTP 信号 Q 引数按来源联动检查',
+    '%@MACRO\nSKIPCOND E1 Q512 R0 P0;\nSKIPCOND E3 Q65535 R0 P0;\nSWAITSIG P3 Q512 R0;\nSWAITSIG P2 Q5016 R0;\nSYNCOUT S1 Q512 P0 R0;\nSYNCOUT S2 Q5016 P0 R0;',
+    [
+      ['error', 'SKIPCOND 的 Q 引数范围为 0~511'],
+      ['error', 'SKIPCOND 的 Q 引数范围为 0~65535'],
+      ['error', 'SWAITSIG 的 Q 引数范围为 0~511'],
+      ['error', 'SWAITSIG 的 Q 引数范围为 0~65535'],
+      ['error', 'SYNCOUT 的 Q 引数范围为 0~511'],
+      ['error', 'SYNCOUT 的 Q 引数范围为 0~65535']
+    ]);
+  eq('LTP 静态范围合法边界和动态值不误报',
+    '%@MACRO\nUSERCOR P0;\nTOOLCOR P20;\nSHIFTON P2;\nG68.18 P1 R3;\nPOSEMAP Q0 R2;\nSKIPCOND E3 Q65515 R1 P0;\nSWAITSIG P2 Q5015 R1 L2147483648 T0;\nSYNCOUT S2 Q5015 P100 R0 L10000 K-10000;\nG192.1 P0 Q65530 R2 E-10;\nG192.2;\nCIRMODE P2;\nWAITSYNC P4;\nENDSYNC P1;\nG192.1 P#1 Q#2 R#3 E#4;',
+    []);
+  eq('坐标系指令禁止混入其他语言',
+    '%@MACRO\nUSERCOR P1 F100.;\nTOOLCOR P1 G90;\nG68.18 P1 C1=10.;\nUSERCOR P1 MOVJ P1;',
+    [
+      ['error', 'USERCOR 不可使用 CNC 或机器人进给引数'],
+      ['error', 'TOOLCOR 不可在语法中插入 G 码'],
+      ['error', 'G68.18 不接受轴向命令'],
+      ['error', 'USERCOR 不可与机器人移动语言混用']
+    ]);
   eq('MOVL 平滑引数互斥',
     '%@MACRO\nMOVL X10. PL5 PQ10.;',
     [['error', 'MOVL 单行只能使用 PL/PQ/PR']]);

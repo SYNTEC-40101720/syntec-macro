@@ -33,11 +33,11 @@ exports.functions = [
   { name: 'GETARG',    sig: 'GETARG(name)',     doc: '读取呼叫者传递的标准或扩充引数\nGETARG(name) -> 值\n参数: 引数字母名称（如 X, Z1 等）\n范例: #1 := GETARG(X);\n若引数不存在则回传 VACANT (#0)' },
   { name: 'GETTRAPARG', sig: 'GETTRAPARG(name)', doc: '读取 G66/G66.1 Trap 单节内的引数内容\nGETTRAPARG(name) -> 值\n参数: 引数字母名称\n不同于 GETARG 的呼叫者引数，读取的是当前 Trap 单节引数\n范例: #1 := GETTRAPARG(X);' },
   { name: 'PARAM',     sig: 'PARAM(prNo[, axisGroup])', doc: '读取系统参数 Pr 或 V12 PN 参数\nPARAM(prNo) -> 整数\nPARAM(prNo, axisGroup) -> 整数/浮点/字符串\n范例: #1 := PARAM(3204);\n#2 := PARAM(20001, 2);\n若参数不支援则回传 VACANT' },
-  { name: 'SYSVAR',    sig: 'SYSVAR(group, code)', doc: '读取特定轴群中的系统变数\nSYSVAR(group, code) -> 数值\n参数: group=轴群识别码(1~N), code=系统变数码\n范例: #1 := SYSVAR(1, 1000);' },
+  { name: 'SYSVAR',   sig: 'SYSVAR(group, code)', doc: '读取特定轴群中的系统变数\nSYSVAR(group, code) -> 数值\n参数: group=轴群识别码, code=系统变数码\n范例: #1 := SYSVAR(1, 1000);\n具体轴群范围、变量码和可用性依控制器定义，不做静态编号推断。' },
   { name: 'SYSDATA',   sig: 'SYSDATA(diagNo)',  doc: '读取系统诊断变数\nSYSDATA(diagNo) -> 数值\n有效版本：10.118.23U+\n范例: #1 := SYSDATA(336);\n注意：执行前建议下 WAIT() 挡预解' },
   { name: 'DRVDATA',   sig: 'DRVDATA(stationNo, varNo)', doc: '读取驱动器状态变数\nDRVDATA(stationNo, varNo) -> 数值\n有效版本：10.118.23U+\nstationNo 必须为整数；varNo 为十进制整数或 "xxxh" 十六进制字串（x=0~F，小写 h），例如 "D61h"\n范例: #1 := DRVDATA(1000, 3366);\n注意：每个函数执行约0.1~0.2s；无对应驱动器时回传 VACANT' },
-  { name: 'GETPR',   sig: 'GETPR(prNo)',      doc: '读取系统参数 Pr 的值\nGETPR(prNo) -> 数值\n参数: prNo=参数编号\n范例: @1 := GETPR(3500);\n支援版本：10.118.56Z、10.118.60T+' },
-  { name: 'SETPR',   sig: 'SETPR(prNo, val)',  doc: '写入系统参数 Pr 的值\nSETPR(prNo, val)\n参数: prNo=参数编号, val=写入值\n范例: SETPR(3500, @1);\n支援版本：10.118.56Z、10.118.60T+' },
+  { name: 'GETPR',   sig: 'GETPR(prNo)',      doc: '读取系统参数 Pr 的值\nGETPR(prNo) -> 数值\n参数: prNo=参数编号\n范例: @1 := GETPR(3500);\n仓库资料记录支援版本：10.118.56Z、10.118.60T+（待 A 级页面或控制器复核）；不静态判断参数编号、机型或失败行为。' },
+  { name: 'SETPR',   sig: 'SETPR(prNo, val)',  doc: '写入系统参数 Pr 的值\nSETPR(prNo, val)\n参数: prNo=参数编号, val=写入值\n范例: SETPR(3500, @1);\n仓库资料记录支援版本：10.118.56Z、10.118.60T+（待 A 级页面或控制器复核）；不静态判断权限、机型或写入时机。' },
 
   // ===== 标准单位转换 =====
   { name: 'STD',    sig: 'STD(val, unit)',      doc: '根据 Pr17 将整数数值转换成系统设定的输入单位（IU）\nSTD(val, unit) -> 数值\n参数: val=欲转换数值, unit=标准单位（常用 #1600，对应 Pr17 的 LIU）\n范例: #10 := STD(#9, #1600);\n注意：长度或角度的整数引数通常应先标准化，避免依控制精度产生歧义' },
