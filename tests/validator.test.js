@@ -558,6 +558,12 @@ console.log('\n[19] 机器人/坐标系旧语法诊断');
   eq('WEAVEON P 不可与细节引数混用',
     '%@MACRO\nWEAVEON P3 E5.;',
     [['error', 'WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用']]);
+  eq('LTP 静态引数范围检查',
+    '%@MACRO\nMOVL P21 Q0;\nMOVC Q-1;\nMOVC Q0;\nINCMOVJ Q21;\nINCMOVL P3;\nWEAVEON P51;\nWEAVEON E5. L1000001 R2;',
+    [['error', 'MOVL 的 P 引数范围为 0~20'], ['error', 'MOVC 的 Q 引数范围为 0~20'], ['error', 'INCMOVJ 的 Q 引数范围为 0~20'], ['error', 'INCMOVL 的 P 引数范围为 1~2'], ['error', 'WEAVEON 的 P 引数范围为 1~50'], ['error', 'WEAVEON 的 L 引数范围为 0~1000000'], ['error', 'WEAVEON 的 R 引数只能为 0 或 1']]);
+  eq('LTP 静态引数边界和动态值不误报',
+    '%@MACRO\nMOVL P0 Q20;\nINCMOVL P1;\nINCMOVJ Q0;\nWEAVEON P50;\nWEAVEON E5. L1000000 R1;\nMOVL P#1 Q#2;',
+    []);
   eq('MOVL 平滑引数互斥',
     '%@MACRO\nMOVL X10. PL5 PQ10.;',
     [['error', 'MOVL 单行只能使用 PL/PQ/PR']]);

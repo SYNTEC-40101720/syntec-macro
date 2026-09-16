@@ -11,6 +11,7 @@ const {
 } = require('./navigationSymbols');
 
 const navigationIndexCache = new Map();
+const NAVIGATION_INDEX_CONCURRENCY = 32;
 
 function provideDocumentSymbol(document) {
   return extractNavigationSymbols(document.getText()).map(symbol => {
@@ -51,6 +52,7 @@ async function getWorkspaceMacroFiles(token) {
   }
   const entries = await collectNavigationIndexEntries(files, {
     getFilePath: uri => uri.fsPath,
+    concurrency: NAVIGATION_INDEX_CONCURRENCY,
     isCancelled: () => token.isCancellationRequested,
     loadIndex: async (uri, filePath) => {
       const uriKey = uri.toString();

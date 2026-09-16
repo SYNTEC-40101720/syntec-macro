@@ -47,6 +47,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.FUNCTION_AXID_QUOTED_AXIS]: { title: '查看 AXID 轴名说明', message: 'AXID 建议使用裸轴名，例如 AXID(Y)；带引号写法可能与控制器语法不一致，请依目标控制器确认。' },
   [DiagnosticCode.CALL_MACRO_NOT_LAST_G_CODE]: { title: '查看 G 码宏程序顺序说明', message: 'G65、G66、G66.1 必须是该行最后一个 G 码；同一单节多个 G 码宏程序时，控制器只执行最后一个。请按目标控制器语法调整顺序。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_MOVC_POINT_ARG]: { title: '查看 MOVC 点位参数说明', message: 'MOVC 不支持 Xp/Yp/Zp 点写法；请改用成对 MOVC 的 X/Y/Z/A/B/C 直接引数，或新版 X1/X2 单行写法。' },
+  [DiagnosticCode.ROBOT_STATIC_ARG_RANGE]: { title: '查看 LTP 引数范围说明', message: '该机器人指令的静态引数超出 LTP 正式页面确认的范围，或需要使用整数；动态变量和表达式保持不静态推断。' },
   [DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT]: { title: '查看平滑引数说明', message: 'MOVL/MOVC/INCMOVL 单行只能使用 PL/PQ/PR 其中一种平滑引数；请保留实际需要的一项。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG]: { title: '查看平滑引数说明', message: 'MOVJ/INCMOVJ 不支持 PQ/PR；请使用 PL 或移除不支持的平滑引数。' },
   [DiagnosticCode.ROBOT_UNSUPPORTED_MOVJ_P_ARG]: { title: '查看 MOVJ P 引数说明', message: 'MOVJ 第一语法不支持 P 引数；若要使用点位/末端位置语法，请提供 X/Y/Z/A/B/C 等末端位置引数。' },

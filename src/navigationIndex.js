@@ -9,21 +9,35 @@ function isPotentialNavigationFile(filePath) {
 
 async function collectNavigationIndexEntries(files, options) {
   const entries = [];
-  for (const file of files) {
-    if (options.isCancelled()) break;
-    const filePath = options.getFilePath(file);
-    if (!isPotentialNavigationFile(filePath)) continue;
+  const requestedConcurrency = Number.isInteger(options.concurrency) && options.concurrency > 0
+    ? options.concurrency
+    : 1;
+  let nextFileIndex = 0;
 
-    let index;
-    try {
-      index = await options.loadIndex(file, filePath);
-    } catch {
-      continue;
+  async function consumeFiles() {
+    while (true) {
+      if (options.isCancelled()) return;
+      const fileIndex = nextFileIndex++;
+      if (fileIndex >= files.length) return;
+
+      const file = files[fileIndex];
+      const filePath = options.getFilePath(file);
+      if (!isPotentialNavigationFile(filePath)) continue;
+
+      let index;
+      try {
+        index = await options.loadIndex(file, filePath);
+      } catch {
+        continue;
+      }
+      if (options.isCancelled()) return;
+      if (index) entries[fileIndex] = { file, index };
     }
-    if (options.isCancelled()) break;
-    if (index) entries.push({ file, index });
   }
-  return entries;
+
+  const workerCount = Math.min(requestedConcurrency, files.length);
+  await Promise.all(Array.from({ length: workerCount }, consumeFiles));
+  return entries.filter(Boolean);
 }
 
 module.exports = { collectNavigationIndexEntries, isPotentialNavigationFile };

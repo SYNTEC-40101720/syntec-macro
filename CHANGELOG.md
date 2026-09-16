@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.13.0 - 2026-09-16
+
+### Added
+
+- **LTP 静态引数范围诊断**: 依据已登记的 LTP/CF 正式页面，为 `MOVL/MOVC/INCMOVJ/INCMOVL` 的 `P/Q` 与 `WEAVEON` 的 `P/L/R` 增加静态常量范围检查；表达式和动态变量保持不推断。
+- **导航索引有界并发**: 工作区导航索引支持有界并发加载，500 文件集成基准首次查询 1207ms、重复查询 387ms，保持缓存失效和结果顺序。
+
+### Changed
+
+- **共享词法状态机**: 将注释、字符串和转义引号处理统一到 `src/lexer.js`，供 validator、formatter、navigation 和函数参数检查复用，降低语法行为漂移风险。
+- **验证与文档同步**: 新增静态范围诊断 code、说明型 action、诊断文档、LTP 资料包和正反例回归；发布规划与交接状态同步到 `v2.13.0`。
+
 ## 2.12.0 - 2026-09-15
 
 ### Added

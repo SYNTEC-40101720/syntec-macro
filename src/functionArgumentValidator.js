@@ -2,6 +2,10 @@
 
 const { DiagnosticCode } = require('./diagnosticCodes');
 const { createError, createWarning } = require('./diagnosticFactory');
+const {
+  isInsideString,
+  stripCommentsKeepStringsWithState
+} = require('./lexer');
 
 // ============================================================
 // 控制器范围常量（源自《新代控制器技术参考手册》）
@@ -93,56 +97,6 @@ function parseStaticNumber(value) {
 
 function addRangeDiagnostic(diagnostics, call, lineNum, message, code) {
   diagnostics.push(createError(lineNum, call.col, call.endCol, message, { code }));
-}
-
-function stripCommentsKeepStringsWithState(line, lineStartInBlock = false) {
-  let result = '';
-  let inString = false;
-  let inBlockComment = lineStartInBlock;
-  let i = 0;
-  while (i < line.length) {
-    if (inBlockComment) {
-      if (line.substring(i, i + 2) === '*)') {
-        result += '  ';
-        inBlockComment = false;
-        i += 2;
-        continue;
-      }
-      result += ' ';
-      i++;
-      continue;
-    }
-    if (!inString && line.substring(i, i + 2) === '//') {
-      result += ' '.repeat(line.length - i);
-      break;
-    }
-    if (!inString && line.substring(i, i + 2) === '(*') {
-      result += '  ';
-      inBlockComment = true;
-      i += 2;
-      continue;
-    }
-    if (line[i] === '"') {
-      let bs = 0;
-      let j = i - 1;
-      while (j >= 0 && line[j] === '\\') { bs++; j--; }
-      if (bs % 2 === 0) inString = !inString;
-    }
-    result += line[i];
-    i++;
-  }
-  return { text: result, inBlockComment };
-}
-
-function isInsideString(text, targetIndex) {
-  let inString = false;
-  for (let index = 0; index < targetIndex; index++) {
-    if (text[index] !== '"') continue;
-    let backslashCount = 0;
-    for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor--) backslashCount++;
-    if (backslashCount % 2 === 0) inString = !inString;
-  }
-  return inString;
 }
 
 function validateStaticFunctionArguments(raw, lineNum, lineStartInBlock, cleanLine) {

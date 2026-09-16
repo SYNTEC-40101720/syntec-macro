@@ -94,9 +94,113 @@ function hasDirectArg(cleanLine, argName) {
 }
 
 function getStaticDirectArgNumber(cleanLine, argName) {
+  const match = getStaticDirectArg(cleanLine, argName);
+  return match ? match.value : null;
+}
+
+function getStaticDirectArg(cleanLine, argName) {
   const match = cleanLine.match(new RegExp('\\b' + argName + '([+-]?\\d+(?:\\.\\d*)?)', 'i'));
   if (!match) return null;
-  return Number(match[1]);
+  return {
+    value: Number(match[1]),
+    col: match.index,
+    endCol: match.index + match[0].length
+  };
+}
+
+function addStaticArgRangeDiagnostic(diagnostics, lineNum, cleanLine, argName, min, max, message) {
+  const match = getStaticDirectArg(cleanLine, argName);
+  if (!match) return;
+  if (Number.isInteger(match.value) && match.value >= min && match.value <= max) return;
+  addRobotDiagnostic(
+    diagnostics,
+    lineNum,
+    match.col,
+    match.endCol,
+    message,
+    'error',
+    DiagnosticCode.ROBOT_STATIC_ARG_RANGE
+  );
+}
+
+function validateStaticArgumentRanges(cleanLine, lineNum, command) {
+  const diagnostics = [];
+
+  if (['MOVL', 'MOVC'].includes(command)) {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'P',
+      0,
+      20,
+      `${command} 的 P 引数范围为 0~20，且必须为整数`
+    );
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'Q',
+      0,
+      20,
+      `${command} 的 Q 引数范围为 0~20，且必须为整数`
+    );
+  } else if (command === 'INCMOVJ') {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'Q',
+      0,
+      20,
+      'INCMOVJ 的 Q 引数范围为 0~20，且必须为整数'
+    );
+  } else if (command === 'INCMOVL') {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'P',
+      1,
+      2,
+      'INCMOVL 的 P 引数范围为 1~2，且必须为整数'
+    );
+  } else if (command === 'WEAVEON') {
+    const hasP = hasDirectArg(cleanLine, 'P');
+    const detailArgs = ['E', 'Q', 'K', 'L', 'R', 'I'].filter(arg => hasDirectArg(cleanLine, arg));
+    if (hasP && detailArgs.length === 0) {
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'P',
+        1,
+        50,
+        'WEAVEON 的 P 引数范围为 1~50，且必须为整数'
+      );
+    } else if (!hasP) {
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'L',
+        0,
+        1000000,
+        'WEAVEON 的 L 引数范围为 0~1000000，且必须为整数'
+      );
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'R',
+        0,
+        1,
+        'WEAVEON 的 R 引数只能为 0 或 1，且必须为整数'
+      );
+    }
+  }
+
+  return diagnostics;
 }
 
 function countSmoothArgs(cleanLine) {
@@ -117,6 +221,8 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
 
   const diagnostics = [];
   const command = getCommand(clean);
+
+  diagnostics.push(...validateStaticArgumentRanges(clean, lineNum, command));
 
   if (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && countSmoothArgs(clean) > 1) {
     addRobotDiagnostic(diagnostics, lineNum, clean.search(/\b(?:PL|PQ|PR)/i), clean.length,
