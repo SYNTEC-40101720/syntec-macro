@@ -1,59 +1,13 @@
 const path = require('path');
 const {
+  isInsideString,
+  stripCommentsKeepStringsWithState
+} = require('./lexer');
+const {
   MACRO_FILE_EXTENSIONS,
   normalizeProgramName,
   normalizeSubprogramName
 } = require('./fileResolver');
-
-function stripCommentsKeepStrings(line, lineStartInBlock) {
-  let result = '';
-  let inBlockComment = lineStartInBlock;
-  let inString = false;
-
-  for (let index = 0; index < line.length; index++) {
-    const pair = line.substring(index, index + 2);
-    if (inBlockComment) {
-      if (pair === '*)') {
-        result += '  ';
-        inBlockComment = false;
-        index++;
-      } else {
-        result += ' ';
-      }
-      continue;
-    }
-    if (!inString && pair === '//') {
-      result += ' '.repeat(line.length - index);
-      break;
-    }
-    if (!inString && pair === '(*') {
-      result += '  ';
-      inBlockComment = true;
-      index++;
-      continue;
-    }
-    if (line[index] === '"') {
-      let bs = 0;
-      for (let j = index - 1; j >= 0 && line[j] === '\\'; j--) bs++;
-      if (bs % 2 === 0) inString = !inString;
-    }
-    result += line[index];
-  }
-
-  return { text: result, inBlockComment };
-}
-
-function isInsideString(text, targetIndex) {
-  let inString = false;
-  for (let index = 0; index < targetIndex; index++) {
-    if (text[index] === '"') {
-      let bs = 0;
-      for (let j = index - 1; j >= 0 && text[j] === '\\'; j--) bs++;
-      if (bs % 2 === 0) inString = !inString;
-    }
-  }
-  return inString;
-}
 
 function extractNavigationSymbols(text) {
   const symbols = [];
@@ -119,7 +73,7 @@ function extractStaticMacroCalls(text) {
   let inBlockComment = false;
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const stripped = stripCommentsKeepStrings(lines[lineIndex], inBlockComment);
+    const stripped = stripCommentsKeepStringsWithState(lines[lineIndex], inBlockComment);
     inBlockComment = stripped.inBlockComment;
     const patterns = [
       {

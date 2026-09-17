@@ -234,7 +234,7 @@ exports.keywordDocs = {
   // 坐标系指令
   'USERCOR': {
     sig: 'USERCOR P1;',
-    doc: '启用用户坐标系。P 指定坐标系编号。'
+    doc: '启用用户坐标系。P 指定坐标系编号，范围 0~20；不可混入 F/FJ/FL、G 码、轴向命令或机器人移动指令。'
   },
   'OBJCORON': {
     sig: 'OBJCORON X... Y... Z... A... B... C...;',
@@ -250,7 +250,7 @@ exports.keywordDocs = {
   },
   'TOOLCOR': {
     sig: 'TOOLCOR P1;',
-    doc: '启用工具坐标系。P 指定工具编号，0=无工具（法兰面坐标系），1~20=使用者自定义工具。'
+    doc: '启用工具坐标系。P 指定工具编号，范围 0~20（0=无工具）；不可混入 F/FJ/FL、G 码、轴向命令或机器人移动指令。'
   },
   'TOOLCOROFF': {
     sig: 'TOOLCOROFF;',
@@ -259,7 +259,7 @@ exports.keywordDocs = {
   // 应用指令
   'SKIPCOND': {
     sig: 'SKIPCOND E1 Q33 R1 P1;',
-    doc: '跳脱功能指令，当指定条件满足时跳过当前运动。'
+    doc: '跳脱功能指令，当指定条件满足时跳过当前运动。E 范围 1~3，R/P 范围 0~1；Q 依 E 对应 I/C/R-bit 范围。'
   },
   'SKIP': {
     sig: 'MOVL X... SKIP;',
@@ -267,11 +267,11 @@ exports.keywordDocs = {
   },
   'SWAITSIG': {
     sig: 'SWAITSIG P1 Q33 R1 L100 T5000;',
-    doc: '等待信号但不减速指令，等待指定信号时保持当前速度。P=1/3 时 Q 范围为 0~511；P=2 时 Q 按 R 编号×100+bit 编码，R 编号范围 0~65535、末两位 bit 为 00~15，例如 Q1874100 表示 R18741.00。'
+    doc: '等待信号但不减速指令。P 范围 1~3，R 范围 0~1，Q 依 P 对应 I/R/A-bit 范围，L/T 可省略且范围为 0~2^31 ms。'
   },
   'SYNCOUT': {
     sig: 'SYNCOUT S_ Q_ P_ R_ [L_] [K_];',
-    doc: '同步输出指令，在移动单节途中切换 O/R/A-bit 状态。S=1/O-bit、2/R-bit、3/A-bit；S=2 时 Q 按 R 编号×100+bit 编码，R 编号范围 0~65535、末两位 bit 为 00~15，例如 Q1874100 表示 R18741.00；S=1/3 时 Q 范围为 0~511。P 为单节长度百分比；L 为输出脉冲持续长度 ms，L0/L#0 可视为省略；K 为触发偏移时间 ms（正数提前、负数延后）。单一移动单节最多 10 个 SYNCOUT。'
+    doc: '同步输出指令，在移动单节途中切换 O/R/A-bit 状态。S 范围 1~3，Q 依 S 联动，P 范围 0~100%，R 范围 0~1，L 范围 0~10000ms，K 范围 -10000~10000ms。单一移动单节最多 10 个 SYNCOUT。'
   },
   'WEAVEON': {
     sig: 'WEAVEON P1; 或 WEAVEON E... Q... K... L... R...;',
@@ -291,11 +291,11 @@ exports.keywordDocs = {
   },
   'POSEMAP': {
     sig: 'POSEMAP X... Y... Z... A... B... C... Q... R...;',
-    doc: '坐标转换指令，将当前坐标系映射到新的位姿。X/Y/Z/A/B/C/Q/R 均为直接引数值，不使用 =。'
+    doc: '坐标转换指令，将工具坐标系的位姿转换到当前工件或工具坐标系。X/Y/Z/A/B/C/Q/R 均为直接引数；Q 范围 0~20，R 范围 1~2。'
   },
   'SHIFTON': {
     sig: 'SHIFTON P1 X... Y... Z... A... B... C...;',
-    doc: '启用点位偏移功能，P 指定偏移模式编号。'
+    doc: '启用点位偏移功能，P 范围 1~2，指定偏移参考坐标系；X/Y/Z/A/B/C 为直接引数。'
   },
   'SHIFTOFF': {
     sig: 'SHIFTOFF;',
@@ -303,7 +303,7 @@ exports.keywordDocs = {
   },
   'WAITSYNC': {
     sig: 'WAITSYNC P... [L...];',
-    doc: '开启履带追踪。P 为追随履带编号 1~4，L 为同期距离。追踪中不支援 MOVJ、切换用户坐标系、G04.1、M 码、SHIFTON。'
+    doc: '开启履带追踪。P 为追随履带编号 1~4，L 为同期距离；追踪中不支援 MOVJ、切换用户坐标系、G04.1、M 码、SHIFTON。'
   },
   'ENDSYNC': {
     sig: 'ENDSYNC P...;',
@@ -311,7 +311,7 @@ exports.keywordDocs = {
   },
   'CIRMODE': {
     sig: 'CIRMODE P...;',
-    doc: '设定 MOVC 圆弧姿态控制模式。P0=沿圆弧路径变化，P1=沿工件坐标变化，P2=经过圆弧中间点。'
+    doc: '设定 MOVC 圆弧姿态控制模式。P 范围 0~2：P0 沿圆弧路径、P1 沿工件坐标、P2 经过圆弧中间点。'
   },
   // 速度与轨迹参数
   'ACC': {

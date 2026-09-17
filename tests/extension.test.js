@@ -32,6 +32,27 @@ test('Generated diagnostic documentation matches the committed file', () => {
   assert.strictEqual(isDiagnosticDocsCurrent(documentation + '\n<!-- stale -->'), false);
 });
 
+test('Shared lexer preserves strings and carries block comment state', () => {
+  const {
+    isInsideString,
+    stripCommentsKeepStringsWithState
+  } = require('../src/lexer');
+  const line = 'MSG("text // (* not a comment *)") // G65 P1000;';
+  const stripped = stripCommentsKeepStringsWithState(line);
+
+  assert.strictEqual(stripped.inBlockComment, false);
+  assert.ok(stripped.text.startsWith('MSG("text // (* not a comment *)")'));
+  assert.ok(!stripped.text.includes('G65 P1000'));
+  assert.strictEqual(isInsideString(stripped.text, stripped.text.indexOf('//')), true);
+  assert.strictEqual(isInsideString(stripped.text, stripped.text.indexOf('MSG')), false);
+
+  const blockStart = stripCommentsKeepStringsWithState('(* G65 P1000;', false);
+  assert.strictEqual(blockStart.inBlockComment, true);
+  const blockEnd = stripCommentsKeepStringsWithState('*) G65 P2000;', blockStart.inBlockComment);
+  assert.strictEqual(blockEnd.inBlockComment, false);
+  assert.ok(blockEnd.text.endsWith('G65 P2000;'));
+});
+
 test('Warning diagnostics overlapping errors are suppressed', () => {
   const { suppressWarningsOverlappingErrors } = require('../src/diagnosticFactory');
   const diagnostics = suppressWarningsOverlappingErrors([
@@ -491,6 +512,37 @@ test('Navigation index scan stops after cancellation and skips unrelated extensi
   assert.deepStrictEqual(entries, []);
 });
 
+test('Navigation index supports bounded concurrent loading without reordering results', async () => {
+  const { collectNavigationIndexEntries } = require('../src/navigationIndex');
+  const files = [
+    { fsPath: '/workspace/G1000.nc' },
+    { fsPath: '/workspace/G2000.nc' },
+    { fsPath: '/workspace/README.md' },
+    { fsPath: '/workspace/G3000.nc' }
+  ];
+  const reads = [];
+  const entries = await collectNavigationIndexEntries(files, {
+    concurrency: 2,
+    getFilePath: file => file.fsPath,
+    isCancelled: () => false,
+    loadIndex: async file => {
+      reads.push(file.fsPath);
+      await new Promise(resolve => setTimeout(resolve, file.fsPath.endsWith('G1000.nc') ? 5 : 0));
+      return { programEntryName: file.fsPath.slice(-8, -3), symbols: [], calls: [] };
+    }
+  });
+
+  assert.deepStrictEqual(reads.sort(), [
+    '/workspace/G1000.nc',
+    '/workspace/G2000.nc',
+    '/workspace/G3000.nc'
+  ]);
+  assert.deepStrictEqual(
+    entries.map(entry => entry.file.fsPath),
+    ['/workspace/G1000.nc', '/workspace/G2000.nc', '/workspace/G3000.nc']
+  );
+});
+
 test('M198 exists in mcodes array', () => {
   const { keywords } = require('../src/keywords');
   assert.ok(keywords.mcodes.includes('M198'), 'M198 should be in mcodes');
@@ -528,7 +580,6 @@ test('G10 L1803 and L1805 have detailed hover docs', () => {
   assert.ok(l1803.sig.includes('G10 L1803 I_ Q_ P_ R_'), 'L1803 signature should include required arguments');
   assert.ok(l1803.doc.includes('运动单节内'), 'L1803 docs should describe in-motion triggering');
   assert.ok(l1803.doc.includes('G31'), 'L1803 docs should mention supported G31 version notes');
-  assert.ok(l1803.doc.includes('Q1874100'), 'L1803 docs should explain encoded R-bit Q values');
 
   const l1805 = getG10LCodeDoc('l1805');
   assert.ok(l1805.sig.includes('G10 L1805 I_ Q_ R_'), 'L1805 signature should include required arguments');
@@ -788,27 +839,26 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
   const { validateDocument } = require('../src/validator');
   const { DiagnosticCode } = require('../src/diagnosticCodes');
 
-  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;\nSYNCOUT S2 Q6553516 P100 R1;\nSKIPCOND E3 Q6553516 R1 P0;\nSWAITSIG P2 Q6553516 R1;\nG10 L1900 C3 I165 A1000 X1995;');
+  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nUSERCOR P1 F100.;\nMOVL P21;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;\nG10 L1900 C3 I165 A1000 X1995;');
   for (const code of [
     DiagnosticCode.ROBOT_DEPRECATED_MOVJ_II,
     DiagnosticCode.ROBOT_DIRECT_ARG_EQUALS,
     DiagnosticCode.ROBOT_UNSUPPORTED_MOVC_POINT_ARG,
+    DiagnosticCode.ROBOT_STATIC_ARG_RANGE,
+    DiagnosticCode.ROBOT_G10_MODBUS_FORMAT,
     DiagnosticCode.ROBOT_TOOLCOR_T_ARG,
     DiagnosticCode.ROBOT_TOOLCORON_DEPRECATED,
     DiagnosticCode.ROBOT_TOOLCOR_CLEAR,
     DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT,
     DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG,
     DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG,
-    DiagnosticCode.ROBOT_G10_MODBUS_FORMAT,
-    DiagnosticCode.ROBOT_SKIPCOND_Q_RANGE,
     DiagnosticCode.ROBOT_STITCH_ARG_CONFLICT,
     DiagnosticCode.ROBOT_STITCH_MISSING_ARG,
     DiagnosticCode.ROBOT_STITCH_L_INTEGER,
     DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS,
     DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL,
+    DiagnosticCode.ROBOT_UNSUPPORTED_COORDINATE_SYNTAX,
     DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED,
-    DiagnosticCode.ROBOT_SWAITSIG_Q_RANGE,
-    DiagnosticCode.ROBOT_SYNCOUT_Q_RANGE,
     DiagnosticCode.ROBOT_SWAITSIG_LIMIT
   ]) {
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);

@@ -3,19 +3,6 @@
 const { DiagnosticCode } = require('./diagnosticCodes');
 const { createDiagnostic } = require('./diagnosticFactory');
 
-const SIGNAL_Q_IO_MIN = 0;
-const SIGNAL_Q_IO_MAX = 511;
-const SIGNAL_Q_REGISTER_MIN = 0;
-const SIGNAL_Q_REGISTER_MAX = 65535;
-const SIGNAL_Q_BIT_MIN = 0;
-const SIGNAL_Q_BIT_MAX = 15;
-
-const SIGNAL_Q_RULES = {
-  SKIPCOND: { sourceArg: 'E', registerSource: 3, ioSources: [1, 2], registerLabel: 'E=3', ioLabel: 'E=1/2', diagnosticCode: DiagnosticCode.ROBOT_SKIPCOND_Q_RANGE },
-  SWAITSIG: { sourceArg: 'P', registerSource: 2, ioSources: [1, 3], registerLabel: 'P=2', ioLabel: 'P=1/3', diagnosticCode: DiagnosticCode.ROBOT_SWAITSIG_Q_RANGE },
-  SYNCOUT: { sourceArg: 'S', registerSource: 2, ioSources: [1, 3], registerLabel: 'S=2', ioLabel: 'S=1/3', diagnosticCode: DiagnosticCode.ROBOT_SYNCOUT_Q_RANGE }
-};
-
 const MODBUS_R_MIN = 0;
 const MODBUS_R_MAX = 65535;
 const MODBUS_WRITE_VALUE_MAX = 65535;
@@ -27,14 +14,21 @@ const DIRECT_ARG_RULES = {
   MOVC: { args: ['X', 'Y', 'Z', 'A', 'B', 'C', 'FL', 'FR', 'FEJ', 'PL', 'PQ', 'PR', 'ACC', 'DEC'], msg: 'MOVC 直接引数不使用 =；请使用 X100. / FL100. / PL3 等写法' },
   INCMOVJ: { args: ['Q', 'FJ', 'FEJ', 'PL', 'ACC', 'DEC'], msg: 'INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数；请使用 Q1 / FJ30 等写法' },
   INCMOVL: { args: ['P', 'X', 'Y', 'Z', 'A', 'B', 'C', 'Q', 'FL', 'FR', 'FEJ', 'PL', 'PQ', 'PR', 'ACC', 'DEC'], msg: 'INCMOVL 直接引数不使用 =；请使用 P1 / X50. / FL80. 等写法' },
+  USERCOR: { args: ['P'], msg: 'USERCOR 的 P 为直接引数；请使用 P1 等写法' },
   OBJCORON: { args: ['X', 'Y', 'Z', 'A', 'B', 'C'], msg: 'OBJCORON 的 X/Y/Z/A/B/C 为直接引数；请使用 X5. 而非 X=5.' },
+  TOOLCOR: { args: ['P'], msg: 'TOOLCOR 的 P 为直接引数；请使用 P1 等写法' },
   'G68.18': { args: ['P', 'R', 'X', 'Y', 'Z', 'A', 'B', 'C'], msg: 'G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数；请使用 P1 / R0 / X10. 等写法' },
+  'G192.1': { args: ['P', 'Q', 'R', 'E'], msg: 'G192.1 的 P/Q/R/E 为直接引数；请使用 P1 / Q20001 / R1 等写法' },
+  CIRMODE: { args: ['P'], msg: 'CIRMODE 的 P 为直接引数；请使用 P0 / P1 / P2 等写法' },
   'G43.16': { args: ['P', 'X', 'Y', 'Z', 'A', 'B', 'C'], msg: 'G43.16 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X10. 等写法' },
   POSEMAP: { args: ['X', 'Y', 'Z', 'A', 'B', 'C', 'Q', 'R'], msg: 'POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数；请使用 X100. / Q1 / R1 等写法' },
   SHIFTON: { args: ['P', 'X', 'Y', 'Z', 'A', 'B', 'C'], msg: 'SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X20. 等写法' },
   SKIPCOND: { args: ['E', 'Q', 'R', 'P'], msg: 'SKIPCOND 的 E/Q/R/P 为直接引数；请使用 E1 / Q33 / R1 / P0 等写法' },
   SWAITSIG: { args: ['P', 'Q', 'R', 'L', 'T'], msg: 'SWAITSIG 的 P/Q/R/L/T 为直接引数；请使用 P1 / Q33 / R1 等写法' },
+  SYNCOUT: { args: ['S', 'Q', 'P', 'R', 'L', 'K'], msg: 'SYNCOUT 的 S/Q/P/R/L/K 为直接引数；请使用 S1 / Q1 / P50 / R1 等写法' },
   STITCHON: { args: ['S', 'Q', 'L', 'K', 'E'], msg: 'STITCHON 的 S/Q/L/K/E 为直接引数；请使用 S1 / Q1 / L500 / E10. 等写法' },
+  WAITSYNC: { args: ['P', 'L'], msg: 'WAITSYNC 的 P/L 为直接引数；请使用 P1 / L100. 等写法' },
+  ENDSYNC: { args: ['P'], msg: 'ENDSYNC 的 P 为直接引数；请使用 P1 等写法' },
   WEAVEON: { args: ['P', 'E', 'Q', 'K', 'L', 'R', 'I'], msg: 'WEAVEON 的 P/E/Q/K/L/R/I 为直接引数；请使用 P3 或 E5. Q1.0 K30. 等写法' }
 };
 
@@ -97,6 +91,35 @@ function validateRobotSyntaxPreferences(_raw, lineNum, _lineStartInBlock, cleanL
       'TOOLCOR CLEAR 未见官方语法；建议改用 TOOLCOR P0', 'warning', DiagnosticCode.ROBOT_TOOLCOR_CLEAR);
   }
 
+  const coordinateCommands = ['USERCOR', 'TOOLCOR', 'G68.18'];
+  if (coordinateCommands.includes(command)) {
+    const remainder = clean.trim().replace(/^\S+\s*/, '');
+    const forbiddenFeed = remainder.match(/\bF(?:J|L)?\s*(?=[#@+\-]?(?:\d|\.|\(|#|@))/i);
+    const forbiddenGCode = remainder.match(/\bG\d+(?:\.\d+)?\b/i);
+    const forbiddenAxis = remainder.match(/\b(?:A|B|C)\d+\s*=/i);
+    const forbiddenRobotCommand = remainder.match(/\b(?:MOVJ|MOVL|MOVC|INCMOVJ|INCMOVL)\b/i);
+    const forbidden = forbiddenFeed || forbiddenGCode || forbiddenAxis || forbiddenRobotCommand;
+    if (forbidden) {
+      const message = forbiddenFeed
+        ? `${command} 不可使用 CNC 或机器人进给引数 F/FJ/FL`
+        : forbiddenGCode
+          ? `${command} 不可在语法中插入 G 码`
+          : forbiddenAxis
+            ? `${command} 不接受轴向命令`
+            : `${command} 不可与机器人移动语言混用`;
+      const col = clean.indexOf(forbidden[0]);
+      addRobotDiagnostic(
+        diagnostics,
+        lineNum,
+        col,
+        col + forbidden[0].length,
+        message,
+        'error',
+        DiagnosticCode.ROBOT_UNSUPPORTED_COORDINATE_SYNTAX
+      );
+    }
+  }
+
   return diagnostics;
 }
 
@@ -112,8 +135,8 @@ function hasDirectArg(cleanLine, argName) {
 }
 
 function getStaticDirectArgNumber(cleanLine, argName) {
-  const arg = getStaticDirectArg(cleanLine, argName);
-  return arg ? arg.value : null;
+  const match = getStaticDirectArg(cleanLine, argName);
+  return match ? match.value : null;
 }
 
 function getStaticDirectArg(cleanLine, argName) {
@@ -125,6 +148,182 @@ function getStaticDirectArg(cleanLine, argName) {
     col: match.index,
     endCol: match.index + match[0].length
   };
+}
+
+function addStaticArgRangeDiagnostic(diagnostics, lineNum, cleanLine, argName, min, max, message) {
+  const match = getStaticDirectArg(cleanLine, argName);
+  if (!match) return;
+  if (Number.isInteger(match.value) && match.value >= min && match.value <= max) return;
+  addRobotDiagnostic(
+    diagnostics,
+    lineNum,
+    match.col,
+    match.endCol,
+    message,
+    'error',
+    DiagnosticCode.ROBOT_STATIC_ARG_RANGE
+  );
+}
+
+function addStaticSignalQRangeDiagnostic(diagnostics, lineNum, cleanLine, command, sourceArg, rBitSourceValue = 2) {
+  const source = getStaticDirectArg(cleanLine, sourceArg);
+  const signal = getStaticDirectArg(cleanLine, 'Q');
+  if (!source || !signal || !Number.isInteger(source.value)) return;
+
+  const sourceValue = source.value;
+  const signalValue = signal.value;
+  if (![1, 2, 3].includes(sourceValue)) return;
+  let valid = Number.isInteger(signalValue) && signalValue >= 0;
+  if (sourceValue !== rBitSourceValue) {
+    valid = valid && signalValue <= 511;
+  } else {
+    const register = Math.floor(signalValue / 100);
+    const bit = signalValue % 100;
+    valid = valid && register <= 65535 && bit <= 15;
+  }
+
+  if (valid) return;
+  const range = sourceValue === rBitSourceValue
+    ? 'Q 按 R 编号×100+bit 编码；R 编号范围为 0~65535，末两位 bit 为 00~15'
+    : 'Q 引数范围为 0~511';
+  addRobotDiagnostic(
+    diagnostics,
+    lineNum,
+    signal.col,
+    signal.endCol,
+    `${command} 的 ${range}，且必须为整数`,
+    'error',
+    DiagnosticCode.ROBOT_STATIC_ARG_RANGE
+  );
+}
+
+function validateStaticArgumentRanges(cleanLine, lineNum, command) {
+  const diagnostics = [];
+
+  if (['MOVL', 'MOVC'].includes(command)) {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'P',
+      0,
+      20,
+      `${command} 的 P 引数范围为 0~20，且必须为整数`
+    );
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'Q',
+      0,
+      20,
+      `${command} 的 Q 引数范围为 0~20，且必须为整数`
+    );
+  } else if (command === 'INCMOVJ') {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'Q',
+      0,
+      20,
+      'INCMOVJ 的 Q 引数范围为 0~20，且必须为整数'
+    );
+  } else if (command === 'INCMOVL') {
+    addStaticArgRangeDiagnostic(
+      diagnostics,
+      lineNum,
+      cleanLine,
+      'P',
+      1,
+      2,
+      'INCMOVL 的 P 引数范围为 1~2，且必须为整数'
+    );
+  } else if (command === 'WEAVEON') {
+    const hasP = hasDirectArg(cleanLine, 'P');
+    const detailArgs = ['E', 'Q', 'K', 'L', 'R', 'I'].filter(arg => hasDirectArg(cleanLine, arg));
+    if (hasP && detailArgs.length === 0) {
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'P',
+        1,
+        50,
+        'WEAVEON 的 P 引数范围为 1~50，且必须为整数'
+      );
+    } else if (!hasP) {
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'L',
+        0,
+        1000000,
+        'WEAVEON 的 L 引数范围为 0~1000000，且必须为整数'
+      );
+      addStaticArgRangeDiagnostic(
+        diagnostics,
+        lineNum,
+        cleanLine,
+        'R',
+        0,
+        1,
+        'WEAVEON 的 R 引数只能为 0 或 1，且必须为整数'
+      );
+    }
+  }
+
+  const directRanges = {
+    USERCOR: [['P', 0, 20, 'USERCOR 的 P 引数范围为 0~20，且必须为整数']],
+    TOOLCOR: [['P', 0, 20, 'TOOLCOR 的 P 引数范围为 0~20，且必须为整数']],
+    SHIFTON: [['P', 1, 2, 'SHIFTON 的 P 引数范围为 1~2，且必须为整数']],
+    'G68.18': [
+      ['P', 1, 20, 'G68.18 的 P 引数范围为 1~20，且必须为整数'],
+      ['R', 0, 3, 'G68.18 的 R 引数范围为 0~3，且必须为整数']
+    ],
+    'G43.16': [['P', 1, 20, 'G43.16 的 P 引数范围为 1~20，且必须为整数']],
+    POSEMAP: [
+      ['Q', 0, 20, 'POSEMAP 的 Q 引数范围为 0~20，且必须为整数'],
+      ['R', 1, 2, 'POSEMAP 的 R 引数范围为 1~2，且必须为整数']
+    ],
+    SKIPCOND: [
+      ['E', 1, 3, 'SKIPCOND 的 E 引数范围为 1~3，且必须为整数'],
+      ['R', 0, 1, 'SKIPCOND 的 R 引数范围为 0~1，且必须为整数'],
+      ['P', 0, 1, 'SKIPCOND 的 P 引数范围为 0~1，且必须为整数']
+    ],
+    SWAITSIG: [
+      ['P', 1, 3, 'SWAITSIG 的 P 引数范围为 1~3，且必须为整数'],
+      ['R', 0, 1, 'SWAITSIG 的 R 引数范围为 0~1，且必须为整数'],
+      ['L', 0, 2 ** 31, 'SWAITSIG 的 L 引数范围为 0~2147483648，且必须为整数'],
+      ['T', 0, 2 ** 31, 'SWAITSIG 的 T 引数范围为 0~2147483648，且必须为整数']
+    ],
+    SYNCOUT: [
+      ['S', 1, 3, 'SYNCOUT 的 S 引数范围为 1~3，且必须为整数'],
+      ['P', 0, 100, 'SYNCOUT 的 P 引数范围为 0~100，且必须为整数'],
+      ['R', 0, 1, 'SYNCOUT 的 R 引数范围为 0~1，且必须为整数'],
+      ['L', 0, 10000, 'SYNCOUT 的 L 引数范围为 0~10000，且必须为整数'],
+      ['K', -10000, 10000, 'SYNCOUT 的 K 引数范围为 -10000~10000，且必须为整数']
+    ],
+    'G192.1': [
+      ['P', 0, 20, 'G192.1 的 P 引数范围为 0~20，且必须为整数'],
+      ['Q', 0, 65530, 'G192.1 的 Q 引数范围为 0~65530，且必须为整数'],
+      ['R', 1, 2, 'G192.1 的 R 引数范围为 1~2，且必须为整数'],
+      ['E', -10, 10, 'G192.1 的 E 引数范围为 -10~10，且必须为整数']
+    ],
+    CIRMODE: [['P', 0, 2, 'CIRMODE 的 P 引数范围为 0~2，且必须为整数']],
+    WAITSYNC: [['P', 1, 4, 'WAITSYNC 的 P 引数范围为 1~4，且必须为整数']],
+    ENDSYNC: [['P', 1, 4, 'ENDSYNC 的 P 引数范围为 1~4，且必须为整数']]
+  };
+  for (const [argName, min, max, message] of directRanges[command] || []) {
+    addStaticArgRangeDiagnostic(diagnostics, lineNum, cleanLine, argName, min, max, message);
+  }
+
+  if (command === 'SKIPCOND') addStaticSignalQRangeDiagnostic(diagnostics, lineNum, cleanLine, command, 'E', 3);
+  if (command === 'SWAITSIG') addStaticSignalQRangeDiagnostic(diagnostics, lineNum, cleanLine, command, 'P');
+  if (command === 'SYNCOUT') addStaticSignalQRangeDiagnostic(diagnostics, lineNum, cleanLine, command, 'S');
+
+  return diagnostics;
 }
 
 function getModbusLine(cleanLine) {
@@ -223,32 +422,6 @@ function validateG10ModbusArguments(cleanLine, lineNum) {
   return diagnostics;
 }
 
-function getSignalQDiagnostic(cleanLine, command) {
-  const rule = SIGNAL_Q_RULES[command];
-  if (!rule) return null;
-
-  const qArg = getStaticDirectArg(cleanLine, 'Q');
-  if (!qArg) return null;
-
-  const q = qArg.value;
-  const source = getStaticDirectArgNumber(cleanLine, rule.sourceArg);
-  let invalid = !Number.isSafeInteger(q) || q < 0;
-  let message = `${command} 的 Q 引数必须为非负整数；${rule.registerLabel} 时按 R 编号×100+bit 编码（R 编号范围为 0~65535，末两位 bit 为 00~15，例如 Q1874100 表示 R18741.00），${rule.ioLabel} 时范围为 0~511。`;
-
-  if (!invalid && source === rule.registerSource) {
-    const register = Math.floor(q / 100);
-    const bit = q % 100;
-    invalid = register < SIGNAL_Q_REGISTER_MIN ||
-      register > SIGNAL_Q_REGISTER_MAX ||
-      bit < SIGNAL_Q_BIT_MIN ||
-      bit > SIGNAL_Q_BIT_MAX;
-  } else if (!invalid && rule.ioSources.includes(source)) {
-    invalid = q < SIGNAL_Q_IO_MIN || q > SIGNAL_Q_IO_MAX;
-  }
-
-  return invalid ? { col: qArg.col, endCol: qArg.endCol, message } : null;
-}
-
 function countSmoothArgs(cleanLine) {
   return ['PL', 'PQ', 'PR'].filter(arg => hasDirectArg(cleanLine, arg)).length;
 }
@@ -267,6 +440,11 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
 
   const diagnostics = [];
   const command = getCommand(clean);
+
+  diagnostics.push(...validateStaticArgumentRanges(clean, lineNum, command));
+  if (command === 'G10') {
+    diagnostics.push(...validateG10ModbusArguments(clean, lineNum));
+  }
 
   if (['MOVL', 'MOVC', 'INCMOVL'].includes(command) && countSmoothArgs(clean) > 1) {
     addRobotDiagnostic(diagnostics, lineNum, clean.search(/\b(?:PL|PQ|PR)/i), clean.length,
@@ -289,10 +467,6 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
       'INCMOVL 缺少必填 P 引数', 'error', DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG);
   }
 
-  if (command === 'G10') {
-    diagnostics.push(...validateG10ModbusArguments(clean, lineNum));
-  }
-
   if (command === 'STITCHON') {
     const hasL = hasDirectArg(clean, 'L');
     const hasK = hasDirectArg(clean, 'K');
@@ -307,14 +481,6 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
     if (lValue !== null && !Number.isInteger(lValue)) {
       addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bL/i), clean.length,
         'STITCHON 的 L 引数不可带小数点', 'error', DiagnosticCode.ROBOT_STITCH_L_INTEGER);
-    }
-  }
-
-  if (SIGNAL_Q_RULES[command]) {
-    const qDiagnostic = getSignalQDiagnostic(clean, command);
-    if (qDiagnostic) {
-      addRobotDiagnostic(diagnostics, lineNum, qDiagnostic.col, qDiagnostic.endCol,
-        qDiagnostic.message, 'error', SIGNAL_Q_RULES[command].diagnosticCode);
     }
   }
 

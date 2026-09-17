@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.15.0 - 2026-09-17
+
+### Added
+
+- **Modbus-TCP 静态语法诊断**: 为 `G10 L1900` 的 C3/C6 读写语法与 `G10 L1901` 自定义封包增加必填/互斥引数检查、十进制整数检查，以及已确认的 `X`、`P/Q`、`R` 范围检查。
+
+### Changed
+
+- **Modbus 文档与回归覆盖**: 同步 G10 Modbus-TCP hover、语法手册、诊断说明与正反例测试；对 Confluence 未明确上限的站号、装置地址和 `K` 数量不做臆测限制。
+
+## 2.14.0 - 2026-09-17
+
+### Added
+
+- **LTP 静态引数与 Q 联动诊断**: 依据 Atlassian Rovo MCP Server 复核的 LTP 正式页面，为 `USERCOR`、`TOOLCOR`、`G68.18`、`POSEMAP`、`SHIFTON`、`SKIPCOND`、`SWAITSIG`、`SYNCOUT`、`CIRMODE`、`WAITSYNC/ENDSYNC` 和 `G192.1` 增加可静态确认的引数范围与信号 Q 联动检查；动态变量和表达式保持不推断。
+- **坐标系语法边界诊断**: 新增 `SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX`，提示 `USERCOR`、`TOOLCOR`、`G68.18` 不可混入 CNC/机器人进给、G 码、轴向命令或移动指令。
+- **语言数据一致性门禁**: 新增 `npm.cmd run check:data`，检查内置函数、机器人关键字 Hover 和诊断元数据的一致性，并接入 `npm test`。
+
+### Changed
+
+- **导航缓存失效**: 工作区导航缓存通过文件监听主动失效，保留取消、删除文件清理和结果顺序；500 文件集成基准重复查询降至 281ms。
+- **FUN-A 证据边界**: 完善 `SYSVAR`、`GETPR`、`SETPR` 的 Hover 和资料说明；`GETPR/SETPR` 在缺少 A 级来源或控制器记录时继续不提供强诊断。
+- **发布冒烟清理**: Windows 临时 profile 清理增加重试，清理竞态只输出明确 warning，不再把已通过的安装冒烟误报为失败。
+
+### Documentation
+
+- 同步 LTP/FUN-A 官方证据、能力矩阵、语法手册、交接说明和发布规划。
+
+## 2.13.0 - 2026-09-16
+
+### Added
+
+- **LTP 静态引数范围诊断**: 依据已登记的 LTP/CF 正式页面，为 `MOVL/MOVC/INCMOVJ/INCMOVL` 的 `P/Q` 与 `WEAVEON` 的 `P/L/R` 增加静态常量范围检查；表达式和动态变量保持不推断。
+- **导航索引有界并发**: 工作区导航索引支持有界并发加载，500 文件集成基准首次查询 1207ms、重复查询 387ms，保持缓存失效和结果顺序。
+
+### Changed
+
+- **共享词法状态机**: 将注释、字符串和转义引号处理统一到 `src/lexer.js`，供 validator、formatter、navigation 和函数参数检查复用，降低语法行为漂移风险。
+- **验证与文档同步**: 新增静态范围诊断 code、说明型 action、诊断文档、LTP 资料包和正反例回归；发布规划与交接状态同步到 `v2.13.0`。
+
 ## 2.12.0 - 2026-09-15
 
 ### Added
