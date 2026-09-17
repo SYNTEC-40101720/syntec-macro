@@ -3,6 +3,24 @@
 const { DiagnosticCode } = require('./diagnosticCodes');
 const { createDiagnostic } = require('./diagnosticFactory');
 
+const SIGNAL_Q_IO_MIN = 0;
+const SIGNAL_Q_IO_MAX = 511;
+const SIGNAL_Q_REGISTER_MIN = 0;
+const SIGNAL_Q_REGISTER_MAX = 65535;
+const SIGNAL_Q_BIT_MIN = 0;
+const SIGNAL_Q_BIT_MAX = 15;
+
+const SIGNAL_Q_RULES = {
+  SKIPCOND: { sourceArg: 'E', registerSource: 3, ioSources: [1, 2], registerLabel: 'E=3', ioLabel: 'E=1/2', diagnosticCode: DiagnosticCode.ROBOT_SKIPCOND_Q_RANGE },
+  SWAITSIG: { sourceArg: 'P', registerSource: 2, ioSources: [1, 3], registerLabel: 'P=2', ioLabel: 'P=1/3', diagnosticCode: DiagnosticCode.ROBOT_SWAITSIG_Q_RANGE },
+  SYNCOUT: { sourceArg: 'S', registerSource: 2, ioSources: [1, 3], registerLabel: 'S=2', ioLabel: 'S=1/3', diagnosticCode: DiagnosticCode.ROBOT_SYNCOUT_Q_RANGE }
+};
+
+const MODBUS_R_MIN = 0;
+const MODBUS_R_MAX = 65535;
+const MODBUS_WRITE_VALUE_MAX = 65535;
+const MODBUS_CUSTOM_DATA_MAX = 254;
+
 const DIRECT_ARG_RULES = {
   MOVJ: { args: ['X', 'Y', 'Z', 'A', 'B', 'C', 'P', 'Q', 'FJ', 'FEJ', 'PL', 'ACC', 'DEC'], msg: 'MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法' },
   MOVL: { args: ['X', 'Y', 'Z', 'A', 'B', 'C', 'P', 'Q', 'FL', 'FR', 'FEJ', 'PL', 'PQ', 'PR', 'ACC', 'DEC'], msg: 'MOVL 直接引数不使用 =；请使用 X100. / P1 / FL100. 等写法' },
@@ -94,9 +112,141 @@ function hasDirectArg(cleanLine, argName) {
 }
 
 function getStaticDirectArgNumber(cleanLine, argName) {
+  const arg = getStaticDirectArg(cleanLine, argName);
+  return arg ? arg.value : null;
+}
+
+function getStaticDirectArg(cleanLine, argName) {
   const match = cleanLine.match(new RegExp('\\b' + argName + '([+-]?\\d+(?:\\.\\d*)?)', 'i'));
   if (!match) return null;
-  return Number(match[1]);
+  return {
+    value: Number(match[1]),
+    literal: match[1],
+    col: match.index,
+    endCol: match.index + match[0].length
+  };
+}
+
+function getModbusLine(cleanLine) {
+  const match = cleanLine.match(/^\s*G10\s+(L1900|L1901)\b/i);
+  if (!match) return null;
+  return {
+    code: match[1].toUpperCase(),
+    col: match.index,
+    endCol: match.index + match[0].length
+  };
+}
+
+function validateG10ModbusArguments(cleanLine, lineNum) {
+  const modbusLine = getModbusLine(cleanLine);
+  if (!modbusLine) return [];
+
+  const diagnostics = [];
+  const args = new Map();
+  for (const argName of ['C', 'I', 'A', 'Q', 'K', 'X', 'P', 'R']) {
+    const arg = getStaticDirectArg(cleanLine, argName);
+    if (arg) args.set(argName, arg);
+  }
+  const hasArg = argName => hasDirectArg(cleanLine, argName);
+  const addFormat = message => addRobotDiagnostic(
+    diagnostics, lineNum, modbusLine.col, cleanLine.length, message,
+    'error', DiagnosticCode.ROBOT_G10_MODBUS_FORMAT
+  );
+  const addArgDiagnostic = (argName, message, code) => {
+    const arg = args.get(argName);
+    const col = arg ? arg.col : modbusLine.col;
+    const endCol = arg ? arg.endCol : cleanLine.length;
+    addRobotDiagnostic(diagnostics, lineNum, col, endCol, message, 'error', code);
+  };
+
+  for (const [argName, arg] of args) {
+    if (arg.literal.includes('.') || !Number.isSafeInteger(arg.value)) {
+      addArgDiagnostic(argName,
+        `G10 ${modbusLine.code} 的 ${argName} 引数必须为十进制整数`,
+        DiagnosticCode.ROBOT_G10_MODBUS_INTEGER);
+    }
+  }
+
+  if (modbusLine.code === 'L1900') {
+    const cArg = args.get('C');
+    if (!hasArg('C')) {
+      addFormat('G10 L1900 缺少 C 引数；读取使用 C3，写入使用 C6。');
+    } else if (cArg && Number.isSafeInteger(cArg.value) && ![3, 6].includes(cArg.value)) {
+      addArgDiagnostic('C', 'G10 L1900 的 C 引数只能为 3（读取）或 6（写入）', DiagnosticCode.ROBOT_G10_MODBUS_FORMAT);
+    }
+
+    if (cArg && Number.isSafeInteger(cArg.value) && cArg.value === 3) {
+      const missing = ['I', 'A', 'Q', 'K'].filter(argName => !hasArg(argName));
+      if (missing.length > 0) addFormat(`G10 L1900 C3 缺少引数：${missing.join('/')}`);
+      if (hasArg('X')) addFormat('G10 L1900 C3 读取语法不支持 X 引数');
+    } else if (cArg && Number.isSafeInteger(cArg.value) && cArg.value === 6) {
+      const missing = ['I', 'A', 'X'].filter(argName => !hasArg(argName));
+      if (missing.length > 0) addFormat(`G10 L1900 C6 缺少引数：${missing.join('/')}`);
+      const unsupported = ['Q', 'K'].filter(argName => hasArg(argName));
+      if (unsupported.length > 0) addFormat(`G10 L1900 C6 写入语法不支持 ${unsupported.join('/')} 引数`);
+    }
+  } else {
+    const missing = ['P', 'R', 'Q'].filter(argName => !hasArg(argName));
+    if (missing.length > 0) addFormat(`G10 L1901 缺少引数：${missing.join('/')}`);
+    const unsupported = ['C', 'I', 'A', 'X'].filter(argName => hasArg(argName));
+    if (unsupported.length > 0) addFormat(`G10 L1901 自定义封包语法不支持 ${unsupported.join('/')} 引数`);
+  }
+
+  for (const [argName, arg] of args) {
+    if (arg.value < 0) {
+      addArgDiagnostic(argName,
+        `G10 ${modbusLine.code} 的 ${argName} 引数不可为负数`,
+        DiagnosticCode.ROBOT_G10_MODBUS_RANGE);
+    }
+  }
+
+  const xArg = args.get('X');
+  if (xArg && Number.isSafeInteger(xArg.value) &&
+      (xArg.value < 0 || xArg.value > MODBUS_WRITE_VALUE_MAX)) {
+    addArgDiagnostic('X', `G10 ${modbusLine.code} 的 X 写入值范围为 0~${MODBUS_WRITE_VALUE_MAX}`, DiagnosticCode.ROBOT_G10_MODBUS_RANGE);
+  }
+
+  for (const argName of ['P', 'Q']) {
+    const arg = args.get(argName);
+    if (arg && Number.isSafeInteger(arg.value) &&
+        (arg.value < MODBUS_R_MIN || arg.value > MODBUS_R_MAX)) {
+      addArgDiagnostic(argName, `G10 ${modbusLine.code} 的 ${argName} R 值编号范围为 ${MODBUS_R_MIN}~${MODBUS_R_MAX}`, DiagnosticCode.ROBOT_G10_MODBUS_RANGE);
+    }
+  }
+
+  const customCount = args.get('R');
+  if (customCount && Number.isSafeInteger(customCount.value) &&
+      (customCount.value < 0 || customCount.value > MODBUS_CUSTOM_DATA_MAX)) {
+    addArgDiagnostic('R', `G10 ${modbusLine.code} 的 R 自定义资料数量范围为 0~${MODBUS_CUSTOM_DATA_MAX}`, DiagnosticCode.ROBOT_G10_MODBUS_RANGE);
+  }
+
+  return diagnostics;
+}
+
+function getSignalQDiagnostic(cleanLine, command) {
+  const rule = SIGNAL_Q_RULES[command];
+  if (!rule) return null;
+
+  const qArg = getStaticDirectArg(cleanLine, 'Q');
+  if (!qArg) return null;
+
+  const q = qArg.value;
+  const source = getStaticDirectArgNumber(cleanLine, rule.sourceArg);
+  let invalid = !Number.isSafeInteger(q) || q < 0;
+  let message = `${command} 的 Q 引数必须为非负整数；${rule.registerLabel} 时按 R 编号×100+bit 编码（R 编号范围为 0~65535，末两位 bit 为 00~15，例如 Q1874100 表示 R18741.00），${rule.ioLabel} 时范围为 0~511。`;
+
+  if (!invalid && source === rule.registerSource) {
+    const register = Math.floor(q / 100);
+    const bit = q % 100;
+    invalid = register < SIGNAL_Q_REGISTER_MIN ||
+      register > SIGNAL_Q_REGISTER_MAX ||
+      bit < SIGNAL_Q_BIT_MIN ||
+      bit > SIGNAL_Q_BIT_MAX;
+  } else if (!invalid && rule.ioSources.includes(source)) {
+    invalid = q < SIGNAL_Q_IO_MIN || q > SIGNAL_Q_IO_MAX;
+  }
+
+  return invalid ? { col: qArg.col, endCol: qArg.endCol, message } : null;
 }
 
 function countSmoothArgs(cleanLine) {
@@ -139,6 +289,10 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
       'INCMOVL 缺少必填 P 引数', 'error', DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG);
   }
 
+  if (command === 'G10') {
+    diagnostics.push(...validateG10ModbusArguments(clean, lineNum));
+  }
+
   if (command === 'STITCHON') {
     const hasL = hasDirectArg(clean, 'L');
     const hasK = hasDirectArg(clean, 'K');
@@ -153,6 +307,14 @@ function validateConfirmedSingleLineSyntax(_raw, lineNum, _lineStartInBlock, cle
     if (lValue !== null && !Number.isInteger(lValue)) {
       addRobotDiagnostic(diagnostics, lineNum, clean.search(/\bL/i), clean.length,
         'STITCHON 的 L 引数不可带小数点', 'error', DiagnosticCode.ROBOT_STITCH_L_INTEGER);
+    }
+  }
+
+  if (SIGNAL_Q_RULES[command]) {
+    const qDiagnostic = getSignalQDiagnostic(clean, command);
+    if (qDiagnostic) {
+      addRobotDiagnostic(diagnostics, lineNum, qDiagnostic.col, qDiagnostic.endCol,
+        qDiagnostic.message, 'error', SIGNAL_Q_RULES[command].diagnosticCode);
     }
   }
 

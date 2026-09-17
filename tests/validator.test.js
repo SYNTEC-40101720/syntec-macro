@@ -567,6 +567,24 @@ console.log('\n[19] 机器人/坐标系旧语法诊断');
   eq('INCMOVL 缺少 P',
     '%@MACRO\nINCMOVL X10. Y0.;',
     [['error', 'INCMOVL 缺少必填 P 引数']]);
+  eq('SKIPCOND E3 Q 使用 R-bit 编码',
+    '%@MACRO\nSKIPCOND E3 Q1874100 R1 P0;', []);
+  eq('SKIPCOND E3 Q 校验编码后的 bit 范围',
+    '%@MACRO\nSKIPCOND E3 Q6553516 R1 P0;',
+    [['error', '末两位 bit 为 00~15']]);
+  eq('SWAITSIG P2 Q 使用 R-bit 编码',
+    '%@MACRO\nSWAITSIG P2 Q1874100 R1;', []);
+  eq('SWAITSIG P2 Q 校验编码后的 bit 范围',
+    '%@MACRO\nSWAITSIG P2 Q6553516 R1;',
+    [['error', '末两位 bit 为 00~15']]);
+  eq('Modbus TCP 读写与自定义封包合法',
+    '%@MACRO\nG10 L1900 C3 I165 A1000 Q30000 K1;\nG10 L1900 C6 I165 A1000 X1995;\nG10 L1901 P2020 R11 Q30010 K10;', []);
+  eq('Modbus TCP C3/C6 语法与范围检查',
+    '%@MACRO\nG10 L1900 C3 I165 A1000 X1995;\nG10 L1900 C6 I165 A1000 Q30000 K1;\nG10 L1900 C6 I165 A1000 X65536;\nG10 L1901 P70000 R255 Q30010 K10;',
+    [['error', 'C3 缺少引数：Q/K'], ['error', 'C3 读取语法不支持 X'], ['error', 'C6 缺少引数：X'], ['error', 'C6 写入语法不支持 Q/K'], ['error', 'X 写入值范围为 0~65535'], ['error', 'P R 值编号范围为 0~65535'], ['error', 'R 自定义资料数量范围为 0~254']]);
+  eq('Modbus TCP 静态引数必须为整数',
+    '%@MACRO\nG10 L1900 C3.0 I165 A1000 Q30000 K1;', 
+    [['error', 'C 引数必须为十进制整数']]);
   eq('合法路径扩充引数 C/R/A 不报错',
     '%@MACRO\nG01 X100. Y100., C10.;\nG01 X100. Y100., R10.;\nG01 X100. Y100., A45.;', []);
   eq('函数嵌套表达式不识别为路径扩充引数',
@@ -603,6 +621,14 @@ console.log('\n[20] 跨行机器人/应用诊断');
   eq('同一移动单节超过 10 个 SYNCOUT 报错',
     '%@MACRO\nMOVL X100.;\n' + Array.from({ length: 11 }, (_, idx) => `SYNCOUT S1 Q${idx + 1} P50 R1;`).join('\n'),
     [['error', '同一有移动量移动单节最多允许 10 个 SYNCOUT']]);
+  eq('SYNCOUT S2 Q 使用 R-bit 编码',
+    '%@MACRO\nSYNCOUT S2 Q1874100 P100 R1 K#11;', []);
+  eq('SYNCOUT S2 Q 校验编码后的 bit 范围',
+    '%@MACRO\nSYNCOUT S2 Q6553516 P100 R1;',
+    [['error', '末两位 bit 为 00~15']]);
+  eq('SYNCOUT S1/S3 Q 校验 O/A-bit 范围',
+    '%@MACRO\nSYNCOUT S1 Q512 P100 R1;',
+    [['error', 'S=1/3 时范围为 0~511']]);
   eq('STITCHON 区间禁止 MOVJ',
     '%@MACRO\nSTITCHON S1 Q1 L500 E10.;\nMOVJ C1=0;\nSTITCHOFF;',
     [['error', 'STITCHON 生效范围内不支持此指令']]);

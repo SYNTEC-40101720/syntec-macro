@@ -528,6 +528,7 @@ test('G10 L1803 and L1805 have detailed hover docs', () => {
   assert.ok(l1803.sig.includes('G10 L1803 I_ Q_ P_ R_'), 'L1803 signature should include required arguments');
   assert.ok(l1803.doc.includes('运动单节内'), 'L1803 docs should describe in-motion triggering');
   assert.ok(l1803.doc.includes('G31'), 'L1803 docs should mention supported G31 version notes');
+  assert.ok(l1803.doc.includes('Q1874100'), 'L1803 docs should explain encoded R-bit Q values');
 
   const l1805 = getG10LCodeDoc('l1805');
   assert.ok(l1805.sig.includes('G10 L1805 I_ Q_ R_'), 'L1805 signature should include required arguments');
@@ -787,7 +788,7 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
   const { validateDocument } = require('../src/validator');
   const { DiagnosticCode } = require('../src/diagnosticCodes');
 
-  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;');
+  const diagnostics = validateDocument('%@MACRO\nMOVJ-II X100.;\nMOVJ X=100. FJ50;\nMOVC Xp=1.;\nTOOLCOR T1;\nTOOLCORON P1;\nTOOLCOR CLEAR;\nMOVL X10. PL5 PQ10.;\nMOVJ C1=10. PQ5;\nINCMOVL X10.;\nSTITCHON S1 Q1 L500 K5.;\nSTITCHON S1 Q1;\nSTITCHON S1 Q1 L5.5;\nWEAVEON P1 E5.;\nWEAVEON E5. Q1;\nMOVC X100.;\nMOVL X1.;\nMOVL X1.;\nSWAITSIG P1;\nSWAITSIG P2;\nSYNCOUT S2 Q6553516 P100 R1;\nSKIPCOND E3 Q6553516 R1 P0;\nSWAITSIG P2 Q6553516 R1;\nG10 L1900 C3 I165 A1000 X1995;');
   for (const code of [
     DiagnosticCode.ROBOT_DEPRECATED_MOVJ_II,
     DiagnosticCode.ROBOT_DIRECT_ARG_EQUALS,
@@ -798,12 +799,16 @@ test('Validator diagnostics expose stable codes for robot syntax issues', () => 
     DiagnosticCode.ROBOT_SMOOTH_ARG_CONFLICT,
     DiagnosticCode.ROBOT_UNSUPPORTED_SMOOTH_ARG,
     DiagnosticCode.ROBOT_MISSING_REQUIRED_ARG,
+    DiagnosticCode.ROBOT_G10_MODBUS_FORMAT,
+    DiagnosticCode.ROBOT_SKIPCOND_Q_RANGE,
     DiagnosticCode.ROBOT_STITCH_ARG_CONFLICT,
     DiagnosticCode.ROBOT_STITCH_MISSING_ARG,
     DiagnosticCode.ROBOT_STITCH_L_INTEGER,
     DiagnosticCode.ROBOT_WEAVEON_MIXED_ARGS,
     DiagnosticCode.ROBOT_WEAVEON_Q_DECIMAL,
     DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED,
+    DiagnosticCode.ROBOT_SWAITSIG_Q_RANGE,
+    DiagnosticCode.ROBOT_SYNCOUT_Q_RANGE,
     DiagnosticCode.ROBOT_SWAITSIG_LIMIT
   ]) {
     assert.ok(diagnostics.some(d => d.code === code), `${code} should be emitted`);

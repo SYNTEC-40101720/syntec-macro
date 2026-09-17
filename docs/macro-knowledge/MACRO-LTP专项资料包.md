@@ -51,14 +51,14 @@
 | `INCMOVJ` | [INCMOVJ-增量关节运动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815405/INCMOVJ-) | 各轴同动，运动过程中末端点非直线；自 `10.118.9` 起；`Q` 范围 `0~20`，自 `10.118.82B` 起；外部轴单位 mm/deg，不支援英制命令输入。 |
 | `STITCHON/STITCHOFF` | [STITCHON/STITCHOFF-连续脉冲输出](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815646/STITCHON+STITCHOFF-) | 中间不可使用 `MOVJ`，否则 `RBT-115`；RESET/加工结束视为自动执行 `STITCHOFF`。 |
 | `WEAVEON/WEAVEOFF` | [WEAVEON/WEAVEOFF-摆动](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815586/WEAVEON+WEAVEOFF-) | `P` 范围 `1~50`，需整数，否则 `COR-064`；自 `10.120.28.x/10.120.32.x/10.120.x` 起；`L` 范围 `0~1000000` ms，不可加小数点；`R` 摆动方向 `0~1`，不可加小数点；中间不可使用 `MOVJ`，否则 `RBT-322`。 |
-| `SWAITSIG` | [SWAITSIG 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815315) | CF 摘要确认引数集合 `P/Q/R/L/T`；完整数值范围、版本条件与警报仍待逐页核对。 |
-| `SYNCOUT` | [SYNCOUT 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815335) | 独立规格页面入口已确认；当前摘要不足以确认完整引数、版本条件与警报，不作强结论。 |
+| `SWAITSIG` | [SWAITSIG 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815315) | `P=1(I-bit)`/`P=3(A-bit)` 时 `Q` 范围 `0~511`；`P=2(R-bit)` 时 `Q` 按 `[R 编号 0~65535][bit 00~15]` 编码，例如 `Q1874100` 表示 `R18741.00`；`R` 范围 `0~1`、`L/T` 范围 `0~2^31`；运动单节后最多 1 个 `SWAITSIG`。 |
+| `SYNCOUT` | [SYNCOUT 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815335) | `S=1(O-bit)`/`S=3(A-bit)` 时 `Q` 范围 `0~511`；`S=2(R-bit)` 时 `Q` 按 `[R 编号 0~65535][bit 00~15]` 编码，例如 `Q1874100` 表示 `R18741.00`；`P` 范围 `0~100`、`R` 范围 `0~1`、`L` 范围 `0~10000`、`K` 范围 `-10000~10000`；单一移动单节最多 10 个 `SYNCOUT`。 |
 | `TOOLCOR` | [TOOLCOR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815465) | 对应 `G43.15`；版本表登记自 `10.118.11` 起；完整引数范围、警报与机型条件仍待逐页核对。 |
 | `USERCOR` | [USERCOR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815329) | 对应 `G68.15`；版本表登记自 `10.118.0A` 起；完整引数范围、警报与机型条件仍待逐页核对。 |
 | `OBJCORON/OFF/CLEAR` | [OBJCORON/OFF/CLEAR 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815319) | 对应 `G52.15/G52.16/G52.17`；工件坐标支持自 `10.118.28E`/`10.118.32` 分阶段登记；完整引数与警报仍待逐页核对。 |
 | `POSEMAP` | [POSEMAP 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816822) | 对应 `G142.1`；独立规格页面入口已确认；完整引数、版本条件与警报仍待逐页核对。 |
 | `SHIFTON/SHIFTOFF` | [SHIFTON/SHIFTOFF 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816348) | 对应 `G52.20/G52.21`；版本表登记 `10.118.28E`/`10.118.32` 分阶段支援；完整引数与警报仍待逐页核对。 |
-| `SKIPCOND/SKIP` | [SKIPCOND/SKIP 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816276) | `SKIPCOND` 对应 `G31.15`、版本表登记自 `10.118.28G`；`SKIP` 自 `10.118.33`，总表未列替代 G 码；完整引数与警报仍待逐页核对。 |
+| `SKIPCOND/SKIP` | [SKIPCOND/SKIP 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64816276) | `E=1(I-bit)`/`E=2(C-bit)` 时 `Q` 范围 `0~511`；`E=3(R-bit)` 时 `Q` 按 `[R 编号 0~65535][bit 00~15]` 编码；`R/P` 范围 `0~1`。`SKIPCOND` 对应 `G31.15`、版本表登记自 `10.118.28G`；`SKIP` 自 `10.118.33`。 |
 | `WAITSYNC/ENDSYNC` | [WAITSYNC/ENDSYNC 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815317) | 对应 `G190.1/G190.2`；版本表登记自 `10.118.0A` 起；完整引数、同步边界与警报仍待逐页核对。 |
 | `CIRMODE` | [CIRMODE 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815775) | 对应 `G141.1`；版本表登记自 `10.118.25` 起；完整引数、姿态条件与警报仍待逐页核对。 |
 | `G192.1/G192.2` | [G192.1/G192.2 独立规格页](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64817515) | 独立 G 码规格页面入口已确认；当前摘要不足以确认完整语法、版本条件与警报，不作强结论。 |
