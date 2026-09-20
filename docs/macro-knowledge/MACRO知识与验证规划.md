@@ -24,9 +24,9 @@
 | G2：能力实施 | 每项能力具备版本、来源、最小样例和验收标准 | 修改 validator、hover、补全或导航 |
 | G3：发布候选 | 单元、集成、文档同步、人工验证完成 | 版本升级与发布准备 |
 
-当前状态：G0/G1/G3 已完成，`v2.10.0` 至 `v2.15.0` 已推送并发布；CALL-01 至 CALL-13 的资料、静态导航边界和首轮自动化验证已完成，CF TechManual 的 C-Type 与当前 `G66.1` 页面已确认 CNC 侧基础语义，但 81RA 差异仍待 CNC 模拟器/控制器复核；ROB-001 已完成 Rovo 官方页面支持的静态范围/Q 联动批次，完整参数/警报/机型/运行时条件仍待逐项验证；能力矩阵已建立，详见 [MACRO 能力矩阵](MACRO能力矩阵.md)；FUN-A 至 FUN-F 已完成首轮审计与保守实现；`v2.15.0` 已完成 Modbus-TCP 静态诊断、语言数据门禁和发布收口，后续按证据成熟度推进 G2，并开始架构演进基线。
+当前状态：G0/G1/G3 已完成，`v2.10.0` 至 `v2.15.0` 已推送并发布；3.x 架构版本暂不切换版本号，必须等 Rust/Wasm 正式导入生产后端并完成跨平台构建、回滚和发布门禁；JavaScript Analysis Core/协议/Host 继续作为当前生产架构，Rust/Wasm 继续开发态对照；CALL-01 至 CALL-13 的资料、静态导航边界和首轮自动化验证已完成，CF TechManual 的 C-Type 与当前 `G66.1` 页面已确认 CNC 侧基础语义，但 81RA 差异仍待 CNC 模拟器/控制器复核；ROB-001 已完成 Rovo 官方页面支持的静态范围/Q 联动批次，完整参数/警报/机型/运行时条件仍待逐项验证；能力矩阵已建立，详见 [MACRO 能力矩阵](MACRO能力矩阵.md)；FUN-A 至 FUN-F 已完成首轮审计与保守实现；`v2.15.0` 已完成 Modbus-TCP 静态诊断、语言数据门禁和发布收口，后续按证据成熟度推进 G2 和 Rust/Wasm 导入门禁。
 
-`v2.15.0` 已通过发布门禁并发布：新增 Modbus-TCP `G10 L1900/L1901` 静态诊断、同步 Hover/语法手册/正反例回归；CNC 模拟器/控制器运行时验证仍未纳入本轮，`GETPR/SETPR` 强诊断继续阻塞。下一阶段不以“继续堆规则数量”为主，而是先建立可增量、可替换、可验证的分析核心。
+`v2.15.0` 已通过发布门禁并发布：新增 Modbus-TCP `G10 L1900/L1901` 静态诊断、同步 Hover/语法手册/正反例回归；CNC 模拟器/控制器运行时验证仍未纳入本轮，`GETPR/SETPR` 强诊断继续阻塞。未来 3.x 发布目标是 Rust/Wasm 正式导入生产后端并收口新架构，不在导入前提前升级版本号。
 
 ## 0.1 v2.13.0 发布内容
 
@@ -366,7 +366,7 @@ node -e "const fs=require('fs'); const {validateDocument}=require('./src/validat
 
 ## 7. 架构演进与 Rust 路线（2026-09-19）
 
-本节承接 `v2.15.0`，是后续架构工作的计划真源。目标是保持现有 VS Code 用户体验和诊断语义不变，逐步把分析能力从 Provider 实现中抽离；Rust 是可替换的核心后端候选，不是下一版的全量重写目标。
+本节承接 `v2.15.0`，并定义未来 3.x 架构发布范围，是后续架构工作的计划真源。目标是保持现有 VS Code 用户体验和诊断语义不变，正式收口 JavaScript Analysis Core/协议/Host；Rust 是可替换的核心后端候选，只有完成正式导入条件后才进入 3.x 生产版本。
 
 ### 7.1 GitHub 范例与可采纳结论
 
@@ -440,7 +440,7 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 - Wasm protocol v1、UTF-8 输入、内存释放、诊断 JSON，以及 `%@MACRO`/`N`/静态调用导航子集均已由 Node probe 验证。
 - 20,000 行档案的 Wasm JSON bridge p50 约 58~105ms（受运行环境波动影响），但当前 Rust 只覆盖控制流诊断和导航子集。
 
-**决策：暂不切换生产后端。** 当前 Rust/Wasm 与完整 JavaScript 分析能力仍存在明确缺口：函数参数和 LTP/Modbus 静态规则、变量/机器人状态、格式化 `TextEdit`、完整导航/引用、产品 profile 和所有已发布诊断 code 尚未 parity。Rust/Wasm 继续保持开发态，不进入 VSIX，不改变 `2.15.0` 用户行为。
+**决策：3.x 正式版本前不切换 Rust/Wasm 生产后端。** Rust/Wasm 与完整 JavaScript 分析能力仍存在明确缺口：LTP/Modbus 完整规则、机器人状态、格式化 `TextEdit`、完整导航/引用、产品 profile 和所有已发布诊断 code 尚未 parity。Rust/Wasm 继续保持开发态，不进入 VSIX，不改变当前 2.15.0 JavaScript 用户行为。
 
 完整 bridge 的下一阶段验收条件：
 
@@ -449,6 +449,14 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 3. Windows GNU/MSVC、Wasm 与 CI 的可复现构建矩阵；
 4. 启动、内存、JSON 传输和大档案延迟相对于 JavaScript 的真实对比；
 5. JavaScript 默认回退、VSIX 安装冒烟和至少一个完整版本的回滚路径。
+
+### 7.7 未来 3.x 架构发布范围（Rust/Wasm 导入后）
+
+- **导入前生产后端**：JavaScript `analysisProtocol`、`analysisCore`、`AnalysisHost`、Worker/Provider 门面，继续服务当前 2.x 版本。
+- **导入条件**：Rust/Wasm 完成全部目标 parity、request/profile/TextEdit/导航结果、跨平台构建矩阵、回滚验证和性能门禁。
+- **用户可见承诺**：保持 v2.15.0 的诊断 code、位置、严重度、导航、格式化和配置行为；3.x 是架构收口，不是规则语义重写。
+- **开发态资产**：在导入条件满足前，Rust CLI/Wasm、差分脚本、Parser/Tree-sitter spike 只作为仓库开发验证工具，不进入 VSIX 或默认后端。
+- **发布门禁**：导入条件满足后，版本元数据、全量 npm 回归、lint/typecheck、VS Code 集成、导航基准、VSIX 内容检查、隔离安装冒烟、tag/Release/资产核验全部通过后才创建 3.x Release。
 
 ## 8. 迭代记录
 
