@@ -182,6 +182,14 @@ const CASES = [
     text: 'OPEN(\"COM1\");\nAXID(\"Y\");\nOPEN(\"file.nc\");\nAXID(Y);\nMSG(\"OPEN(\\\\\"COM1\\\\\")\");'
   },
   {
+    name: 'sysdata-drvdata-formats',
+    text: 'SYSDATA(336.5);\nSYSDATA(\"336\");\nDRVDATA(1000.5, 3366);\nDRVDATA(1000, \"bad\");'
+  },
+  {
+    name: 'valid-sysdata-drvdata',
+    text: 'SYSDATA(336);\nDRVDATA(1000, 3366);\nDRVDATA(1000, \"1Ah\");\nDRVDATA(1000, #1);'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

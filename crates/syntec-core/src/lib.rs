@@ -1102,6 +1102,201 @@ fn validate_string_function_warnings(
     }
 }
 
+fn split_function_args_with_strings(
+    chars: &[char],
+    string_mask: &[bool],
+    start: usize,
+    end: usize,
+) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut argument_start = start;
+    let mut depth = 0;
+    for index in start..end {
+        if string_mask[index] {
+            continue;
+        }
+        match chars[index] {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                args.push(
+                    chars[argument_start..index]
+                        .iter()
+                        .collect::<String>()
+                        .trim()
+                        .to_string(),
+                );
+                argument_start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    let tail = chars[argument_start..end]
+        .iter()
+        .collect::<String>()
+        .trim()
+        .to_string();
+    if !tail.is_empty() || !args.is_empty() {
+        args.push(tail);
+    }
+    args
+}
+
+fn static_function_calls_with_strings(
+    text: &str,
+    string_mask: &[bool],
+    function_name: &str,
+) -> Vec<StaticFunctionCall> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut calls = Vec::new();
+    for (word, start, end) in word_positions(text) {
+        if word != function_name || string_mask.get(start).copied().unwrap_or(false) {
+            continue;
+        }
+        let mut cursor = end;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if chars.get(cursor) != Some(&'(') {
+            continue;
+        }
+        let args_start = cursor + 1;
+        cursor = args_start;
+        let mut depth = 1;
+        while cursor < chars.len() && depth > 0 {
+            if !string_mask[cursor] {
+                if chars[cursor] == '(' {
+                    depth += 1;
+                } else if chars[cursor] == ')' {
+                    depth -= 1;
+                }
+            }
+            cursor += 1;
+        }
+        if depth != 0 {
+            continue;
+        }
+        let close_index = cursor - 1;
+        calls.push(StaticFunctionCall {
+            start,
+            end: close_index + 1,
+            args: split_function_args_with_strings(&chars, string_mask, args_start, close_index),
+        });
+    }
+    calls
+}
+
+fn is_quoted_string_literal(value: &str) -> bool {
+    let chars: Vec<char> = value.trim().chars().collect();
+    chars.len() >= 2 && chars.first() == Some(&'"') && chars.last() == Some(&'"')
+}
+
+fn is_decimal_literal(value: &str) -> bool {
+    let chars: Vec<char> = value.trim().chars().collect();
+    let mut index = 0;
+    if matches!(chars.first(), Some('+' | '-')) {
+        index += 1;
+    }
+    let digits_start = index;
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        index += 1;
+    }
+    if index == digits_start || chars.get(index) != Some(&'.') {
+        return false;
+    }
+    index += 1;
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        index += 1;
+    }
+    index == chars.len()
+}
+
+fn is_integer_literal(value: &str) -> bool {
+    let chars: Vec<char> = value.trim().chars().collect();
+    let mut index = 0;
+    if matches!(chars.first(), Some('+' | '-')) {
+        index += 1;
+    }
+    let start = index;
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        index += 1;
+    }
+    index > start && index == chars.len()
+}
+
+fn is_hex_string_literal(value: &str) -> bool {
+    let chars: Vec<char> = value.trim().chars().collect();
+    if chars.len() < 4 || chars.first() != Some(&'"') || chars.last() != Some(&'"') {
+        return false;
+    }
+    let inner = &chars[1..chars.len() - 1];
+    inner.len() >= 2
+        && inner.last() == Some(&'h')
+        && inner[..inner.len() - 1]
+            .iter()
+            .all(|character| character.is_ascii_hexdigit())
+}
+
+fn is_dynamic_macro_variable(value: &str) -> bool {
+    let chars: Vec<char> = value.trim().chars().collect();
+    chars.len() >= 2 && chars[0] == '#' && (chars[1].is_ascii_digit() || chars[1] == '[')
+}
+
+fn validate_string_argument_functions(
+    raw: &str,
+    line: usize,
+    line_start_in_block: bool,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let (kept, string_mask, _, _) = strip_comments_keep_strings(raw, line_start_in_block);
+    let chars: Vec<char> = kept.chars().collect();
+    for call in static_function_calls_with_strings(&kept, &string_mask, "SYSDATA") {
+        let argument = call.args.first().map(String::as_str).unwrap_or("");
+        if is_quoted_string_literal(argument) || is_decimal_literal(argument) {
+            push_diagnostic(
+                diagnostics,
+                line,
+                utf16_prefix_len(&chars, call.start),
+                utf16_prefix_len(&chars, call.end),
+                Severity::Error,
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "SYSDATA 引数需为整数",
+            );
+        }
+    }
+
+    for call in static_function_calls_with_strings(&kept, &string_mask, "DRVDATA") {
+        let station = call.args.first().map(String::as_str).unwrap_or("");
+        if is_quoted_string_literal(station) || is_decimal_literal(station) {
+            push_diagnostic(
+                diagnostics,
+                line,
+                utf16_prefix_len(&chars, call.start),
+                utf16_prefix_len(&chars, call.end),
+                Severity::Error,
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "DRVDATA 站号需为整数",
+            );
+        }
+        if let Some(variable) = call.args.get(1) {
+            let valid = is_integer_literal(variable)
+                || is_hex_string_literal(variable)
+                || is_dynamic_macro_variable(variable);
+            if !valid && !variable.trim().is_empty() {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_DRVDATA_ARGUMENT_FORMAT",
+                    "DRVDATA 第二引数需为十进制整数或 \"xxxh\" 十六进制字符串",
+                );
+            }
+        }
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1791,6 +1986,12 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
             line_start_in_block,
             &mut diagnostics,
         );
+        validate_string_argument_functions(
+            raw_line,
+            line_number,
+            line_start_in_block,
+            &mut diagnostics,
+        );
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_variable_access(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
@@ -2359,5 +2560,31 @@ mod tests {
                 "SYNTEC_FUNCTION_AXID_QUOTED_AXIS",
             ]
         );
+    }
+
+    #[test]
+    fn reports_sysdata_and_drvdata_argument_formats() {
+        let result = analyze_document(
+            "SYSDATA(336.5);\nSYSDATA(\"336\");\nDRVDATA(1000.5, 3366);\nDRVDATA(1000, \"bad\");",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "SYNTEC_FUNCTION_DRVDATA_ARGUMENT_FORMAT",
+            ]
+        );
+
+        let valid = analyze_document(
+            "SYSDATA(336);\nDRVDATA(1000, 3366);\nDRVDATA(1000, \"1Ah\");\nDRVDATA(1000, #1);",
+        );
+        assert!(valid.diagnostics.is_empty());
     }
 }
