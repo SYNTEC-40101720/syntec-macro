@@ -74,7 +74,7 @@ function validateRobotSyntaxPreferences(_raw, lineNum, _lineStartInBlock, cleanL
 
   const toolArg = clean.match(/\b(?:TOOLCOR|TOOLCORON)\s+(T)(?=\d|#|@|\[|=)/i);
   if (toolArg) {
-    const col = toolArg.index + toolArg[0].lastIndexOf('T');
+    const col = toolArg.index + toolArg[0].lastIndexOf(toolArg[1]);
     addRobotDiagnostic(diagnostics, lineNum, col, col + 1,
       'TOOLCOR/TOOLCORON 使用 P_ 指定工具编号；请勿使用 T_', 'error', DiagnosticCode.ROBOT_TOOLCOR_T_ARG);
   }

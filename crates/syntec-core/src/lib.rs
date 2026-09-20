@@ -122,12 +122,47 @@ pub struct NavigationCall {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentSnapshot {
+    pub uri: String,
+    pub version: u32,
+    pub language_id: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalysisRequest {
+    pub protocol_version: u32,
+    pub document: DocumentSnapshot,
+    pub profile: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalysisNavigation {
+    pub program_entry_name: Option<String>,
+    pub macro_program_name: Option<String>,
+    pub symbols: Vec<Symbol>,
+    pub calls: Vec<NavigationCall>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalysisTextEdit {
+    pub line: usize,
+    pub start_character: usize,
+    pub end_line: usize,
+    pub end_character: usize,
+    pub new_text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnalysisResult {
     pub protocol_version: u32,
+    pub document: DocumentSnapshot,
+    pub profile: String,
     pub backend: &'static str,
     pub diagnostics: Vec<Diagnostic>,
     pub symbols: Vec<Symbol>,
-    pub calls: Vec<NavigationCall>,
+    pub edits: Vec<AnalysisTextEdit>,
+    pub navigation: Option<AnalysisNavigation>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -2198,6 +2233,1673 @@ fn validate_case_line_style(
     }
 }
 
+// Robot/LTP single-line TOOLCOR/TOOLCORON style warnings.
+// Mirrors `validateRobotSyntaxPreferences` in `src/robotValidator.js`:
+//   1. \b(?:TOOLCOR|TOOLCORON)\s+(T)(?=\d|#|@|\[|=)  -> TOOLCOR_T_ARG (error)
+//   2. \bTOOLCORON\b                                 -> TOOLCORON_DEPRECATED (warning)
+//   3. \bTOOLCOR\s+CLEAR\b                           -> TOOLCOR_CLEAR (warning)
+// Each rule mirrors JS `.match` semantics: only the first match per line is reported.
+fn validate_robot_toolcor(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let len = chars.len();
+    if len == 0 {
+        return;
+    }
+    let toolcor: Vec<char> = "TOOLCOR".chars().collect();
+    let toolcoron: Vec<char> = "TOOLCORON".chars().collect();
+    let clear: Vec<char> = "CLEAR".chars().collect();
+
+    // Rule 1: TOOLCOR_T_ARG. Try TOOLCORON first so "TOOLCORON T1" matches the
+    // longer keyword; "TOOLCOR T1" still matches via the shorter branch.
+    let mut index = 0;
+    while index < len {
+        if chars[index].eq_ignore_ascii_case(&'T')
+            && (index == 0 || !is_identifier_character(chars[index - 1]))
+        {
+            let keyword_end = if matches_keyword(&chars, index, &toolcoron) {
+                index + toolcoron.len()
+            } else if matches_keyword(&chars, index, &toolcor) {
+                index + toolcor.len()
+            } else {
+                index += 1;
+                continue;
+            };
+            let mut cursor = keyword_end;
+            if cursor < len && chars[cursor].is_whitespace() {
+                while cursor < len && chars[cursor].is_whitespace() {
+                    cursor += 1;
+                }
+                if cursor < len && chars[cursor].eq_ignore_ascii_case(&'T') {
+                    let t_pos = cursor;
+                    let next = t_pos + 1;
+                    if next < len
+                        && (chars[next].is_ascii_digit()
+                            || matches!(chars[next], '#' | '@' | '[' | '='))
+                    {
+                        let col = utf16_prefix_len(&chars, t_pos);
+                        push_diagnostic(
+                            diagnostics,
+                            line,
+                            col,
+                            col + 1,
+                            Severity::Error,
+                            "SYNTEC_ROBOT_TOOLCOR_T_ARG",
+                            "TOOLCOR/TOOLCORON 使用 P_ 指定工具编号；请勿使用 T_",
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+        index += 1;
+    }
+
+    // Rule 2: TOOLCORON_DEPRECATED.
+    let mut index = 0;
+    while index + toolcoron.len() <= len {
+        if matches_keyword(&chars, index, &toolcoron)
+            && (index == 0 || !is_identifier_character(chars[index - 1]))
+            && (index + toolcoron.len() == len
+                || !is_identifier_character(chars[index + toolcoron.len()]))
+        {
+            let col = utf16_prefix_len(&chars, index);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                col + toolcoron.len(),
+                Severity::Warning,
+                "SYNTEC_ROBOT_TOOLCORON_DEPRECATED",
+                "TOOLCORON 未见官方语法；建议改用 TOOLCOR P_",
+            );
+            break;
+        }
+        index += 1;
+    }
+
+    // Rule 3: TOOLCOR_CLEAR.
+    let mut index = 0;
+    while index + toolcor.len() <= len {
+        if matches_keyword(&chars, index, &toolcor)
+            && (index == 0 || !is_identifier_character(chars[index - 1]))
+        {
+            let mut cursor = index + toolcor.len();
+            let ws_start = cursor;
+            while cursor < len && chars[cursor].is_whitespace() {
+                cursor += 1;
+            }
+            if cursor > ws_start
+                && cursor + clear.len() <= len
+                && matches_keyword(&chars, cursor, &clear)
+                && (cursor + clear.len() == len
+                    || !is_identifier_character(chars[cursor + clear.len()]))
+            {
+                let col = utf16_prefix_len(&chars, index);
+                let end_col = utf16_prefix_len(&chars, cursor + clear.len());
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    col,
+                    end_col,
+                    Severity::Warning,
+                    "SYNTEC_ROBOT_TOOLCOR_CLEAR",
+                    "TOOLCOR CLEAR 未见官方语法；建议改用 TOOLCOR P0",
+                );
+                break;
+            }
+        }
+        index += 1;
+    }
+}
+
+fn matches_keyword(chars: &[char], index: usize, keyword: &[char]) -> bool {
+    index + keyword.len() <= chars.len()
+        && chars[index..index + keyword.len()]
+            .iter()
+            .zip(keyword.iter())
+            .all(|(left, right)| left.eq_ignore_ascii_case(right))
+}
+
+// Mirror of `getCommand` in `src/robotValidator.js`:
+// `^(G\d+(?:\.\d+)?|M\d+|[A-Z][A-Z0-9_.-]*)\b` (case-insensitive, uppercased).
+fn get_command(clean: &str) -> Option<String> {
+    let trimmed = clean.trim();
+    let chars: Vec<char> = trimmed.chars().collect();
+    let len = chars.len();
+    if len == 0 {
+        return None;
+    }
+    let boundary_after = |end: usize| end == len || !is_identifier_character(chars[end]);
+    if chars[0].eq_ignore_ascii_case(&'G') {
+        let mut end = 1;
+        let digits_start = end;
+        while end < len && chars[end].is_ascii_digit() {
+            end += 1;
+        }
+        if end > digits_start {
+            if end < len && chars[end] == '.' {
+                let frac_start = end + 1;
+                let mut frac = frac_start;
+                while frac < len && chars[frac].is_ascii_digit() {
+                    frac += 1;
+                }
+                if frac > frac_start {
+                    end = frac;
+                }
+            }
+            if boundary_after(end) {
+                return Some(chars[..end].iter().collect::<String>().to_ascii_uppercase());
+            }
+        }
+    }
+    if chars[0].eq_ignore_ascii_case(&'M') {
+        let mut end = 1;
+        while end < len && chars[end].is_ascii_digit() {
+            end += 1;
+        }
+        if end > 1 && boundary_after(end) {
+            return Some(chars[..end].iter().collect::<String>().to_ascii_uppercase());
+        }
+    }
+    if chars[0].is_ascii_alphabetic() {
+        let mut end = 1;
+        while end < len
+            && (chars[end].is_ascii_alphanumeric() || chars[end] == '_' || chars[end] == '.' || chars[end] == '-')
+        {
+            end += 1;
+        }
+        if is_identifier_character(chars[end - 1]) && boundary_after(end) {
+            return Some(chars[..end].iter().collect::<String>().to_ascii_uppercase());
+        }
+    }
+    None
+}
+
+// Returns the direct-arg rule args list (longest-first) for the given command,
+// mirroring `DIRECT_ARG_RULES` in `src/robotValidator.js`. Each entry is the
+// arg word (uppercase) plus the deprecation message; both are looked up by
+// command name (case-sensitive on the table, but the command comes from
+// `get_command`, which uppercases).
+fn direct_arg_rules_for(command: Option<&str>) -> &'static [&'static [&'static str]] {
+    match command {
+        Some("MOVJ") => &[
+            &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"], &["P"], &["Q"], &["FJ"], &["FEJ"],
+            &["PL"], &["ACC"], &["DEC"],
+        ],
+        Some("MOVL") => &[
+            &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"], &["P"], &["Q"], &["FL"], &["FR"],
+            &["FEJ"], &["PL"], &["PQ"], &["PR"], &["ACC"], &["DEC"],
+        ],
+        Some("MOVC") => &[
+            &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"], &["FL"], &["FR"], &["FEJ"],
+            &["PL"], &["PQ"], &["PR"], &["ACC"], &["DEC"],
+        ],
+        Some("INCMOVJ") => &[
+            &["Q"], &["FJ"], &["FEJ"], &["PL"], &["ACC"], &["DEC"],
+        ],
+        Some("INCMOVL") => &[
+            &["P"], &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"], &["Q"], &["FL"], &["FR"],
+            &["FEJ"], &["PL"], &["PQ"], &["PR"], &["ACC"], &["DEC"],
+        ],
+        Some("USERCOR") => &[&["P"]],
+        Some("OBJCORON") => &[&["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"]],
+        Some("TOOLCOR") => &[&["P"]],
+        Some("G68.18") => &[&["P"], &["R"], &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"]],
+        Some("G192.1") => &[&["P"], &["Q"], &["R"], &["E"]],
+        Some("CIRMODE") => &[&["P"]],
+        Some("G43.16") => &[&["P"], &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"]],
+        Some("POSEMAP") => &[&["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"], &["Q"], &["R"]],
+        Some("SHIFTON") => &[&["P"], &["X"], &["Y"], &["Z"], &["A"], &["B"], &["C"]],
+        Some("SKIPCOND") => &[&["E"], &["Q"], &["R"], &["P"]],
+        Some("SWAITSIG") => &[&["P"], &["Q"], &["R"], &["L"], &["T"]],
+        Some("SYNCOUT") => &[&["S"], &["Q"], &["P"], &["R"], &["L"], &["K"]],
+        Some("STITCHON") => &[&["S"], &["Q"], &["L"], &["K"], &["E"]],
+        Some("WAITSYNC") => &[&["P"], &["L"]],
+        Some("ENDSYNC") => &[&["P"]],
+        Some("WEAVEON") => &[&["P"], &["E"], &["Q"], &["K"], &["L"], &["R"], &["I"]],
+        _ => &[],
+    }
+}
+
+fn direct_arg_rule_message(command: Option<&str>) -> Option<&'static str> {
+    Some(match command? {
+        "MOVJ" => "MOVJ 直接引数不使用 =；请使用 X100. / P1 / FJ50 等写法",
+        "MOVL" => "MOVL 直接引数不使用 =；请使用 X100. / P1 / FL100. 等写法",
+        "MOVC" => "MOVC 直接引数不使用 =；请使用 X100. / FL100. / PL3 等写法",
+        "INCMOVJ" => "INCMOVJ 的 Q/FJ/FEJ/PL/ACC/DEC 为直接引数；请使用 Q1 / FJ30 等写法",
+        "INCMOVL" => "INCMOVL 直接引数不使用 =；请使用 P1 / X50. / FL80. 等写法",
+        "USERCOR" => "USERCOR 的 P 为直接引数；请使用 P1 等写法",
+        "OBJCORON" => "OBJCORON 的 X/Y/Z/A/B/C 为直接引数；请使用 X5. 而非 X=5.",
+        "TOOLCOR" => "TOOLCOR 的 P 为直接引数；请使用 P1 等写法",
+        "G68.18" => "G68.18 的 P/R/X/Y/Z/A/B/C 为直接引数；请使用 P1 / R0 / X10. 等写法",
+        "G192.1" => "G192.1 的 P/Q/R/E 为直接引数；请使用 P1 / Q20001 / R1 等写法",
+        "CIRMODE" => "CIRMODE 的 P 为直接引数；请使用 P0 / P1 / P2 等写法",
+        "G43.16" => "G43.16 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X10. 等写法",
+        "POSEMAP" => "POSEMAP 的 X/Y/Z/A/B/C/Q/R 为直接引数；请使用 X100. / Q1 / R1 等写法",
+        "SHIFTON" => "SHIFTON 的 P/X/Y/Z/A/B/C 为直接引数；请使用 P1 / X20. 等写法",
+        "SKIPCOND" => "SKIPCOND 的 E/Q/R/P 为直接引数；请使用 E1 / Q33 / R1 / P0 等写法",
+        "SWAITSIG" => "SWAITSIG 的 P/Q/R/L/T 为直接引数；请使用 P1 / Q33 / R1 等写法",
+        "SYNCOUT" => "SYNCOUT 的 S/Q/P/R/L/K 为直接引数；请使用 S1 / Q1 / P50 / R1 等写法",
+        "STITCHON" => "STITCHON 的 S/Q/L/K/E 为直接引数；请使用 S1 / Q1 / L500 / E10. 等写法",
+        "WAITSYNC" => "WAITSYNC 的 P/L 为直接引数；请使用 P1 / L100. 等写法",
+        "ENDSYNC" => "ENDSYNC 的 P 为直接引数；请使用 P1 等写法",
+        "WEAVEON" => "WEAVEON 的 P/E/Q/K/L/R/I 为直接引数；请使用 P3 或 E5. Q1.0 K30. 等写法",
+        _ => return None,
+    })
+}
+
+// Mirror of `hasDirectArg`: `\b{arg}(?=[#@+\-]?(?:\d|\.|\(|#|@))` (case-insensitive).
+fn has_direct_arg(chars: &[char], arg: &[char]) -> bool {
+    let len = chars.len();
+    let mut index = 0;
+    while index + arg.len() <= len {
+        let is_start = index == 0 || !is_identifier_character(chars[index - 1]);
+        if is_start && matches_keyword(chars, index, arg) {
+            let mut next = index + arg.len();
+            if next < len && matches!(chars[next], '#' | '@' | '+' | '-') {
+                next += 1;
+            }
+            if next < len
+                && (chars[next].is_ascii_digit()
+                    || chars[next] == '.'
+                    || chars[next] == '('
+                    || chars[next] == '#'
+                    || chars[next] == '@')
+            {
+                return true;
+            }
+        }
+        index += 1;
+    }
+    false
+}
+
+// Returns the earliest `(arg_start, arg_len, equals_index)` for a direct-arg
+// `=` usage among the given args (sorted by length descending, matching JS:
+// `args.sort((a, b) => b.length - a.length)` then `\b(arg)\s*=`). At each
+// candidate start position we try longer args first so `PQ` wins over `P`.
+fn find_direct_arg_equals(chars: &[char], args: &[&[&str]]) -> Option<(usize, usize, usize)> {
+    // Pre-build arg char vectors, longest-first within each command's list.
+    let arg_vecs: Vec<Vec<char>> = args
+        .iter()
+        .map(|word| word.concat().chars().collect())
+        .collect();
+    // Stable sort by length desc to match JS ordering.
+    let mut indexed: Vec<usize> = (0..arg_vecs.len()).collect();
+    indexed.sort_by(|a, b| arg_vecs[*b].len().cmp(&arg_vecs[*a].len()));
+    let arg_vecs_sorted: Vec<&Vec<char>> = indexed.iter().map(|i| &arg_vecs[*i]).collect();
+
+    let len = chars.len();
+    let mut index = 0;
+    while index < len {
+        let is_start = index == 0 || !is_identifier_character(chars[index - 1]);
+        if is_start {
+            for arg in arg_vecs_sorted.iter() {
+                if arg.is_empty() {
+                    continue;
+                }
+                if matches_keyword(chars, index, arg)
+                    && (index + arg.len() == len || !is_identifier_character(chars[index + arg.len()]))
+                {
+                    let mut scan = index + arg.len();
+                    while scan < len && chars[scan].is_whitespace() {
+                        scan += 1;
+                    }
+                    if scan < len && chars[scan] == '=' {
+                        return Some((index, arg.len(), scan));
+                    }
+                }
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
+// Mirror of `getStaticDirectArg`: `\b{arg}([+-]?\d+(?:\.\d*)?)` (case-insensitive).
+// Returns `(value, literal, col, end_col)` aligned to UTF-16 character counts.
+fn get_static_direct_arg(chars: &[char], arg: &[char]) -> Option<(f64, String, usize, usize)> {
+    let len = chars.len();
+    let mut index = 0;
+    while index + arg.len() <= len {
+        let is_start = index == 0 || !is_identifier_character(chars[index - 1]);
+        if is_start && matches_keyword(chars, index, arg) {
+            let mut cursor = index + arg.len();
+            let value_start = cursor;
+            if cursor < len && matches!(chars[cursor], '+' | '-') {
+                cursor += 1;
+            }
+            let digits_start = cursor;
+            while cursor < len && chars[cursor].is_ascii_digit() {
+                cursor += 1;
+            }
+            if cursor > digits_start {
+                if cursor < len && chars[cursor] == '.' {
+                    cursor += 1;
+                    while cursor < len && chars[cursor].is_ascii_digit() {
+                        cursor += 1;
+                    }
+                }
+                let literal: String = chars[value_start..cursor].iter().collect();
+                if let Ok(value) = literal.parse::<f64>() {
+                    let col = utf16_prefix_len(chars, index);
+                    let end_col = utf16_prefix_len(chars, cursor);
+                    return Some((value, literal, col, end_col));
+                }
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
+// Mirror of `addStaticArgRangeDiagnostic`: skip integer-in-range cases, otherwise
+// emit `SYNTEC_ROBOT_STATIC_ARG_RANGE` over the full literal span.
+fn add_static_arg_range_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    chars: &[char],
+    arg: &[char],
+    min: f64,
+    max: f64,
+    message: impl Into<String>,
+) {
+    let Some((value, _literal, col, end_col)) = get_static_direct_arg(chars, arg) else {
+        return;
+    };
+    if value.is_finite()
+        && value.fract() == 0.0
+        && value >= min
+        && value <= max
+    {
+        return;
+    }
+    push_diagnostic(
+        diagnostics,
+        line,
+        col,
+        end_col,
+        Severity::Error,
+        "SYNTEC_ROBOT_STATIC_ARG_RANGE",
+        message,
+    );
+}
+
+// Mirror of `addStaticSignalQRangeDiagnostic`: a source arg (E/P/S) selects O/A-bit
+// (sourceValue != r_bit_source_value) or R-bit encoding (source == r_bit_source_value)
+// and Q is constrained accordingly.
+fn add_static_signal_q_range_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    chars: &[char],
+    command: &str,
+    source_arg: &[char],
+    r_bit_source_value: f64,
+) {
+    let Some((source_value, _src_literal, _src_col, _src_end)) =
+        get_static_direct_arg(chars, source_arg)
+    else {
+        return;
+    };
+    let Some((signal_value, _sig_literal, signal_col, signal_end)) =
+        get_static_direct_arg(chars, &"Q".chars().collect::<Vec<_>>())
+    else {
+        return;
+    };
+    if !(source_value.fract() == 0.0 && matches!(source_value as i64, 1 | 2 | 3)) {
+        return;
+    }
+    let valid;
+    let range;
+    if source_value != r_bit_source_value {
+        valid = signal_value.fract() == 0.0
+            && signal_value >= 0.0
+            && signal_value <= 511.0;
+        range = "Q 引数范围为 0~511";
+    } else {
+        let register = (signal_value / 100.0).floor();
+        let bit = signal_value % 100.0;
+        valid = signal_value.fract() == 0.0
+            && signal_value >= 0.0
+            && register <= 65535.0
+            && bit <= 15.0;
+        range = "Q 按 R 编号×100+bit 编码；R 编号范围为 0~65535，末两位 bit 为 00~15";
+    }
+    if valid {
+        return;
+    }
+    push_diagnostic(
+        diagnostics,
+        line,
+        signal_col,
+        signal_end,
+        Severity::Error,
+        "SYNTEC_ROBOT_STATIC_ARG_RANGE",
+        format!("{command} 的 {range}，且必须为整数"),
+    );
+}
+
+// Mirror of `validateStaticArgumentRanges`: MOVJ/MOVC/INCMOVJ/INCMOVL motion
+// ranges, WEAVEON dual-mode ranges, per-command direct ranges, and signal-Q
+//联动规则。纯静态数值；动态引数和表达式保持不推断。
+fn validate_static_argument_ranges(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let trimmed = clean.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let chars: Vec<char> = clean.chars().collect();
+    let Some(command) = get_command(clean) else {
+        return;
+    };
+
+    let p_arg: Vec<char> = "P".chars().collect();
+    let q_arg: Vec<char> = "Q".chars().collect();
+    let r_arg: Vec<char> = "R".chars().collect();
+    let e_arg: Vec<char> = "E".chars().collect();
+    let l_arg: Vec<char> = "L".chars().collect();
+    let t_arg: Vec<char> = "T".chars().collect();
+    let s_arg: Vec<char> = "S".chars().collect();
+    let k_arg: Vec<char> = "K".chars().collect();
+
+    match command.as_str() {
+        "MOVL" | "MOVC" => {
+            add_static_arg_range_diagnostic(diagnostics, line, &chars, &p_arg, 0.0, 20.0,
+                format!("{command} 的 P 引数范围为 0~20，且必须为整数"));
+            add_static_arg_range_diagnostic(diagnostics, line, &chars, &q_arg, 0.0, 20.0,
+                format!("{command} 的 Q 引数范围为 0~20，且必须为整数"));
+        }
+        "INCMOVJ" => {
+            add_static_arg_range_diagnostic(diagnostics, line, &chars, &q_arg, 0.0, 20.0,
+                "INCMOVJ 的 Q 引数范围为 0~20，且必须为整数");
+        }
+        "INCMOVL" => {
+            add_static_arg_range_diagnostic(diagnostics, line, &chars, &p_arg, 1.0, 2.0,
+                "INCMOVL 的 P 引数范围为 1~2，且必须为整数");
+        }
+        "WEAVEON" => {
+            let has_p = has_direct_arg(&chars, &p_arg);
+            let detail_chars: [&[char]; 6] = [
+                &"E".chars().collect::<Vec<_>>(),
+                &"Q".chars().collect::<Vec<_>>(),
+                &"K".chars().collect::<Vec<_>>(),
+                &"L".chars().collect::<Vec<_>>(),
+                &"R".chars().collect::<Vec<_>>(),
+                &"I".chars().collect::<Vec<_>>(),
+            ];
+            let detail_count = detail_chars
+                .iter()
+                .filter(|arg| has_direct_arg(&chars, arg))
+                .count();
+            if has_p && detail_count == 0 {
+                add_static_arg_range_diagnostic(diagnostics, line, &chars, &p_arg, 1.0, 50.0,
+                    "WEAVEON 的 P 引数范围为 1~50，且必须为整数");
+            } else if !has_p {
+                add_static_arg_range_diagnostic(diagnostics, line, &chars, &l_arg, 0.0, 1_000_000.0,
+                    "WEAVEON 的 L 引数范围为 0~1000000，且必须为整数");
+                add_static_arg_range_diagnostic(diagnostics, line, &chars, &r_arg, 0.0, 1.0,
+                    "WEAVEON 的 R 引数只能为 0 或 1，且必须为整数");
+            }
+        }
+        _ => {}
+    }
+
+    // Per-command direct ranges (do not override above branches).
+    let direct_ranges: &[(&[char], f64, f64, &str)] = match command.as_str() {
+        "USERCOR" => &[(&p_arg, 0.0, 20.0, "USERCOR 的 P 引数范围为 0~20，且必须为整数")],
+        "TOOLCOR" => &[(&p_arg, 0.0, 20.0, "TOOLCOR 的 P 引数范围为 0~20，且必须为整数")],
+        "SHIFTON" => &[(&p_arg, 1.0, 2.0, "SHIFTON 的 P 引数范围为 1~2，且必须为整数")],
+        "G68.18" => &[
+            (&p_arg, 1.0, 20.0, "G68.18 的 P 引数范围为 1~20，且必须为整数"),
+            (&r_arg, 0.0, 3.0, "G68.18 的 R 引数范围为 0~3，且必须为整数"),
+        ],
+        "G43.16" => &[(&p_arg, 1.0, 20.0, "G43.16 的 P 引数范围为 1~20，且必须为整数")],
+        "POSEMAP" => &[
+            (&q_arg, 0.0, 20.0, "POSEMAP 的 Q 引数范围为 0~20，且必须为整数"),
+            (&r_arg, 1.0, 2.0, "POSEMAP 的 R 引数范围为 1~2，且必须为整数"),
+        ],
+        "SKIPCOND" => &[
+            (&e_arg, 1.0, 3.0, "SKIPCOND 的 E 引数范围为 1~3，且必须为整数"),
+            (&r_arg, 0.0, 1.0, "SKIPCOND 的 R 引数范围为 0~1，且必须为整数"),
+            (&p_arg, 0.0, 1.0, "SKIPCOND 的 P 引数范围为 0~1，且必须为整数"),
+        ],
+        "SWAITSIG" => &[
+            (&p_arg, 1.0, 3.0, "SWAITSIG 的 P 引数范围为 1~3，且必须为整数"),
+            (&r_arg, 0.0, 1.0, "SWAITSIG 的 R 引数范围为 0~1，且必须为整数"),
+            (&l_arg, 0.0, 2_147_483_648.0, "SWAITSIG 的 L 引数范围为 0~[PHONE]，且必须为整数"),
+            (&t_arg, 0.0, 2_147_483_648.0, "SWAITSIG 的 T 引数范围为 0~[PHONE]，且必须为整数"),
+        ],
+        "SYNCOUT" => &[
+            (&s_arg, 1.0, 3.0, "SYNCOUT 的 S 引数范围为 1~3，且必须为整数"),
+            (&p_arg, 0.0, 100.0, "SYNCOUT 的 P 引数范围为 0~100，且必须为整数"),
+            (&r_arg, 0.0, 1.0, "SYNCOUT 的 R 引数范围为 0~1，且必须为整数"),
+            (&l_arg, 0.0, 10_000.0, "SYNCOUT 的 L 引数范围为 0~10000，且必须为整数"),
+            (&k_arg, -10_000.0, 10_000.0, "SYNCOUT 的 K 引数范围为 -10000~10000，且必须为整数"),
+        ],
+        "G192.1" => &[
+            (&p_arg, 0.0, 20.0, "G192.1 的 P 引数范围为 0~20，且必须为整数"),
+            (&q_arg, 0.0, 65_530.0, "G192.1 的 Q 引数范围为 0~65530，且必须为整数"),
+            (&r_arg, 1.0, 2.0, "G192.1 的 R 引数范围为 1~2，且必须为整数"),
+            (&e_arg, -10.0, 10.0, "G192.1 的 E 引数范围为 -10~10，且必须为整数"),
+        ],
+        "CIRMODE" => &[(&p_arg, 0.0, 2.0, "CIRMODE 的 P 引数范围为 0~2，且必须为整数")],
+        "WAITSYNC" => &[(&p_arg, 1.0, 4.0, "WAITSYNC 的 P 引数范围为 1~4，且必须为整数")],
+        "ENDSYNC" => &[(&p_arg, 1.0, 4.0, "ENDSYNC 的 P 引数范围为 1~4，且必须为整数")],
+        _ => &[],
+    };
+    for (arg, min, max, message) in direct_ranges.iter() {
+        add_static_arg_range_diagnostic(diagnostics, line, &chars, arg, *min, *max, *message);
+    }
+
+    if command == "SKIPCOND" {
+        add_static_signal_q_range_diagnostic(diagnostics, line, &chars, command.as_str(), &e_arg, 3.0);
+    }
+    if command == "SWAITSIG" {
+        add_static_signal_q_range_diagnostic(diagnostics, line, &chars, command.as_str(), &p_arg, 2.0);
+    }
+    if command == "SYNCOUT" {
+        add_static_signal_q_range_diagnostic(diagnostics, line, &chars, command.as_str(), &s_arg, 2.0);
+    }
+}
+
+// Per-file robot line state. Mirrors `createRobotState` in
+// `src/robotValidator.js`. Carries MOVC pair state, SWAITSIG/SYNCOUT
+// counters, pending movement line, and STITCHON/WEAVEON/WAITSYNC/G192 active
+// flags required by the ROBOT-SIGNAL末批 (`SWAITSIG_LIMIT` / `SYNCOUT_LIMIT`
+// / `RANGE_FORBIDDEN_COMMAND`).
+#[derive(Default)]
+struct RobotLineState {
+    pending_movc_line: usize,
+    current_movement_line: usize,
+    swaitsig_count: usize,
+    syncout_count: usize,
+    in_stitch_on: bool,
+    in_weave_on: bool,
+    in_wait_sync: bool,
+    in_g192: bool,
+}
+
+fn is_movement_command(command: &str) -> bool {
+    matches!(command, "MOVJ" | "MOVL" | "MOVC" | "INCMOVJ" | "INCMOVL")
+}
+
+fn is_single_line_movc(clean: &str) -> bool {
+    let mut x1 = false;
+    let mut x2 = false;
+    let chars: Vec<char> = clean.chars().collect();
+    let len = chars.len();
+    let mut index = 0;
+    while index + 2 <= len {
+        let boundary_before = index == 0 || !is_identifier_character(chars[index - 1]);
+        if boundary_before {
+            if chars[index].eq_ignore_ascii_case(&'X') {
+                let next = chars[index + 1];
+                if next.eq_ignore_ascii_case(&'1') {
+                    x1 = true;
+                }
+                if next.eq_ignore_ascii_case(&'2') {
+                    x2 = true;
+                }
+            }
+        }
+        index += 1;
+    }
+    x1 && x2
+}
+
+// Mirrors `addPendingMovcDiagnostic`: file-end pending MOVC pair error.
+fn add_pending_movc_diagnostic(diagnostics: &mut Vec<Diagnostic>, line: usize) {
+    push_diagnostic(
+        diagnostics,
+        line,
+        0,
+        0,
+        Severity::Error,
+        "SYNTEC_ROBOT_MOVC_PAIR_REQUIRED",
+        "MOVC 必须成对出现：第一行为中间点，第二行为结束点",
+    );
+}
+
+// Mirror of `clean.search(new RegExp('\\b' + command.replace('.', '\\.') +
+// '\\b', 'i'))`: returns the UTF-16 col of the first word-boundary occurrence
+// of `command` (case-insensitive). `command` may contain dots like `G04.1`
+// which were escaped in JS before searching; we treat the literal string.
+fn find_keyword_col(chars: &[char], keyword: &str) -> Option<usize> {
+    let kw: Vec<char> = keyword.chars().collect();
+    let len = chars.len();
+    let mut index = 0;
+    while index + kw.len() <= len {
+        let before_ok = index == 0 || !is_identifier_character(chars[index - 1]);
+        let after_end = index + kw.len();
+        let after_ok = after_end == len || !is_identifier_character(chars[after_end]);
+        if before_ok && after_ok && matches_keyword(chars, index, &kw) {
+            return Some(utf16_prefix_len(chars, index));
+        }
+        index += 1;
+    }
+    None
+}
+
+// Mirror of `clean.search(/\bSKIP\b/i)` for the SKIP marker used by the
+// STITCHON forbidden-movement rule.
+fn find_skip_col(chars: &[char]) -> Option<usize> {
+    let kw: Vec<char> = "SKIP".chars().collect();
+    let len = chars.len();
+    let mut index = 0;
+    while index + kw.len() <= len {
+        let before_ok = index == 0 || !is_identifier_character(chars[index - 1]);
+        let after_end = index + kw.len();
+        let after_ok = after_end == len || !is_identifier_character(chars[after_end]);
+        if before_ok && after_ok && matches_keyword(chars, index, &kw) {
+            return Some(utf16_prefix_len(chars, index));
+        }
+        index += 1;
+    }
+    None
+}
+
+fn is_m_code(command: &str) -> bool {
+    // Mirror of `^M\d+$`.
+    let bytes = command.as_bytes();
+    if bytes.len() < 2 || !bytes[0].eq_ignore_ascii_case(&b'M') {
+        return false;
+    }
+    bytes[1..].iter().all(|b| b.is_ascii_digit())
+}
+
+// Push RANGE_FORBIDDEN_COMMAND with appropriate severity / location.
+fn push_range_forbidden(
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    col: usize,
+    end_col: usize,
+    severity: Severity,
+    message: impl Into<String>,
+) {
+    push_diagnostic(
+        diagnostics,
+        line,
+        col,
+        end_col,
+        severity,
+        "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND",
+        message,
+    );
+}
+
+// Mirror of `validateRobotLineState` (`src/robotValidator.js`): MOVC pair
+// tracking, SWAITSIG/SYNCOUT counters, and the STITCHON/WEAVEON/WAITSYNC/G192
+// 生效范围禁忌规则组。
+fn validate_robot_line_state(
+    state: &mut RobotLineState,
+    clean: &str,
+    command: Option<&str>,
+    line: usize,
+    in_conditional_branch: bool,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(command) = command else {
+        return;
+    };
+    let chars: Vec<char> = clean.chars().collect();
+    let clean_end = utf16_prefix_len(&chars, chars.len());
+
+    // If a pending MOVC was left open and the new line is a non-MOVC movement,
+    // emit the pair error immediately and clear the pending marker.
+    if state.pending_movc_line > 0 && command != "MOVC" && is_movement_command(command) {
+        add_pending_movc_diagnostic(diagnostics, state.pending_movc_line);
+        state.pending_movc_line = 0;
+    }
+
+    // A new unpaired MOVC (not single-line X1/X2 syntax, not in a conditional
+    // branch) toggles the pending marker.
+    if command == "MOVC" && !in_conditional_branch && !is_single_line_movc(clean) {
+        state.pending_movc_line = if state.pending_movc_line > 0 { 0 } else { line };
+    }
+
+    if is_movement_command(command) {
+        state.current_movement_line = line;
+        state.swaitsig_count = 0;
+        state.syncout_count = 0;
+    }
+
+    if command == "WAIT" {
+        state.current_movement_line = 0;
+        state.swaitsig_count = 0;
+        state.syncout_count = 0;
+    }
+
+    if command == "SWAITSIG" && state.current_movement_line > 0 {
+        state.swaitsig_count += 1;
+        if state.swaitsig_count > 1 {
+            let col = find_keyword_col(&chars, "SWAITSIG").unwrap_or(0);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "SYNTEC_ROBOT_SWAITSIG_LIMIT",
+                "运动单节后只能下 1 个 SWAITSIG；多个条件请用 WAIT() 隔开或改用 G4.16",
+            );
+        }
+    }
+
+    if command == "SYNCOUT" && state.current_movement_line > 0 {
+        state.syncout_count += 1;
+        if state.syncout_count > 10 {
+            let col = find_keyword_col(&chars, "SYNCOUT").unwrap_or(0);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "SYNTEC_ROBOT_SYNCOUT_LIMIT",
+                "同一有移动量移动单节最多允许 10 个 SYNCOUT",
+            );
+        }
+    }
+
+    // STITCHON 生效范围禁忌
+    if state.in_stitch_on && command != "STITCHOFF" {
+        let stitch_forbidden_letter = [
+            "MOVJ", "USERCOR", "SHIFTON", "SHIFTOFF", "OBJCORON", "OBJCOROFF",
+            "OBJCORCLEAR", "SYNCOUT", "WEAVEON", "WEAVEOFF", "WAITSYNC", "ENDSYNC",
+        ];
+        let move_skip = matches!(command, "MOVL" | "MOVC" | "INCMOVL") && find_skip_col(&chars).is_some();
+        if stitch_forbidden_letter.contains(&command) || move_skip {
+            let col = find_keyword_col(&chars, command).unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "STITCHON 生效范围内不支持此指令",
+            );
+        } else if command == "M96" {
+            let col = find_keyword_col(&chars, "M96").unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Warning,
+                "STITCHON 生效范围内 M96 中断型副程序触发无效",
+            );
+        }
+    }
+
+    // WEAVEON 生效范围禁忌
+    if state.in_weave_on && command != "WEAVEOFF" {
+        let weave_forbidden = ["MOVJ", "STITCHON", "STITCHOFF", "WAITSYNC", "ENDSYNC"];
+        if weave_forbidden.contains(&command) {
+            let col = find_keyword_col(&chars, command).unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "WEAVEON 生效范围内不支持此指令",
+            );
+        } else if command == "M96" {
+            let col = find_keyword_col(&chars, "M96").unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Warning,
+                "WEAVEON 生效范围内 M96 中断型副程序触发无效",
+            );
+        }
+    }
+
+    // WAITSYNC 生效范围禁忌
+    if state.in_wait_sync && command != "ENDSYNC" {
+        let wait_sync_forbidden = ["MOVJ", "USERCOR", "G04.1", "SHIFTON"];
+        if wait_sync_forbidden.contains(&command) || is_m_code(command) {
+            let col = find_keyword_col(&chars, command).unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "WAITSYNC 生效范围内不支持此指令",
+            );
+        }
+    }
+
+    // G192.1 末端跟踪生效范围禁忌
+    if state.in_g192 && command != "G192.2" {
+        let g192_forbidden = [
+            "MOVJ", "INCMOVJ", "MOVC", "SWAITSIG", "SYNCOUT", "WEAVEON", "WEAVEOFF",
+            "WAITSYNC", "ENDSYNC",
+        ];
+        if g192_forbidden.contains(&command) {
+            let col = find_keyword_col(&chars, command).unwrap_or(0);
+            push_range_forbidden(
+                diagnostics,
+                line,
+                col,
+                clean_end,
+                Severity::Error,
+                "G192.1 末端跟踪生效范围内不支持此指令",
+            );
+        }
+    }
+
+    // STITCHON/WEAVEON 互斥：在对方生效范围内静默忽略开启指令
+    if command == "STITCHON" {
+        if !state.in_weave_on {
+            state.in_stitch_on = true;
+        }
+    } else if command == "STITCHOFF" {
+        state.in_stitch_on = false;
+    }
+
+    if command == "WEAVEON" {
+        if !state.in_stitch_on {
+            state.in_weave_on = true;
+        }
+    } else if command == "WEAVEOFF" {
+        state.in_weave_on = false;
+    }
+
+    if command == "WAITSYNC" {
+        state.in_wait_sync = true;
+    } else if command == "ENDSYNC" {
+        state.in_wait_sync = false;
+    }
+
+    if command == "G192.1" {
+        state.in_g192 = true;
+    } else if command == "G192.2" {
+        state.in_g192 = false;
+    }
+}
+
+fn count_smooth_args(chars: &[char]) -> usize {
+    ["PL", "PQ", "PR"]
+        .iter()
+        .filter(|arg| has_direct_arg(chars, &arg.chars().collect::<Vec<_>>()))
+        .count()
+}
+
+// Modbus-TCP constant boundary. Mirrors `src/robotValidator.js`.
+const MODBUS_R_MIN: f64 = 0.0;
+const MODBUS_R_MAX: f64 = 65535.0;
+const MODBUS_WRITE_VALUE_MAX: f64 = 65535.0;
+const MODBUS_CUSTOM_DATA_MAX: f64 = 254.0;
+
+// Mirror of `getModbusLine`: `^\s*G10\s+(L1900|L1901)\b` (case-insensitive).
+// Returns `(code, col, end_col)` aligned to UTF-16 character counts.
+fn get_modbus_line(chars: &[char]) -> Option<(String, usize, usize)> {
+    let mut start = 0;
+    while start < chars.len() && chars[start].is_whitespace() {
+        start += 1;
+    }
+    // `G10`
+    let g10: Vec<char> = "G10".chars().collect();
+    if start + g10.len() > chars.len() || !matches_keyword(chars, start, &g10) {
+        return None;
+    }
+    let mut cursor = start + g10.len();
+    // Required whitespace boundary (matched `\s+` in JS regex).
+    if cursor >= chars.len() || !chars[cursor].is_whitespace() {
+        return None;
+    }
+    while cursor < chars.len() && chars[cursor].is_whitespace() {
+        cursor += 1;
+    }
+    // `L1900` or `L1901`.
+    for code in ["L1900", "L1901"] {
+        let code_chars: Vec<char> = code.chars().collect();
+        if matches_keyword(chars, cursor, &code_chars)
+            && (cursor + code_chars.len() == chars.len()
+                || !is_identifier_character(chars[cursor + code_chars.len()]))
+        {
+            let col = utf16_prefix_len(chars, start);
+            let end_col = utf16_prefix_len(chars, cursor + code_chars.len());
+            return Some((code.to_string(), col, end_col));
+        }
+    }
+    None
+}
+
+fn add_robot_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    col: usize,
+    end_col: usize,
+    severity: Severity,
+    code: &str,
+    message: impl Into<String>,
+) {
+    push_diagnostic(diagnostics, line, col, end_col, severity, code, message);
+}
+
+// Collects the 8 Modbus args (`C/I/A/Q/K/X/P/R`) as a Vec, preserving the JS
+// argument map insertion order so iteration diagonal RW/RANGE statements
+// appear in source order.
+fn collect_modbus_args(chars: &[char]) -> Vec<(char, Option<(f64, String, usize, usize)>)> {
+    ['I', 'A', 'Q', 'K', 'X', 'P', 'R', 'C']
+        .into_iter()
+        .map(|letter| {
+            let arg: Vec<char> = std::iter::once(letter).collect();
+            (letter, get_static_direct_arg(chars, &arg))
+        })
+        .collect()
+}
+
+// Mirror of `validateG10ModbusArguments` in `src/robotValidator.js`. Emits the
+// same diagnostic sequence under the same ordering (INTEGER -> FORMAT ->
+// RANGE) using the JS col fallback: arg diagnostics without a concrete arg
+// span fall back to the `L1900`/`L1901` col..cleanLine length (UTF-16).
+fn join_letters(letters: &[char], separator: &str) -> String {
+    letters
+        .iter()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join(separator)
+}
+
+fn validate_g10_modbus_arguments(chars: &[char], line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let Some((code, modbus_col, _modbus_end)) = get_modbus_line(chars) else {
+        return;
+    };
+    let clean_length = utf16_prefix_len(chars, chars.len());
+
+    // Inlined helpers mirroring `addFormat` / `addArgDiagnostic` (without
+    // closure borrow of `diagnostics`, to keep mutable access straight).
+    let add_format = |diagnostics: &mut Vec<Diagnostic>, message: String| {
+        add_robot_diagnostic(
+            diagnostics,
+            line,
+            modbus_col,
+            clean_length,
+            Severity::Error,
+            "SYNTEC_ROBOT_G10_MODBUS_FORMAT",
+            message,
+        );
+    };
+    let add_arg = |diagnostics: &mut Vec<Diagnostic>, letter: char, message: String, code: &str| {
+        let arg: Vec<char> = std::iter::once(letter).collect();
+        if let Some((_value, _literal, col, end_col)) = get_static_direct_arg(chars, &arg) {
+            add_robot_diagnostic(diagnostics, line, col, end_col, Severity::Error, code, message);
+        } else {
+            add_robot_diagnostic(diagnostics, line, modbus_col, clean_length, Severity::Error, code, message);
+        }
+    };
+
+    // JS iterates over `args` (a Map of present args only); we replicate that
+    // order by emitting INTEGER for each present arg in declaration order.
+    let args = collect_modbus_args(chars);
+
+    // === INTEGER check: any arg with `.` in literal or non-safe-int value. ===
+    for (letter, arg) in &args {
+        let Some((value, literal, _col, _end)) = arg else { continue };
+        if literal.contains('.') || !is_safe_integer(*value) {
+            add_arg(
+                diagnostics,
+                *letter,
+                format!("G10 {code} 的 {letter} 引数必须为十进制整数"),
+                "SYNTEC_ROBOT_G10_MODBUS_INTEGER",
+            );
+        }
+    }
+
+    let c_arg = args
+        .iter()
+        .find(|(letter, _)| *letter == 'C')
+        .and_then(|(_, arg)| arg.clone());
+
+    if code == "L1900" {
+        let has_c = c_arg.is_some();
+        if !has_c {
+            add_format(diagnostics, "G10 L1900 缺少 C 引数；读取使用 C3，写入使用 C6。".to_string());
+        } else if let Some((c_value, _c_literal, _c_col, _c_end)) = &c_arg {
+            if is_safe_integer(*c_value) && !matches!(*c_value as i64, 3 | 6) {
+                add_arg(
+                    diagnostics,
+                    'C',
+                    "G10 L1900 的 C 引数只能为 3（读取）或 6（写入）".to_string(),
+                    "SYNTEC_ROBOT_G10_MODBUS_FORMAT",
+                );
+            }
+        }
+
+        if let Some((c_value, _c_literal, _c_col, _c_end)) = &c_arg {
+            if is_safe_integer(*c_value) && *c_value as i64 == 3 {
+                let missing: Vec<char> = ['I', 'A', 'Q', 'K']
+                    .into_iter()
+                    .filter(|letter| !has_direct_arg(chars, &std::iter::once(*letter).collect::<Vec<_>>()))
+                    .collect();
+                if !missing.is_empty() {
+                    add_format(diagnostics, format!("G10 L1900 C3 缺少引数：{}", join_letters(&missing, "/")));
+                }
+                if has_direct_arg(chars, &"X".chars().collect::<Vec<_>>()) {
+                    add_format(diagnostics, "G10 L1900 C3 读取语法不支持 X 引数".to_string());
+                }
+            } else if is_safe_integer(*c_value) && *c_value as i64 == 6 {
+                let missing: Vec<char> = ['I', 'A', 'X']
+                    .into_iter()
+                    .filter(|letter| !has_direct_arg(chars, &std::iter::once(*letter).collect::<Vec<_>>()))
+                    .collect();
+                if !missing.is_empty() {
+                    add_format(diagnostics, format!("G10 L1900 C6 缺少引数：{}", join_letters(&missing, "/")));
+                }
+                let unsupported: Vec<char> = ['Q', 'K']
+                    .into_iter()
+                    .filter(|letter| has_direct_arg(chars, &std::iter::once(*letter).collect::<Vec<_>>()))
+                    .collect();
+                if !unsupported.is_empty() {
+                    add_format(diagnostics, format!("G10 L1900 C6 写入语法不支持 {} 引数", join_letters(&unsupported, "/")));
+                }
+            }
+        }
+    } else {
+        // L1901 自定义封包
+        let missing: Vec<char> = ['P', 'R', 'Q']
+            .into_iter()
+            .filter(|letter| !has_direct_arg(chars, &std::iter::once(*letter).collect::<Vec<_>>()))
+            .collect();
+        if !missing.is_empty() {
+            add_format(diagnostics, format!("G10 L1901 缺少引数：{}", join_letters(&missing, "/")));
+        }
+        let unsupported: Vec<char> = ['C', 'I', 'A', 'X']
+            .into_iter()
+            .filter(|letter| has_direct_arg(chars, &std::iter::once(*letter).collect::<Vec<_>>()))
+            .collect();
+        if !unsupported.is_empty() {
+            add_format(diagnostics, format!("G10 L1901 自定义封包语法不支持 {} 引数", join_letters(&unsupported, "/")));
+        }
+    }
+
+    // === RANGE check: negative, X range, P/Q R-value range, R custom count. ===
+    for (letter, arg) in &args {
+        let Some((value, _literal, _col, _end)) = arg else { continue };
+        if *value < 0.0 {
+            add_arg(
+                diagnostics,
+                *letter,
+                format!("G10 {code} 的 {letter} 引数不可为负数"),
+                "SYNTEC_ROBOT_G10_MODBUS_RANGE",
+            );
+        }
+    }
+
+    // X range
+    if let Some((x_value, _x_literal, _x_col, _x_end)) = args
+        .iter()
+        .find(|(letter, _)| *letter == 'X')
+        .and_then(|(_, arg)| arg.clone())
+    {
+        if is_safe_integer(x_value) && (x_value < 0.0 || x_value > MODBUS_WRITE_VALUE_MAX) {
+            add_arg(
+                diagnostics,
+                'X',
+                format!("G10 {code} 的 X 写入值范围为 0~{}", MODBUS_WRITE_VALUE_MAX as i64),
+                "SYNTEC_ROBOT_G10_MODBUS_RANGE",
+            );
+        }
+    }
+
+    // P/Q R 值编号范围
+    for letter in ['P', 'Q'] {
+        let Some((value, _literal, _col, _end)) = args
+            .iter()
+            .find(|(l, _)| *l == letter)
+            .and_then(|(_, arg)| arg.clone())
+        else {
+            continue;
+        };
+        if is_safe_integer(value) && (value < MODBUS_R_MIN || value > MODBUS_R_MAX) {
+            add_arg(
+                diagnostics,
+                letter,
+                format!("G10 {code} 的 {letter} R 值编号范围为 {}~{}", MODBUS_R_MIN as i64, MODBUS_R_MAX as i64),
+                "SYNTEC_ROBOT_G10_MODBUS_RANGE",
+            );
+        }
+    }
+
+    // R 自定义资料数量
+    if let Some((r_count, _literal, _col, _end)) = args
+        .iter()
+        .find(|(letter, _)| *letter == 'R')
+        .and_then(|(_, arg)| arg.clone())
+    {
+        if is_safe_integer(r_count) && (r_count < 0.0 || r_count > MODBUS_CUSTOM_DATA_MAX) {
+            add_arg(
+                diagnostics,
+                'R',
+                format!("G10 {code} 的 R 自定义资料数量范围为 0~{}", MODBUS_CUSTOM_DATA_MAX as i64),
+                "SYNTEC_ROBOT_G10_MODBUS_RANGE",
+            );
+        }
+    }
+}
+
+// `Number.isSafeInteger` mirror: must be a finite, within i53 range, with zero
+// fractional part. Used for Modbus 整数判定.
+fn is_safe_integer(value: f64) -> bool {
+    value.is_finite()
+        && value.fract() == 0.0
+        && value.abs() <= 9_007_199_254_740_991.0
+}
+
+
+// Mirror of `validateRobotSyntaxPreferences` (movement/coordinate subset).
+// Order matches JS: MOVJ-II -> MOVC point (early return) -> direct-arg-equals
+// (deferred to ROBOT-MOV-B) -> TOOLCOR rules -> coordinate-forbidden syntax.
+fn validate_robot_syntax_preferences(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let trimmed = clean.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let chars: Vec<char> = clean.chars().collect();
+    let command = get_command(clean);
+
+    // MOVJ-II deprecated spelling.
+    let movj_ii: Vec<char> = "MOVJ-II".chars().collect();
+    let mut index = 0;
+    while index + movj_ii.len() <= chars.len() {
+        if matches_keyword(&chars, index, &movj_ii)
+            && (index == 0 || !is_identifier_character(chars[index - 1]))
+            && (index + movj_ii.len() == chars.len()
+                || !is_identifier_character(chars[index + movj_ii.len()]))
+        {
+            let col = utf16_prefix_len(&chars, index);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                col + movj_ii.len(),
+                Severity::Error,
+                "SYNTEC_ROBOT_DEPRECATED_MOVJ_II",
+                "MOVJ-II 不是正式指令写法；请使用 MOVJ 第二语法",
+            );
+            break;
+        }
+        index += 1;
+    }
+
+    // MOVC Xp/Yp/Zp= through-point syntax (early return, matching JS).
+    if command.as_deref() == Some("MOVC") {
+        let point_args: [&[char]; 3] = [
+            &"XP".chars().collect::<Vec<_>>(),
+            &"YP".chars().collect::<Vec<_>>(),
+            &"ZP".chars().collect::<Vec<_>>(),
+        ];
+        let mut found: Option<(usize, usize)> = None;
+        let mut index = 0;
+        while index < chars.len() && found.is_none() {
+            if index == 0 || !is_identifier_character(chars[index - 1]) {
+                for arg in point_args.iter() {
+                    if matches_keyword(&chars, index, arg) {
+                        let after = index + arg.len();
+                        let mut scan = after;
+                        while scan < chars.len() && chars[scan].is_whitespace() {
+                            scan += 1;
+                        }
+                        if scan < chars.len() && chars[scan] == '=' {
+                            found = Some((index, after));
+                            break;
+                        }
+                    }
+                }
+            }
+            index += 1;
+        }
+        if let Some((start, after_arg)) = found {
+            let col = utf16_prefix_len(&chars, start);
+            let end_col = utf16_prefix_len(&chars, after_arg);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                end_col,
+                Severity::Error,
+                "SYNTEC_ROBOT_UNSUPPORTED_MOVC_POINT_ARG",
+                "MOVC 不支持 Xp/Yp/Zp 通过点写法；请使用成对 MOVC 的 X/Y/Z/A/B/C 直接引数",
+            );
+            return;
+        }
+    }
+
+    // Direct-arg equals (`X=5.` etc.): mirrors `findDirectArgEquals` in JS.
+    if let Some((_arg_start, _arg_len, equals_index)) = find_direct_arg_equals(&chars, direct_arg_rules_for(command.as_deref())) {
+        let col = utf16_prefix_len(&chars, equals_index);
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            col + 1,
+            Severity::Error,
+            "SYNTEC_ROBOT_DIRECT_ARG_EQUALS",
+            direct_arg_rule_message(command.as_deref()).unwrap_or("直接引数不使用 ="),
+        );
+    }
+
+    // TOOLCOR/TOOLCORON rules (already implemented; preserves JS ordering).
+    validate_robot_toolcor(clean, line, diagnostics);
+
+    // Coordinate commands reject CNC feed, G codes, axis assignments and robot
+    // movement keywords mixed into the remainder.
+    let coordinate = matches!(command.as_deref(), Some("USERCOR") | Some("TOOLCOR") | Some("G68.18"));
+    if coordinate {
+        let remainder = trimmed.trim_start_matches(|c: char| !c.is_whitespace());
+        let remainder = remainder.trim_start();
+        if let Some((text, rel_start)) = find_coordinate_forbidden(remainder) {
+            let abs_start = chars.len() - remainder.chars().count() + rel_start;
+            let _ = abs_start;
+            let needle: Vec<char> = text.chars().collect();
+            let col = chars
+                .windows(needle.len())
+                .position(|w| w.iter().eq(needle.iter()))
+                .map(|p| utf16_prefix_len(&chars, p))
+                .unwrap_or(0);
+            let end_col = col + needle.iter().map(|c| c.len_utf16()).sum::<usize>();
+            let message = match text.as_str() {
+                t if t.starts_with('F') || t.starts_with('f') => {
+                    format!("{} 不可使用 CNC 或机器人进给引数 F/FJ/FL", command.unwrap())
+                }
+                t if t.starts_with('G') || t.starts_with('g') => {
+                    format!("{} 不可在语法中插入 G 码", command.unwrap())
+                }
+                t if t.starts_with('A') || t.starts_with('B') || t.starts_with('C') => {
+                    format!("{} 不接受轴向命令", command.unwrap())
+                }
+                _ => format!("{} 不可与机器人移动语言混用", command.unwrap()),
+            };
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                end_col,
+                Severity::Error,
+                "SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX",
+                message,
+            );
+        }
+    }
+}
+
+// Scan the remainder of a coordinate command for the first forbidden token.
+// Mirrors the four regexes in `validateRobotSyntaxPreferences`:
+//   \bF(?:J|L)?\s*(?=[#@+\-]?(?:\d|\.|\(|#|@))   (feed)
+//   \bG\d+(?:\.\d+)?\b                           (G code)
+//   \b(?:A|B|C)\d+\s*=                            (axis assignment)
+//   \b(?:MOVJ|MOVL|MOVC|INCMOVJ|INCMOVL)\b        (robot movement)
+// Returns the matched text (as-is, including trailing \s* for feed) and its
+// start offset within `remainder`.
+fn find_coordinate_forbidden(remainder: &str) -> Option<(String, usize)> {
+    let chars: Vec<char> = remainder.chars().collect();
+    let len = chars.len();
+    let mut best: Option<(usize, String, usize)> = None; // (start, text, end)
+    let mut consider = |start: usize, text: String, end: usize| {
+        if best.is_none() || start < best.as_ref().unwrap().0 {
+            best = Some((start, text, end));
+        }
+    };
+    let mut index = 0;
+    while index < len {
+        let boundary = index == 0 || !is_identifier_character(chars[index - 1]);
+        let lower = chars[index].to_ascii_lowercase();
+        if boundary && (lower == 'f' || lower == 'g' || lower == 'a' || lower == 'b' || lower == 'c')
+        {
+            // Feed: F(J|L)? followed by optional [#@+-] then digit/dot/(/#/ @.
+            if lower == 'f' {
+                let mut end = index + 1;
+                if end < len
+                    && (chars[end].eq_ignore_ascii_case(&'J') || chars[end].eq_ignore_ascii_case(&'L'))
+                {
+                    end += 1;
+                }
+                let mut lookahead = end;
+                while lookahead < len && chars[lookahead].is_whitespace() {
+                    lookahead += 1;
+                }
+                let mut after = lookahead;
+                if after < len && matches!(chars[after], '#' | '@' | '+' | '-') {
+                    after += 1;
+                }
+                if after < len
+                    && (chars[after].is_ascii_digit()
+                        || chars[after] == '.'
+                        || chars[after] == '('
+                        || chars[after] == '#'
+                        || chars[after] == '@')
+                {
+                    let text: String = chars[index..lookahead].iter().collect();
+                    consider(index, text, lookahead);
+                }
+            }
+            // G code: G\d+(\.\d+)? followed by word boundary.
+            if lower == 'g' {
+                let mut end = index + 1;
+                let digits_start = end;
+                while end < len && chars[end].is_ascii_digit() {
+                    end += 1;
+                }
+                if end > digits_start {
+                    if end < len && chars[end] == '.' {
+                        let frac = end + 1;
+                        let mut f = frac;
+                        while f < len && chars[f].is_ascii_digit() {
+                            f += 1;
+                        }
+                        if f > frac {
+                            end = f;
+                        }
+                    }
+                    if end == len || !is_identifier_character(chars[end]) {
+                        let text: String = chars[index..end].iter().collect();
+                        consider(index, text, end);
+                    }
+                }
+            }
+            // Axis assignment: A|B|C \d+ \s* =.
+            if lower == 'a' || lower == 'b' || lower == 'c' {
+                let mut end = index + 1;
+                while end < len && chars[end].is_ascii_digit() {
+                    end += 1;
+                }
+                if end > index + 1 {
+                    let mut scan = end;
+                    while scan < len && chars[scan].is_whitespace() {
+                        scan += 1;
+                    }
+                    if scan < len && chars[scan] == '=' {
+                        let text: String = chars[index..scan].iter().collect();
+                        consider(index, text, scan);
+                    }
+                }
+            }
+        }
+        if boundary {
+            for kw in ["MOVJ", "MOVL", "MOVC", "INCMOVJ", "INCMOVL"] {
+                let kw_chars: Vec<char> = kw.chars().collect();
+                if matches_keyword(&chars, index, &kw_chars)
+                    && (index + kw_chars.len() == len
+                        || !is_identifier_character(chars[index + kw_chars.len()]))
+                {
+                    let text: String = chars[index..index + kw_chars.len()].iter().collect();
+                    consider(index, text, index + kw_chars.len());
+                }
+            }
+        }
+        index += 1;
+    }
+    best.map(|(start, text, _)| (text, start))
+}
+
+// Mirror of `validateConfirmedSingleLineSyntax` (movement subset; STITCHON/WEAVEON
+// state rules are deferred to later batches).
+fn validate_robot_confirmed_single_line(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let trimmed = clean.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let chars: Vec<char> = clean.chars().collect();
+    let Some(command) = get_command(clean) else {
+        return;
+    };
+
+    // Static argument ranges (motion + WEAVEON + per-command direct ranges +
+    // signal Q 联动). Mirrors `validateStaticArgumentRanges` invocation at the
+    // top of `validateConfirmedSingleLineSyntax`.
+    validate_static_argument_ranges(clean, line, diagnostics);
+
+    // G10 L1900/L1901 Modbus-TCP static argument validation. Mirrors
+    // `validateG10ModbusArguments` in `src/robotValidator.js`; preserves JS
+    // ordering (INTEGER -> FORMAT -> RANGE) and JS col fallback rules.
+    validate_g10_modbus_arguments(&chars, line, diagnostics);
+
+    // Smooth argument conflict: MOVL/MOVC/INCMOVL with more than one of PL/PQ/PR.
+    if matches!(command.as_str(), "MOVL" | "MOVC" | "INCMOVL") && count_smooth_args(&chars) > 1 {
+        let col = find_first_smooth_arg(&chars).map(|p| utf16_prefix_len(&chars, p)).unwrap_or(0);
+        let end_col = utf16_prefix_len(&chars, chars.len());
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            end_col,
+            Severity::Error,
+            "SYNTEC_ROBOT_SMOOTH_ARG_CONFLICT",
+            format!("{command} 单行只能使用 PL/PQ/PR 其中一个平滑引数"),
+        );
+    }
+
+    // MOVJ/INCMOVJ do not support PQ/PR.
+    if matches!(command.as_str(), "MOVJ" | "INCMOVJ")
+        && (has_direct_arg(&chars, &"PQ".chars().collect::<Vec<_>>())
+            || has_direct_arg(&chars, &"PR".chars().collect::<Vec<_>>()))
+    {
+        let col = find_first_smooth_arg(&chars).map(|p| utf16_prefix_len(&chars, p)).unwrap_or(0);
+        let end_col = utf16_prefix_len(&chars, chars.len());
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            end_col,
+            Severity::Error,
+            "SYNTEC_ROBOT_UNSUPPORTED_SMOOTH_ARG",
+            format!("{command} 不支持 PQ/PR；请使用 PL"),
+        );
+    }
+
+    // MOVJ first syntax does not accept P without X.
+    if command == "MOVJ"
+        && has_direct_arg(&chars, &"P".chars().collect::<Vec<_>>())
+        && !has_direct_arg(&chars, &"X".chars().collect::<Vec<_>>())
+    {
+        let col = chars
+            .iter()
+            .position(|c| c.eq_ignore_ascii_case(&'P'))
+            .map(|p| utf16_prefix_len(&chars, p))
+            .unwrap_or(0);
+        let end_col = utf16_prefix_len(&chars, chars.len());
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            end_col,
+            Severity::Error,
+            "SYNTEC_ROBOT_UNSUPPORTED_MOVJ_P_ARG",
+            "MOVJ 第一语法不支持 P 引数",
+        );
+    }
+
+    // INCMOVL requires P.
+    if command == "INCMOVL"
+        && !has_direct_arg(&chars, &"P".chars().collect::<Vec<_>>())
+    {
+        let kw: Vec<char> = "INCMOVL".chars().collect();
+        let col = chars
+            .windows(kw.len())
+            .position(|w| w.iter().eq(kw.iter()))
+            .map(|p| utf16_prefix_len(&chars, p))
+            .unwrap_or(0);
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            col + kw.len(),
+            Severity::Error,
+            "SYNTEC_ROBOT_MISSING_REQUIRED_ARG",
+            "INCMOVL 缺少必填 P 引数",
+        );
+    }
+
+    // === ROBOT-STITCH-WEAVE batch ===
+
+    // STITCHON L/K conflict/missing, and L integer check.
+    if command == "STITCHON" {
+        let l_arg: Vec<char> = "L".chars().collect();
+        let k_arg: Vec<char> = "K".chars().collect();
+        let has_l = has_direct_arg(&chars, &l_arg);
+        let has_k = has_direct_arg(&chars, &k_arg);
+        let stitch_kw: Vec<char> = "STITCHON".chars().collect();
+        let stitch_kw_len = stitch_kw.len();
+        let stitch_col = chars
+            .windows(stitch_kw_len)
+            .position(|w| w.iter().eq(stitch_kw.iter()))
+            .map(|p| utf16_prefix_len(&chars, p))
+            .unwrap_or(0);
+        let stitch_end = utf16_prefix_len(&chars, chars.len());
+        // JS: `clean.search(/\b(?:L|K)/i)` = earliest L/K preceded by a
+        // word boundary; otherwise fall back to the `STITCHON` keyword col.
+        let mut lk_col: Option<usize> = None;
+        let mut index = 0;
+        while index < chars.len() {
+            let is_start = index == 0 || !is_identifier_character(chars[index - 1]);
+            if is_start && (chars[index].eq_ignore_ascii_case(&'L') || chars[index].eq_ignore_ascii_case(&'K')) {
+                // JS regex `\b(?:L|K)` matches a single letter at a word
+                // boundary; only the preceding char matters, the trailing
+                // char may extend the identifier (e.g. `LX` still positions
+                // on the leading `L`).
+                lk_col = Some(utf16_prefix_len(&chars, index));
+                break;
+            }
+            index += 1;
+        }
+        let col = lk_col.unwrap_or(stitch_col);
+        if has_l && has_k {
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                stitch_end,
+                Severity::Error,
+                "SYNTEC_ROBOT_STITCH_ARG_CONFLICT",
+                "STITCHON 的 L/K 只能择一输入",
+            );
+        } else if !has_l && !has_k {
+            push_diagnostic(
+                diagnostics,
+                line,
+                stitch_col,
+                stitch_end,
+                Severity::Warning,
+                "SYNTEC_ROBOT_STITCH_MISSING_ARG",
+                "STITCHON 需指定 L 或 K 其中一个",
+            );
+        }
+
+        // STITCHON 的 L 不可带小数点 (JS: `getStaticDirectArgNumber('L') !== null
+        // && !Number.isInteger(value)`).
+        if let Some((l_value, _l_literal, _l_col, _l_end)) = get_static_direct_arg(&chars, &l_arg) {
+            if l_value.is_finite() && l_value.fract() != 0.0 {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    col,
+                    stitch_end,
+                    Severity::Error,
+                    "SYNTEC_ROBOT_STITCH_L_INTEGER",
+                    "STITCHON 的 L 引数不可带小数点",
+                );
+            }
+        }
+    }
+
+    // WEAVEON P/E/Q/K/L/R/I mixing and Q decimal form warning.
+    if command == "WEAVEON" {
+        let p_arg: Vec<char> = "P".chars().collect();
+        let has_p = has_direct_arg(&chars, &p_arg);
+        let detail_args: [&[char]; 6] = [
+            &"E".chars().collect::<Vec<_>>(),
+            &"Q".chars().collect::<Vec<_>>(),
+            &"K".chars().collect::<Vec<_>>(),
+            &"L".chars().collect::<Vec<_>>(),
+            &"R".chars().collect::<Vec<_>>(),
+            &"I".chars().collect::<Vec<_>>(),
+        ];
+        let detail_present = detail_args.iter().any(|arg| has_direct_arg(&chars, arg));
+        let weave_kw: Vec<char> = "WEAVEON".chars().collect();
+        let weave_kw_len = weave_kw.len();
+        let weave_col = chars
+            .windows(weave_kw_len)
+            .position(|w| w.iter().eq(weave_kw.iter()))
+            .map(|p| utf16_prefix_len(&chars, p))
+            .unwrap_or(0);
+        let weave_end = utf16_prefix_len(&chars, chars.len());
+        if has_p && detail_present {
+            push_diagnostic(
+                diagnostics,
+                line,
+                weave_col,
+                weave_end,
+                Severity::Error,
+                "SYNTEC_ROBOT_WEAVEON_MIXED_ARGS",
+                "WEAVEON 的 P 语法不可与 E/Q/K/L/R/I 混用",
+            );
+        }
+
+        // `WEAVEON 的 Q 频率建议使用小数形式`: JS regex `\bQ([+-]?\d+)(?!\.)` —
+        // a literal Q with unsigned-or-signed digits that is NOT followed by `.`.
+        let q_arg: Vec<char> = "Q".chars().collect();
+        if !has_p {
+            let mut index = 0;
+            while index < chars.len() {
+                let is_start = index == 0 || !is_identifier_character(chars[index - 1]);
+                if is_start && matches_keyword(&chars, index, &q_arg) {
+                    // The regex requires `\bQ` then optional sign then digits;
+                    // a following identifier character (e.g. `QX`) still has
+                    // the Q match but the inner `[+-]?\d+` will not match, so
+                    // we fall through to scanning digits directly.
+                    let mut cursor = index + q_arg.len();
+                    if cursor < chars.len() && matches!(chars[cursor], '+' | '-') {
+                        cursor += 1;
+                    }
+                    let digits_start = cursor;
+                    while cursor < chars.len() && chars[cursor].is_ascii_digit() {
+                        cursor += 1;
+                    }
+                    if cursor > digits_start {
+                        // Only trigger when there is no `.` after the digits.
+                        let followed_by_dot = cursor < chars.len() && chars[cursor] == '.';
+                        if !followed_by_dot {
+                            let col = utf16_prefix_len(&chars, index);
+                            let end_col = utf16_prefix_len(&chars, cursor);
+                            push_diagnostic(
+                                diagnostics,
+                                line,
+                                col,
+                                end_col,
+                                Severity::Warning,
+                                "SYNTEC_ROBOT_WEAVEON_Q_DECIMAL",
+                                "WEAVEON 的 Q 频率建议使用小数形式，例如 Q1.0",
+                            );
+                        }
+                    }
+                }
+                index += 1;
+            }
+        }
+    }
+}
+
+fn find_first_smooth_arg(chars: &[char]) -> Option<usize> {
+    for arg in ["PL", "PQ", "PR"] {
+        let arg_chars: Vec<char> = arg.chars().collect();
+        let mut index = 0;
+        while index + arg_chars.len() <= chars.len() {
+            if (index == 0 || !is_identifier_character(chars[index - 1]))
+                && matches_keyword(chars, index, &arg_chars)
+            {
+                return Some(index);
+            }
+            index += 1;
+        }
+    }
+    None
+}
+
 fn close_block(
     stack: &mut Vec<Block>,
     closer: &str,
@@ -2240,12 +3942,323 @@ fn close_block(
 }
 
 pub fn analyze_document(content: &str) -> AnalysisResult {
+    let document = DocumentSnapshot {
+        uri: String::new(),
+        version: 0,
+        language_id: "syntec-macro".to_string(),
+        text: content.to_string(),
+    };
+    analyze_request(AnalysisRequest {
+        protocol_version: PROTOCOL_VERSION,
+        document,
+        profile: "generic".to_string(),
+    })
+}
+
+/// Parse a JSON-serialized `AnalysisRequest` and run the full analysis. Used by
+/// the Wasm ABI (`syntec_core_analyze_request_json`) and CLI request mode to
+/// enforce P0-B 真实 request 传输: protocol version, URI, version, languageId,
+/// text, and profile are all required/validated on the Rust side rather than
+/// having the adapter post-fill document/profile. Returns an error string when
+/// the request is malformed (the caller Wasm ABI will surface it via an empty
+/// pointer/length pair so adapters can take the explicit fallback path).
+pub fn analyze_request_json(json: &str) -> Result<AnalysisResult, String> {
+    parse_analysis_request(json).map(|request| analyze_request(request))
+}
+
+/// Parse a JSON-serialized `AnalysisRequest` and run the full analysis. Used by
+/// the Wasm ABI (`syntec_core_analyze_request_json`) and CLI request mode to
+/// enforce P0-B 真实 request 传输: protocol version, URI, version, languageId,
+/// text, and profile are all required/validated on the Rust side rather than
+/// having the adapter post-fill document/profile. Returns an error string when
+/// the request is malformed (the caller Wasm ABI will surface it via an empty
+/// pointer/length pair so adapters can take the explicit fallback path).
+pub fn analyze_request_json(json: &str) -> Result<AnalysisResult, String> {
+    parse_analysis_request(json).map(|request| analyze_request(request))
+}
+
+/// Minimal JSON parser for `AnalysisRequest`. Avoids pulling in `serde` to keep
+/// the Wasm build footprint near 50 KB. Only implements the subset used by the
+/// protocol: `protocolVersion` (optional when -1 or absent), `document.{uri,
+/// version, languageId, text}`, and `profile`. Detects non-string / non-integer
+/// / missing-required cases and surfaces a textual error mirroring JS
+/// `normalizeAnalysisRequest` assertions.
+pub fn parse_analysis_request(json: &str) -> Result<AnalysisRequest, String> {
+    let trimmed = json.trim();
+    if trimmed.is_empty() {
+        return Err("analysis request must not be empty".to_string());
+    }
+    let root = JsonValue::parse(trimmed)?.as_object()?;
+    let protocol_version = match root.get("protocolVersion") {
+        None | Some(JsonValue::Null) => PROTOCOL_VERSION,
+        Some(JsonValue::Number(value)) => {
+            let n = value.parse::<u32>().map_err(|_| {
+                format!("unsupported analysis protocol version: {value}")
+            })?;
+            if n != PROTOCOL_VERSION {
+                return Err(format!("unsupported analysis protocol version: {n}"));
+            }
+            n
+        }
+        Some(other) => {
+            return Err(format!("analysis request.protocolVersion must be a number, got {other:?}"))
+        }
+    };
+    let document_value = root.get("document").ok_or_else(|| {
+        "analysis request must contain a document snapshot".to_string()
+    })?;
+    let document = parse_document_snapshot(document_value)?;
+    let profile = match root.get("profile") {
+        None | Some(JsonValue::Null) => "generic".to_string(),
+        Some(JsonValue::String(value)) => {
+            if value.is_empty() {
+                return Err("analysis request.profile must be a non-empty string".to_string());
+            }
+            value.clone()
+        }
+        Some(other) => return Err(format!("analysis request.profile must be a string, got {other:?}")),
+    };
+    Ok(AnalysisRequest { protocol_version, document, profile })
+}
+
+fn parse_document_snapshot(value: &JsonValue) -> Result<DocumentSnapshot, String> {
+    let object = value.as_object()?;
+    let uri = match object.get("uri") {
+        Some(JsonValue::String(value)) => value.clone(),
+        None => String::new(),
+        Some(other) => return Err(format!("document.uri must be a string, got {other:?}")),
+    };
+    let version = match object.get("version") {
+        None | Some(JsonValue::Null) => 0,
+        Some(JsonValue::Number(value)) => value
+            .parse::<u32>()
+            .map_err(|_| format!("document.version must be a non-negative integer, got {value}"))?,
+        Some(other) => return Err(format!("document.version must be a number, got {other:?}")),
+    };
+    let language_id = match object.get("languageId") {
+        None | Some(JsonValue::Null) => "syntec-macro".to_string(),
+        Some(JsonValue::String(value)) => value.clone(),
+        Some(other) => return Err(format!("document.languageId must be a string, got {other:?}")),
+    };
+    if language_id.is_empty() {
+        return Err("document.languageId must be a non-empty string".to_string());
+    }
+    let text = match object.get("text") {
+        Some(JsonValue::String(value)) => value.clone(),
+        None => return Err("document.text is required".to_string()),
+        Some(other) => return Err(format!("document.text must be a string, got {other:?}")),
+    };
+    Ok(DocumentSnapshot { uri, version, language_id, text })
+}
+
+/// Trivial JSON value model used to validate AnalysisRequest without pulling
+/// in serde. Only supports the subset our protocol uses:
+/// object / array / string / number (lexed as a `String` to preserve precision
+/// and reject non-finite literals) / null / true / false.
+#[derive(Debug, Clone, PartialEq)]
+enum JsonValue {
+    Null,
+    True,
+    False,
+    Number(String),
+    String(String),
+    Array(Vec<JsonValue>),
+    Object(Vec<(String, JsonValue)>),
+}
+
+impl JsonValue {
+    fn parse(input: &str) -> Result<JsonValue, String> {
+        let mut chars = input.chars().peekable();
+        parse_value(&mut chars)?;
+        parse_value(&mut chars).map_err(|_| "expected a single JSON value".to_string()).and_then(|value| {
+            skip_whitespace(&mut chars);
+            if chars.peek().is_some() {
+                Err("unexpected trailing content after JSON value".to_string())
+            } else {
+                Ok(value)
+            }
+        })
+    }
+
+    fn as_object(&self) -> Result<&Vec<(String, JsonValue)>, String> {
+        match self {
+            JsonValue::Object(entries) => Ok(entries),
+            other => Err(format!("expected JSON object, got {other:?}")),
+        }
+    }
+}
+
+fn parse_value(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<JsonValue, String> {
+    loop {
+        skip_whitespace(chars);
+        match chars.peek() {
+            None => return Err("unexpected end of input".to_string()),
+            Some('{') => return parse_object(chars),
+            Some('[') => return parse_array(chars),
+            Some('"') => return parse_string(chars).map(JsonValue::String),
+            Some('t') => return parse_keyword(chars, "true", JsonValue::True).map(|_| JsonValue::True),
+            Some('f') => return parse_keyword(chars, "false", JsonValue::False).map(|_| JsonValue::False),
+            Some('n') => return parse_keyword(chars, "null", JsonValue::Null).map(|_| JsonValue::Null),
+            Some(c) if c.is_ascii_digit() || *c == '-' => return parse_number(chars).map(JsonValue::Number),
+            Some(other) => return Err(format!("unexpected character `{other}`")),
+        }
+    }
+}
+
+fn skip_whitespace(chars: &mut std::iter::Peekable<std::str::Chars>) {
+    while let Some(c) = chars.peek() {
+        if c.is_whitespace() {
+            chars.next();
+        } else {
+            break;
+        }
+    }
+}
+
+fn parse_object(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<JsonValue, String> {
+    chars.next(); // consume `{`
+    let mut entries: Vec<(String, JsonValue)> = Vec::new();
+    loop {
+        skip_whitespace(chars);
+        match chars.peek() {
+            None => return Err("unterminated JSON object".to_string()),
+            Some('}') => { chars.next(); break; }
+            Some(',') => { chars.next(); continue; }
+            Some('"') => {
+                let key = parse_string(chars)?;
+                skip_whitespace(chars);
+                match chars.next() {
+                    Some(':') => {}
+                    Some(other) => return Err(format!("expected `:` after key, got `{other}`")),
+                    None => return Err("expected `:` after key, got end of input".to_string()),
+                }
+                let value = parse_value(chars)?;
+                entries.push((key, value));
+            }
+            Some(other) => return Err(format!("expected string key or `}}`, got `{other}`")),
+        }
+    }
+    Ok(JsonValue::Object(entries))
+}
+
+fn parse_array(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<JsonValue, String> {
+    chars.next(); // consume `[`
+    let mut items: Vec<JsonValue> = Vec::new();
+    loop {
+        skip_whitespace(chars);
+        match chars.peek() {
+            None => return Err("unterminated JSON array".to_string()),
+            Some(']') => { chars.next(); break; }
+            Some(',') => { chars.next(); continue; }
+            _ => {
+                items.push(parse_value(chars)?);
+            }
+        }
+    }
+    Ok(JsonValue::Array(items))
+}
+
+fn parse_string(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<String, String> {
+    if chars.next() != Some('"') {
+        return Err("expected `\"` to start string".to_string());
+    }
+    let mut out = String::new();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => return Ok(out),
+            '\\' => {
+                let escaped = chars.next().ok_or_else(|| "truncated escape sequence".to_string())?;
+                match escaped {
+                    '"' => out.push('"'),
+                    '\\' => out.push('\\'),
+                    '/' => out.push('/'),
+                    'b' => out.push('\u{0008}'),
+                    'f' => out.push('\u{000C}'),
+                    'n' => out.push('\n'),
+                    'r' => out.push('\r'),
+                    't' => out.push('\t'),
+                    'u' => {
+                        let mut code_point = 0u32;
+                        for _ in 0..4 {
+                            let digit = chars.next().ok_or_else(|| "truncated unicode escape".to_string())?;
+                            let value = digit.to_digit(16).ok_or_else(|| format!("invalid unicode escape digit: {digit}"))?;
+                            code_point = (code_point << 4) | value;
+                        }
+                        if let Ok(character) = char::from_u32(code_point) {
+                            out.push(character);
+                        } else {
+                            return Err(format!("invalid unicode code point: {code_point}"));
+                        }
+                    }
+                    other => return Err(format!("invalid escape sequence `\\{other}`")),
+                }
+            }
+            c if c.is_control() => return Err(format!("control character in string: {c:?}")),
+            c => out.push(c),
+        }
+    }
+    Err("unterminated string".to_string())
+}
+
+fn parse_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<String, String> {
+    let mut literal = String::new();
+    if chars.peek() == Some(&'-') {
+        literal.push(chars.next().unwrap());
+    }
+    while let Some(&c) = chars.peek() {
+        if c.is_ascii_digit() || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-' {
+            literal.push(chars.next().unwrap());
+        } else {
+            break;
+        }
+    }
+    if literal.is_empty() {
+        return Err("expected number".to_string());
+    }
+    Ok(literal)
+}
+
+fn parse_keyword(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    expected: &str,
+    value: JsonValue,
+) -> Result<JsonValue, String>
+{
+    for expected_char in expected.chars() {
+        match chars.next() {
+            Some(c) if c == expected_char => continue,
+            Some(other) => return Err(format!("invalid JSON literal: expected `{expected}`, found `{other}`")),
+            None => return Err(format!("truncated JSON literal: expected `{expected}`")),
+        }
+    }
+    Ok(value)
+}
+
+/// Mirror of `createAnalysisRequest` validation + `analyzeDocument`/`analyzeNavigationDocument`
+/// semantics: protocol version, document snapshot (URI/version/languageId/text),
+/// and profile must all be present before analysis. Non-fatal defaults follow
+/// JS behavior: missing `protocolVersion` is allowed (only the Wasm ABI checks
+/// it), missing `languageId` defaults to `syntec-macro`, missing `profile`
+/// defaults to `generic`.
+pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
+    let content = request.document.text.as_str();
+    let document = request.document.clone();
+    let profile = request.profile.clone();
     let mut state = LexState::default();
     let mut stack = Vec::new();
     let mut until_closed_repeats = Vec::new();
     let mut diagnostics = Vec::new();
     let mut labels = HashSet::new();
     let mut goto_targets = Vec::new();
+    let mut robot_state = RobotLineState::default();
+    // Mirror of `collectMetadata` firstNonCommentIdx/
+    // firstNonCommentIsBarePercent/hasMacroHeader tracking.
+    let mut first_non_comment_collected = false;
+    let mut first_non_comment_bare_percent = false;
+    let mut first_non_comment_line_number = 0usize;
+    let mut first_non_comment_line_len = 0usize;
+    let mut first_non_comment_bare_percent_locator: Option<usize> = None;
+    let mut content_has_macro_header = false;
 
     for (line_index, raw_line) in content.split('\n').enumerate() {
         let line_number = line_index + 1;
@@ -2253,12 +4266,44 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         let line_start_in_block = state.in_block_comment;
         let (clean, next_block_comment) = strip_comments_and_strings(raw_line, line_start_in_block);
         state.in_block_comment = next_block_comment;
-        if let Some(label) = n_label_name(clean.trim()) {
+        let trimmed = clean.trim().to_string();
+
+        // First non-comment/non-empty line handling. Mirror of
+        // `collectMetadata` block in `src/validator.js`.
+        if !first_non_comment_collected
+            && !state.in_block_comment
+            && !trimmed.is_empty()
+            && !trimmed.starts_with("//")
+            && !trimmed.starts_with("(*")
+        {
+            first_non_comment_collected = true;
+            // `^%(?!@)` strings starting with `%` but NOT with `%@`.
+            let bare_percent = trimmed.starts_with('%') && !trimmed.starts_with("%@");
+            if bare_percent {
+                first_non_comment_bare_percent = true;
+                first_non_comment_line_number = line_number;
+                first_non_comment_line_len = trimmed.len();
+                // The warning location is the first-line trimmed length in JS:
+                // `lines[firstNonCommentIdx].trim()` -> its `.length`.
+                first_non_comment_bare_percent_locator = Some(utf16_prefix_len(&clean.chars().collect::<Vec<_>>(), clean.trim_start().find('%').unwrap_or(0)));
+            }
+        }
+
+        if !trimmed.starts_with("//") && !trimmed.starts_with("(*") && trimmed.eq_ignore_ascii_case("%@MACRO") {
+            content_has_macro_header = true;
+        }
+
+        if let Some(label) = n_label_name(trimmed.as_str()) {
             labels.insert(label[1..].to_string());
         }
         if let Some(target) = extract_goto_target(&clean) {
             goto_targets.push((line_number, target));
         }
+        // Mirrors `validateRobotLineState` (MOVC pair subset only; signal/stitch
+        // and weave state rules are deferred to subsequent batches).
+        let command = get_command(&clean);
+        let in_conditional_branch = stack.iter().any(|block: &Block| matches!(block.keyword.as_str(), "IF" | "CASE"));
+        validate_robot_line_state(&mut robot_state, &clean, command.as_deref(), line_number, in_conditional_branch, &mut diagnostics);
         validate_string_function_warnings(
             raw_line,
             line_number,
@@ -2279,6 +4324,14 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
+        // Order mirrors `LINE_VALIDATOR_RULES` in `src/validator.js`: syntax
+        // preferences first (MOVJ-II / MOVC point / direct-arg equals / TOOLCOR
+        // / coordinate syntax), then confirmed single-line syntax (ranges and
+        // smooth-arg conflicts). TOOLCOR is shared with `validateRobotToolcor`
+        // for legacy parity, which duplicates the JS registered rule but emits
+        // identical diagnostics in stable inputs.
+        validate_robot_syntax_preferences(&clean, line_number, &mut diagnostics);
+        validate_robot_confirmed_single_line(&clean, line_number, &mut diagnostics);
         validate_static_math_functions(&clean, line_number, &mut diagnostics);
         validate_static_io_functions(&clean, line_number, &mut diagnostics);
         validate_static_basic_functions(&clean, line_number, &mut diagnostics);
@@ -2470,6 +4523,21 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         );
     }
 
+    // Mirror of `collectMetadata` post-loop: first non-comment line is bare
+    // `%` without `@MACRO` -> push a codeless warning flagging the file as
+    // ISO format.
+    if first_non_comment_bare_percent && !content_has_macro_header {
+        let col = first_non_comment_bare_percent_locator.unwrap_or(0);
+        push_diagnostic_without_code(
+            &mut diagnostics,
+            first_non_comment_line_number,
+            col,
+            col + first_non_comment_line_len,
+            Severity::Warning,
+            "此文件缺少 %@MACRO 文件头，将被视为 ISO 格式文件",
+        );
+    }
+
     for (line, target) in goto_targets {
         if !labels.contains(&target) {
             push_diagnostic_without_code(
@@ -2483,13 +4551,53 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         }
     }
 
-    let (symbols, calls) = extract_navigation(content);
-    AnalysisResult {
-        protocol_version: PROTOCOL_VERSION,
-        backend: "rust",
-        diagnostics,
-        symbols,
-        calls,
+    // Mirrors `finalizeRobotState`: emit a pending MOVC pair diagnostic if the
+    // file ends with an unresolved single-line MOVC.
+    if robot_state.pending_movc_line > 0 {
+        push_diagnostic(
+            &mut diagnostics,
+            robot_state.pending_movc_line,
+            0,
+            0,
+            Severity::Error,
+            "SYNTEC_ROBOT_MOVC_PAIR_REQUIRED",
+            "MOVC 必须成对出现：第一行为中间点，第二行为结束点",
+        );
+    }
+
+    let (navigation_symbols, navigation_calls) = extract_navigation(content);
+    let navigation = Some(AnalysisNavigation {
+        program_entry_name: None,
+        macro_program_name: None,
+        symbols: navigation_symbols,
+        calls: navigation_calls,
+    });
+
+    AnalysisResult::for_document(document, profile, diagnostics, navigation, &navigation_symbols)
+}
+
+/// Construct an `AnalysisResult` for the given request/document using the
+/// shared protocol shape. Mirrors `createAnalysisResult` plus
+/// `createNavigationResult` in JS: protocol version + document snapshot +
+/// profile + backend; top-level `symbols` mirrors `navigation.symbols`.
+impl AnalysisResult {
+    fn for_document(
+        document: DocumentSnapshot,
+        profile: &str,
+        diagnostics: Vec<Diagnostic>,
+        navigation: Option<AnalysisNavigation>,
+        navigation_symbols: &[Symbol],
+    ) -> Self {
+        Self {
+            protocol_version: PROTOCOL_VERSION,
+            document,
+            profile: profile.to_string(),
+            backend: "rust",
+            diagnostics,
+            symbols: navigation_symbols.to_vec(),
+            edits: Vec::new(),
+            navigation,
+        }
     }
 }
 
@@ -2958,5 +5066,77 @@ mod tests {
         assert_eq!(unindented.diagnostics[0].line, 2);
         assert_eq!(unindented.diagnostics[0].col, 0);
         assert_eq!(unindented.diagnostics[0].end_col, 8);
+    }
+
+    #[test]
+    fn warns_robot_toolcor_t_arg() {
+        let result = analyze_document("TOOLCOR T1;");
+        assert_eq!(result.diagnostics.len(), 1);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.severity, Severity::Error);
+        assert_eq!(diagnostic.line, 1);
+        assert_eq!(diagnostic.col, 8);
+        assert_eq!(diagnostic.end_col, 9);
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("SYNTEC_ROBOT_TOOLCOR_T_ARG")
+        );
+    }
+
+    #[test]
+    fn warns_robot_toolcoron_deprecated() {
+        let result = analyze_document("TOOLCORON P1;");
+        assert_eq!(result.diagnostics.len(), 1);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert_eq!(diagnostic.line, 1);
+        assert_eq!(diagnostic.col, 0);
+        assert_eq!(diagnostic.end_col, 9);
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("SYNTEC_ROBOT_TOOLCORON_DEPRECATED")
+        );
+    }
+
+    #[test]
+    fn warns_robot_toolcor_clear() {
+        let result = analyze_document("TOOLCOR CLEAR;");
+        assert_eq!(result.diagnostics.len(), 1);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert_eq!(diagnostic.line, 1);
+        assert_eq!(diagnostic.col, 0);
+        assert_eq!(diagnostic.end_col, 13);
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("SYNTEC_ROBOT_TOOLCOR_CLEAR")
+        );
+    }
+
+    #[test]
+    fn accepts_valid_toolcor() {
+        let result = analyze_document("TOOLCOR P1;");
+        assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn warns_toolcoron_t_arg_ordering() {
+        // TOOLCORON T1 produces both TOOLCOR_T_ARG (T at col 10) and
+        // TOOLCORON_DEPRECATED (col 0); the T_ARG is reported first to mirror
+        // the JS rule ordering in validateRobotSyntaxPreferences.
+        let result = analyze_document("TOOLCORON T1;");
+        assert_eq!(result.diagnostics.len(), 2);
+        assert_eq!(
+            result.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_ROBOT_TOOLCOR_T_ARG")
+        );
+        assert_eq!(result.diagnostics[0].col, 10);
+        assert_eq!(result.diagnostics[0].end_col, 11);
+        assert_eq!(
+            result.diagnostics[1].code.as_deref(),
+            Some("SYNTEC_ROBOT_TOOLCORON_DEPRECATED")
+        );
+        assert_eq!(result.diagnostics[1].col, 0);
+        assert_eq!(result.diagnostics[1].end_col, 9);
     }
 }

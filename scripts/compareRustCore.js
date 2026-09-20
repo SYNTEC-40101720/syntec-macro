@@ -214,6 +214,318 @@ const CASES = [
     text: 'CASE #1 OF\n  DEFAULT:\nEND_CASE;'
   },
   {
+    name: 'robot-toolcor-t-arg',
+    text: 'TOOLCOR T1;'
+  },
+  {
+    name: 'robot-toolcoron-deprecated',
+    text: 'TOOLCORON P1;'
+  },
+  {
+    name: 'robot-toolcor-clear',
+    text: 'TOOLCOR CLEAR;'
+  },
+  {
+    name: 'robot-toolcoron-t-arg-ordering',
+    text: 'TOOLCORON T1;'
+  },
+  {
+    name: 'robot-toolcor-valid',
+    text: 'TOOLCOR P1;'
+  },
+  {
+    name: 'robot-movj-ii-deprecated',
+    text: 'MOVJ-II X100.;'
+  },
+  {
+    name: 'robot-movc-xp-point-syntax',
+    text: 'MOVC Xp=10.;'
+  },
+  {
+    name: 'robot-mov-direct-arg-equals',
+    text: 'MOVJ X=100. FJ50;\nMOVL Y=20. PL3 PQ5;'
+  },
+  {
+    name: 'robot-mov-static-arg-range',
+    text: 'MOVL P21;\nINCMOVJ Q25;\nINCMOVL P0;\nUSERCOR P22;\nG68.18 P0;'
+  },
+  {
+    name: 'robot-mov-static-arg-boundary',
+    text: 'MOVL P1 X10.;\nINCMOVJ Q5;\nINCMOVL P1;'
+  },
+  {
+    name: 'robot-mov-smooth-conflict',
+    text: 'MOVL X10. PL5 PQ10.;'
+  },
+  {
+    name: 'robot-mov-unsupported-smooth',
+    text: 'MOVJ PQ5;'
+  },
+  {
+    name: 'robot-mov-movj-p-arg',
+    text: 'MOVJ P1;'
+  },
+  {
+    name: 'robot-mov-incmovl-missing-p',
+    text: 'INCMOVL X10.;'
+  },
+  {
+    name: 'robot-mov-movc-pair-valid',
+    text: 'MOVC X10.;\nMOVC X20.;'
+  },
+  {
+    name: 'robot-mov-movc-pair-unmatched',
+    text: 'MOVC X10.;'
+  },
+  {
+    name: 'robot-mov-movc-single-line-x1x2',
+    text: 'MOVC X1=10. X2=20.;'
+  },
+  {
+    name: 'robot-mov-coordinate-syntactics',
+    text: 'USERCOR P1 F100.;\nTOOLCOR P1 G01 X10.;\nG68.18 P1 MOVJ;'
+  },
+  {
+    name: 'robot-mov-direct-arg-equals-boundary',
+    text: 'MOVJ X100.;\nMOVL PL3;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-c3-missing',
+    text: 'G10 L1900 C3;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-c6-missing',
+    text: 'G10 L1900 C6 I165 A1000;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-c-unknown',
+    text: 'G10 L1900 C5;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-missing-c',
+    text: 'G10 L1900;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-c3-x-unsupported',
+    text: 'G10 L1900 C3 I165 A1000 Q1 K1 X1995;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-c6-qk-unsupported',
+    text: 'G10 L1900 C6 I165 A1000 X1995 Q1 K1;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-valid-c3',
+    text: 'G10 L1900 C3 I165 A1000 Q100 K1;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-integer-decimal',
+    text: 'G10 L1900 C3 I165 A1000 Q100 K1.5;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-range-negative',
+    text: 'G10 L1900 C3 I-1 A1000 Q100 K1;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-range-x-overflow',
+    text: 'G10 L1900 C6 I165 A1000 X999999;'
+  },
+  {
+    name: 'robot-g10-modbus-l1900-range-pq-r-register',
+    text: 'G10 L1900 C6 I165 A1000 X1995 P99999;'
+  },
+  {
+    name: 'robot-g10-modbus-l1901-missing',
+    text: 'G10 L1901 P100;'
+  },
+  {
+    name: 'robot-g10-modbus-l1901-unsupported',
+    text: 'G10 L1901 P100 R2 Q1 C3;'
+  },
+  {
+    name: 'robot-g10-modbus-l1901-range-r-overflow',
+    text: 'G10 L1901 P100 R300 Q1;'
+  },
+  {
+    name: 'robot-g10-modbus-l1901-valid',
+    text: 'G10 L1901 P100 R2 Q1;'
+  },
+  {
+    name: 'robot-stitch-lk-conflict',
+    text: 'STITCHON S1 Q1 L500 K5;'
+  },
+  {
+    name: 'robot-stitch-lk-missing',
+    text: 'STITCHON S1 Q1;'
+  },
+  {
+    name: 'robot-stitch-l-decimal',
+    text: 'STITCHON S1 Q1 L5.5;'
+  },
+  {
+    name: 'robot-stitch-l-only',
+    text: 'STITCHON S1 Q1 L500;'
+  },
+  {
+    name: 'robot-weaveon-mixed-p',
+    text: 'WEAVEON P1 E5.;'
+  },
+  {
+    name: 'robot-weaveon-q-decimal-warning',
+    text: 'WEAVEON E5. Q1;'
+  },
+  {
+    name: 'robot-weaveon-q-decimal-ok',
+    text: 'WEAVEON E5. Q1.0;'
+  },
+  {
+    name: 'robot-weaveon-p-only',
+    text: 'WEAVEON P3;'
+  },
+  {
+    name: 'robot-signal-swaitsig-limit',
+    text: 'MOVL X10.;\nSWAITSIG P1 L10;\nSWAITSIG P2 L10;'
+  },
+  {
+    name: 'robot-signal-syncout-limit',
+    text: 'MOVJ X100.;\nSYNCOUT S1 Q1 P1;\nSYNCOUT S1 Q1 P2;\nSYNCOUT S1 Q1 P3;\nSYNCOUT S1 Q1 P4;\nSYNCOUT S1 Q1 P5;\nSYNCOUT S1 Q1 P6;\nSYNCOUT S1 Q1 P7;\nSYNCOUT S1 Q1 P8;\nSYNCOUT S1 Q1 P9;\nSYNCOUT S1 Q1 P10;\nSYNCOUT S1 Q1 P11;'
+  },
+  {
+    name: 'robot-signal-swaitsig-allowed',
+    text: 'MOVL X10.;\nSWAITSIG P1 L10;'
+  },
+  {
+    name: 'robot-signal-syncout-allowed',
+    text: 'MOVJ X100.;\nSYNCOUT S1 Q1 P1;'
+  },
+  {
+    name: 'robot-signal-wait-clears-state',
+    text: 'MOVL X10.;\nSWAITSIG P1 L10;\nWAIT();\nSWAITSIG P1 L10;'
+  },
+  {
+    name: 'robot-signal-stitchon-forbids-movj',
+    text: 'STITCHON S1 Q1 L500;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-stitchon-forbids-weaveon',
+    text: 'STITCHON S1 Q1 L500;\nWEAVEON E5. Q1.0 K30.;'
+  },
+  {
+    name: 'robot-signal-stitchon-m96-warning',
+    text: 'STITCHON S1 Q1 L500;\nM96;'
+  },
+  {
+    name: 'robot-signal-stitchon-stitchoff-closes',
+    text: 'STITCHON S1 Q1 L500;\nSTITCHOFF;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-weaveon-forbids-movj',
+    text: 'WEAVEON E5. Q1.0 K30.;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-weaveon-forbids-stitchon',
+    text: 'WEAVEON E5. Q1.0 K30.;\nSTITCHON S1 Q1 L500;'
+  },
+  {
+    name: 'robot-signal-weaveon-weaveoff-closes',
+    text: 'WEAVEON E5. Q1.0 K30.;\nWEAVEOFF;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-waitsync-forbids-movj',
+    text: 'WAITSYNC P1;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-waitsync-forbids-mcode',
+    text: 'WAITSYNC P1;\nM01;'
+  },
+  {
+    name: 'robot-signal-waitsync-endsync-closes',
+    text: 'WAITSYNC P1;\nENDSYNC P1;\nMOVJ X100.;'
+  },
+  {
+    name: 'robot-signal-g192-forbids-swaitsig',
+    text: 'G192.1 P1;\nSWAITSIG P1 L10;'
+  },
+  {
+    name: 'robot-signal-g192-g1922-closes',
+    text: 'G192.1 P1;\nG192.2;\nSWAITSIG P1 L10;'
+  },
+  {
+    name: 'robot-signal-stitchon-movl-skip-forbidden',
+    text: 'STITCHON S1 Q1 L500;\nMOVL X10. SKIP;'
+  },
+  {
+    name: 'robot-signal-stitchon-movl-no-skip-allowed',
+    text: 'STITCHON S1 Q1 L500;\nMOVL X10.;'
+  },
+  {
+    name: 'robot-signal-mutual-exclusion-stitch-in-weave',
+    text: 'WEAVEON E5. Q1.0 K30.;\nSTITCHON S1 Q1 L500;\nSTITCHOFF;'
+  },
+  {
+    name: 'robot-signal-mutual-exclusion-weave-in-stitch',
+    text: 'STITCHON S1 Q1 L500;\nWEAVEON E5. Q1.0 K30.;\nWEAVEOFF;'
+  },
+  {
+    name: 'bare-percent-missing-macro-header',
+    text: '%\nN10;\nGOTO 10;'
+  },
+  {
+    name: 'macro-header-no-bare-percent-warning',
+    text: '%@MACRO\nN10;\nGOTO 10;'
+  },
+  {
+    name: 'goto-target-dynamic-not-checked',
+    text: 'GOTO #1;\nN100;'
+  },
+  {
+    name: 'goto-target-in-string-ignored',
+    text: 'MSG("GOTO 999");\nN100;'
+  },
+  {
+    name: 'goto-target-in-block-comment-ignored',
+    text: '(* GOTO 999 *)\nN100;'
+  },
+  {
+    name: 'goto-multiple-labels-found',
+    text: 'N100;\nN200;\nGOTO 100;'
+  },
+  {
+    name: 'goto-reference-line-col-position',
+    text: 'N100;\n  GOTO 200;'
+  },
+  {
+    name: 'macro-call-g65-valid',
+    text: 'G65 P1000;'
+  },
+  {
+    name: 'macro-call-g66-valid',
+    text: 'G66 P1000;'
+  },
+  {
+    name: 'macro-call-g66-1-valid',
+    text: 'G66.1 P1000;'
+  },
+  {
+    name: 'macro-call-m98-valid',
+    text: 'M98 P8000;'
+  },
+  {
+    name: 'macro-call-m198-valid',
+    text: 'M198 P9000;'
+  },
+  {
+    name: 'macro-call-m99-return',
+    text: 'M99;'
+  },
+  {
+    name: 'macro-call-m99-p-target',
+    text: 'M99 P100;'
+  },
+  {
+    name: 'macro-call-g67-cancel',
+    text: 'G67;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

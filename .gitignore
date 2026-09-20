@@ -5,6 +5,8 @@ node_modules/
 *.vsix
 dist/
 crates/*/target/
+crates/*/target-check/
+crates/*/target-warncheck/
 
 # ==================== Python Build ====================
 __pycache__/
