@@ -190,6 +190,14 @@ const CASES = [
     text: 'SYSDATA(336);\nDRVDATA(1000, 3366);\nDRVDATA(1000, \"1Ah\");\nDRVDATA(1000, #1);'
   },
   {
+    name: 'assignment-style-equals',
+    text: '#1 = 2;\n@3 = #1;\nAR1 = 3;\nMAR[2] = 4;'
+  },
+  {
+    name: 'assignment-style-boundary',
+    text: 'IF #1 = 2 THEN\n#1 := 2;\nEND_IF;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

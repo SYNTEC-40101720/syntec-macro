@@ -1010,6 +1010,84 @@ fn validate_variable_access(clean: &str, line: usize, diagnostics: &mut Vec<Diag
     }
 }
 
+fn validate_assignment_style(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let Some(mut index) = chars
+        .iter()
+        .position(|character| !character.is_ascii_whitespace())
+    else {
+        return;
+    };
+    let target_start = index;
+    if chars[index] == '#' || chars[index] == '@' {
+        index += 1;
+        if chars.get(index) == Some(&'[') {
+            while index < chars.len() && chars[index] != ']' {
+                index += 1;
+            }
+            if index < chars.len() {
+                index += 1;
+            }
+        } else {
+            while index < chars.len() && chars[index].is_ascii_digit() {
+                index += 1;
+            }
+        }
+    } else {
+        let prefix = if index + 3 <= chars.len()
+            && chars[index..index + 3]
+                .iter()
+                .zip(['M', 'A', 'R'])
+                .all(|(left, right)| left.eq_ignore_ascii_case(&right))
+        {
+            3
+        } else if index + 2 <= chars.len()
+            && chars[index..index + 2]
+                .iter()
+                .zip(['A', 'R'])
+                .all(|(left, right)| left.eq_ignore_ascii_case(&right))
+        {
+            2
+        } else {
+            0
+        };
+        if prefix == 0 {
+            return;
+        }
+        index += prefix;
+        if chars.get(index) == Some(&'[') {
+            while index < chars.len() && chars[index] != ']' {
+                index += 1;
+            }
+            if index < chars.len() {
+                index += 1;
+            }
+        } else {
+            while index < chars.len() && chars[index].is_ascii_digit() {
+                index += 1;
+            }
+        }
+    }
+    if index == target_start {
+        return;
+    }
+    while index < chars.len() && chars[index].is_ascii_whitespace() {
+        index += 1;
+    }
+    if chars.get(index) == Some(&'=') && chars.get(index + 1) != Some(&'=') {
+        let col = utf16_prefix_len(&chars, index);
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            col + 1,
+            Severity::Warning,
+            "SYNTEC_ASSIGNMENT_STYLE_EQUALS",
+            "赋值使用 = 支援但不推荐；建议使用 :=",
+        );
+    }
+}
+
 fn validate_string_function_warnings(
     raw: &str,
     line: usize,
@@ -1994,6 +2072,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         );
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_variable_access(&clean, line_number, &mut diagnostics);
+        validate_assignment_style(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
@@ -2328,13 +2407,13 @@ mod tests {
             Some("SYNTEC_UNSUPPORTED_ELSIF")
         );
 
-        let div = analyze_document("#1 = #2 DIV #3;");
+        let div = analyze_document("#1 := #2 DIV #3;");
         assert_eq!(div.diagnostics.len(), 1);
         assert_eq!(
             div.diagnostics[0].code.as_deref(),
             Some("SYNTEC_UNSUPPORTED_DIV")
         );
-        assert_eq!(div.diagnostics[0].col, 8);
+        assert_eq!(div.diagnostics[0].col, 9);
     }
 
     #[test]
@@ -2488,7 +2567,7 @@ mod tests {
     #[test]
     fn reports_variable_access_boundaries_only() {
         let result = analyze_document(
-            "#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 = 1;\nAR-1;\nMAR1.5;\nAR[-2];",
+            "#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 := 1;\nAR-1;\nMAR1.5;\nAR[-2];",
         );
         let codes = result
             .diagnostics
@@ -2585,6 +2664,22 @@ mod tests {
         let valid = analyze_document(
             "SYSDATA(336);\nDRVDATA(1000, 3366);\nDRVDATA(1000, \"1Ah\");\nDRVDATA(1000, #1);",
         );
+        assert!(valid.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_assignment_style_without_flagging_comparisons() {
+        let result = analyze_document("#1 = 2;\n@3 = #1;\nAR1 = 3;\nMAR[2] = 4;");
+        assert_eq!(result.diagnostics.len(), 4);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code.as_deref()
+                    == Some("SYNTEC_ASSIGNMENT_STYLE_EQUALS"))
+        );
+
+        let valid = analyze_document("IF #1 = 2 THEN\n#1 := 2;\nEND_IF;");
         assert!(valid.diagnostics.is_empty());
     }
 }
