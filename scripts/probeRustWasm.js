@@ -112,6 +112,8 @@ async function main() {
     '#1 = 2;\n@3 = #1;\nAR1 = 3;\nMAR[2] = 4;',
     'IF #1 = 2 THEN\n#1 := 2;\nEND_IF;',
     '中文;\n#1 := 1；\nMSG(\"中文\"); // 中文\n(* 中文 *)\n#2 := 2;',
+    'GOTO 200;\nN100;\nGOTO 100;\nG65 P1000 G01;',
+    'GOTO 100;\nN100;\nG65 P1000;',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

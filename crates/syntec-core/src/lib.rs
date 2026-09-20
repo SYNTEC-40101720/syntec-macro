@@ -4,6 +4,8 @@
 //! preprocessing and tolerant control-flow diagnostics needed for the M3
 //! comparison. It is not wired into the VS Code extension yet.
 
+use std::collections::HashSet;
+
 pub const PROTOCOL_VERSION: u32 = 1;
 #[cfg(target_arch = "wasm32")]
 const ANALYSIS_SOURCE: &str = "syntec-macro";
@@ -349,6 +351,94 @@ fn keyword_positions(line: &str) -> Vec<(String, usize, usize)> {
     }
 
     positions
+}
+
+fn extract_goto_target(clean: &str) -> Option<String> {
+    let chars: Vec<char> = clean.chars().collect();
+    for (word, _, end) in word_positions(clean) {
+        if word != "GOTO" {
+            continue;
+        }
+        let mut cursor = end;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        let start = cursor;
+        while cursor < chars.len() && chars[cursor].is_ascii_digit() {
+            cursor += 1;
+        }
+        if cursor > start
+            && (cursor == chars.len()
+                || (!chars[cursor].is_ascii_alphanumeric() && chars[cursor] != '_'))
+        {
+            return Some(chars[start..cursor].iter().collect());
+        }
+    }
+    None
+}
+
+fn extract_g_codes(clean: &str) -> Vec<(String, usize, usize)> {
+    let chars: Vec<char> = clean.chars().collect();
+    let mut codes = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        if !chars[index].eq_ignore_ascii_case(&'G')
+            || (index > 0 && is_identifier_character(chars[index - 1]))
+        {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        let digits_start = index;
+        while index < chars.len() && chars[index].is_ascii_digit() {
+            index += 1;
+        }
+        if index == digits_start {
+            continue;
+        }
+        if chars.get(index) == Some(&'.') {
+            index += 1;
+            while index < chars.len() && chars[index].is_ascii_digit() {
+                index += 1;
+            }
+        }
+        if index < chars.len()
+            && (chars[index].is_ascii_alphanumeric() || chars[index] == '_' || chars[index] == '.')
+        {
+            continue;
+        }
+        codes.push((
+            chars[start..index]
+                .iter()
+                .collect::<String>()
+                .to_ascii_uppercase(),
+            start,
+            index,
+        ));
+    }
+    codes
+}
+
+fn validate_macro_call_g_code_order(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let codes = extract_g_codes(clean);
+    if codes.len() < 2 {
+        return;
+    }
+    for (code, start, end) in codes.iter().take(codes.len() - 1) {
+        if matches!(code.as_str(), "G65" | "G66" | "G66.1") {
+            let chars: Vec<char> = clean.chars().collect();
+            push_diagnostic(
+                diagnostics,
+                line,
+                utf16_prefix_len(&chars, *start),
+                utf16_prefix_len(&chars, *end),
+                Severity::Warning,
+                "SYNTEC_CALL_MACRO_NOT_LAST_G_CODE",
+                format!("{code} 必须是该行最后一个 G 码；请调整 G 码顺序"),
+            );
+        }
+    }
 }
 
 fn n_label_name(trimmed: &str) -> Option<String> {
@@ -2091,6 +2181,8 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
     let mut stack = Vec::new();
     let mut until_closed_repeats = Vec::new();
     let mut diagnostics = Vec::new();
+    let mut labels = HashSet::new();
+    let mut goto_targets = Vec::new();
 
     for (line_index, raw_line) in content.split('\n').enumerate() {
         let line_number = line_index + 1;
@@ -2098,6 +2190,12 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         let line_start_in_block = state.in_block_comment;
         let (clean, next_block_comment) = strip_comments_and_strings(raw_line, line_start_in_block);
         state.in_block_comment = next_block_comment;
+        if let Some(label) = n_label_name(clean.trim()) {
+            labels.insert(label[1..].to_string());
+        }
+        if let Some(target) = extract_goto_target(&clean) {
+            goto_targets.push((line_number, target));
+        }
         validate_string_function_warnings(
             raw_line,
             line_number,
@@ -2114,6 +2212,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_variable_access(&clean, line_number, &mut diagnostics);
         validate_assignment_style(&clean, line_number, &mut diagnostics);
+        validate_macro_call_g_code_order(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
@@ -2305,6 +2404,19 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
                 block.keyword, expected_closer
             ),
         );
+    }
+
+    for (line, target) in goto_targets {
+        if !labels.contains(&target) {
+            push_diagnostic_without_code(
+                &mut diagnostics,
+                line,
+                0,
+                0,
+                Severity::Warning,
+                format!("GOTO 目标 {target} 不存在"),
+            );
+        }
     }
 
     let (symbols, calls) = extract_navigation(content);
@@ -2741,5 +2853,20 @@ mod tests {
             result.diagnostics[1].message,
             "中文标点 \"；\"：宏程序应使用英文字符"
         );
+    }
+
+    #[test]
+    fn reports_goto_and_macro_call_boundaries() {
+        let result = analyze_document("GOTO 200;\nN100;\nGOTO 100;\nG65 P1000 G01;");
+        assert_eq!(result.diagnostics.len(), 2);
+        assert_eq!(
+            result.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CALL_MACRO_NOT_LAST_G_CODE")
+        );
+        assert!(result.diagnostics[1].code.is_none());
+        assert_eq!(result.diagnostics[1].message, "GOTO 目标 200 不存在");
+
+        let valid = analyze_document("GOTO 100;\nN100;\nG65 P1000;");
+        assert!(valid.diagnostics.is_empty());
     }
 }

@@ -202,6 +202,14 @@ const CASES = [
     text: '中文;\n#1 := 1；\nMSG(\"中文\"); // 中文\n(* 中文 *)\n#2 := 2;'
   },
   {
+    name: 'goto-and-macro-call-boundaries',
+    text: 'GOTO 200;\nN100;\nGOTO 100;\nG65 P1000 G01;'
+  },
+  {
+    name: 'valid-goto-and-macro-call',
+    text: 'GOTO 100;\nN100;\nG65 P1000;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },
