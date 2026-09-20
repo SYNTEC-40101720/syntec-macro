@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-_Nothing yet._
+- **v3.0.0+ 文档收敛精简**: 发布 v3.0.0 后整理 docs 根目录与 macro-knowledge 子目录，删除过程性叙述、保留永久有效的现状/门禁/约束/文档入口指南：(1) `docs/3.x-Rust-Wasm切换剩余任务规划.md` 181→102 行，把所有「P0-C 第 X 项状态」「P1 第 X 项状态」历史段合并到 §6 历史节点表，正文保留 §1 v3.0.0 现状 / §2 验收命令清单 / §3 不变约束（5 项）/ §5 文档入口；(2) `docs/3.x-Release-Runbook.md` 把顶部一次性「进度公告」段改为「永久通用 + v3.0.0 历史示例」，并把 §3 VSIX bundle 决策表保留作下一次发布参考；(3) `docs/开发交接说明.md` 312→296 行，把§41-§62 两段「3.x 架构发布计划」过程性长段合并为 1 行指针，指向规划文档与迭代优化计划；(4) `docs/macro-knowledge/MACRO知识与验证规划.md` §8 迭代记录表 566→508 行，把 v2.13.0 baseline 后所有 M3/P0-C/P1 节点详情行替换为 7 行精简版（v2.13 / v2.15 / M3 试点 / P0-A 67/67 / P0-B 130+10+17 / P0-C Wasm+Worker / P1 性能+CI+readiness / v3.0.0 release）。新增 `docs/迭代优化计划.md`（57 行）作为 v3.0.0+ 短期推进入口：§1 默认 backend 切换决策门（Rust 收益评估，何时可以切默认 backend） / §2 Rust 跨行状态 parity 资料阻塞（CALL-RUN-01..07 + GETPR/SETPR） / §3 ROB-001 LTP 审计 + MACRO 能力矩阵 / §4 文档治理与单源真相 / §5 CI 性能回归告警阈值精调 / §6 CHANGELOG `[Unreleased]` 维护规则。全量验收 green：`npm test` 367/367、`lint` 0、`typecheck` 通过、`docs:diagnostics:check` 通过、`check:data` 一致、`check:release --tag v3.0.0` 一致。
 
 ## 3.0.0 - 2026-09-20
 
