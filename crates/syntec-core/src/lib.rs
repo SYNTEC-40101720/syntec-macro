@@ -762,6 +762,179 @@ fn validate_static_basic_functions(clean: &str, line: usize, diagnostics: &mut V
     }
 }
 
+fn is_identifier_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '_'
+}
+
+fn validate_variable_access(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    if clean.trim().eq_ignore_ascii_case("%@MACRO") {
+        return;
+    }
+    let chars: Vec<char> = clean.chars().collect();
+
+    let mut index = 0;
+    while index < chars.len() {
+        if (chars[index] == '#' || chars[index] == '@')
+            && (index == 0 || !is_identifier_character(chars[index - 1]))
+        {
+            let start = index;
+            index += 1;
+            if index < chars.len() && (chars[index].is_ascii_alphabetic() || chars[index] == '_') {
+                index += 1;
+                while index < chars.len() && is_identifier_character(chars[index]) {
+                    index += 1;
+                }
+                let variable = chars[start..index].iter().collect::<String>();
+                let code = if variable.starts_with('#') {
+                    "SYNTEC_NAMED_LOCAL_VARIABLE"
+                } else {
+                    "SYNTEC_NAMED_GLOBAL_VARIABLE"
+                };
+                let col = utf16_prefix_len(&chars, start);
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    col,
+                    utf16_prefix_len(&chars, index),
+                    Severity::Error,
+                    code,
+                    format!("{variable} 是不支持的命名变量；请使用数字变量编号"),
+                );
+                continue;
+            }
+        }
+        index += 1;
+    }
+
+    for index in 0..chars.len().saturating_sub(1) {
+        if (chars[index] != '#' && chars[index] != '@')
+            || chars[index + 1] != '0'
+            || (index > 0 && is_identifier_character(chars[index - 1]))
+        {
+            continue;
+        }
+        let mut cursor = index + 2;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        let is_assignment = chars.get(cursor) == Some(&':') && chars.get(cursor + 1) == Some(&'=')
+            || chars.get(cursor) == Some(&'=') && chars.get(cursor + 1) != Some(&'=');
+        if is_assignment {
+            let variable = chars[index..index + 2].iter().collect::<String>();
+            let col = utf16_prefix_len(&chars, index);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                col + 2,
+                Severity::Warning,
+                "SYNTEC_VACANT_ASSIGNMENT",
+                format!("{variable} 为 VACANT，只读，不建议作为赋值目标"),
+            );
+        }
+    }
+
+    let mut index = 0;
+    while index < chars.len() {
+        let (prefix, prefix_length) = if index + 3 <= chars.len()
+            && chars[index..index + 3]
+                .iter()
+                .zip(['M', 'A', 'R'])
+                .all(|(left, right)| left.eq_ignore_ascii_case(&right))
+        {
+            ("MAR", 3)
+        } else if index + 2 <= chars.len()
+            && chars[index..index + 2]
+                .iter()
+                .zip(['A', 'R'])
+                .all(|(left, right)| left.eq_ignore_ascii_case(&right))
+        {
+            ("AR", 2)
+        } else {
+            index += 1;
+            continue;
+        };
+        if index > 0 && is_identifier_character(chars[index - 1]) {
+            index += 1;
+            continue;
+        }
+
+        let mut cursor = index + prefix_length;
+        if chars.get(cursor) == Some(&'[') {
+            let content_start = cursor + 1;
+            while cursor < chars.len() && chars[cursor] != ']' {
+                cursor += 1;
+            }
+            if cursor < chars.len() {
+                let content = chars[content_start..cursor]
+                    .iter()
+                    .collect::<String>()
+                    .trim()
+                    .to_string();
+                if let Some(value) = parse_static_number(&content) {
+                    if value.fract() != 0.0 || value < 0.0 {
+                        let end = cursor + 1;
+                        let col = utf16_prefix_len(&chars, index);
+                        let variable = chars[index..end]
+                            .iter()
+                            .collect::<String>()
+                            .to_ascii_uppercase();
+                        push_diagnostic(
+                            diagnostics,
+                            line,
+                            col,
+                            utf16_prefix_len(&chars, end),
+                            Severity::Error,
+                            "SYNTEC_INVALID_APP_VARIABLE_NUMBER",
+                            format!(
+                                "{variable} 不是合法 APP 变量编号；AR/MAR 间接静态编号必须为非负整数"
+                            ),
+                        );
+                    }
+                }
+                index = cursor + 1;
+                continue;
+            }
+        } else if chars
+            .get(cursor)
+            .is_some_and(|character| *character == '-' || character.is_ascii_digit())
+        {
+            let token_start = cursor;
+            while cursor < chars.len()
+                && (chars[cursor] == '-'
+                    || chars[cursor] == '+'
+                    || chars[cursor] == '.'
+                    || chars[cursor].is_ascii_digit())
+            {
+                cursor += 1;
+            }
+            let token = chars[token_start..cursor].iter().collect::<String>();
+            if (token.starts_with('-') || token.contains('.'))
+                && parse_static_number(&token).is_some()
+            {
+                let col = utf16_prefix_len(&chars, index);
+                let variable = chars[index..cursor]
+                    .iter()
+                    .collect::<String>()
+                    .to_ascii_uppercase();
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    col,
+                    utf16_prefix_len(&chars, cursor),
+                    Severity::Error,
+                    "SYNTEC_INVALID_APP_VARIABLE_NUMBER",
+                    format!("{variable} 不是合法 APP 变量编号；AR/MAR 直接编号必须为非负整数"),
+                );
+            }
+            index = cursor;
+            continue;
+        }
+        index += 1;
+        let _ = prefix;
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1445,6 +1618,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
             strip_comments_and_strings(raw_line.trim_end_matches('\r'), state.in_block_comment);
         state.in_block_comment = next_block_comment;
         validate_parentheses(&clean, line_number, &mut diagnostics);
+        validate_variable_access(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
@@ -1933,6 +2107,33 @@ mod tests {
         );
 
         let dynamic = analyze_document("ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);");
+        assert!(dynamic.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_variable_access_boundaries_only() {
+        let result = analyze_document(
+            "#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 = 1;\nAR-1;\nMAR1.5;\nAR[-2];",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_NAMED_LOCAL_VARIABLE",
+                "SYNTEC_NAMED_GLOBAL_VARIABLE",
+                "SYNTEC_VACANT_ASSIGNMENT",
+                "SYNTEC_VACANT_ASSIGNMENT",
+                "SYNTEC_INVALID_APP_VARIABLE_NUMBER",
+                "SYNTEC_INVALID_APP_VARIABLE_NUMBER",
+                "SYNTEC_INVALID_APP_VARIABLE_NUMBER",
+            ]
+        );
+
+        let dynamic = analyze_document("AR[#1];\nMAR[100];\n#1 := 1;");
         assert!(dynamic.diagnostics.is_empty());
     }
 }

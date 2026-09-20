@@ -166,6 +166,14 @@ const CASES = [
     text: 'ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);'
   },
   {
+    name: 'variable-access-boundaries',
+    text: '#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 := 1;\nAR-1;\nMAR1.5;\nAR[-2];'
+  },
+  {
+    name: 'dynamic-variable-access',
+    text: 'AR[#1];\nMAR[100];\n#1 := 1;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

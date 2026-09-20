@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wasm 数学函数域 parity**: Rust 试点补齐 `ATAN2/POW/LN/SQRT/ACOS/ASIN` 的静态常量域诊断，复用 `SYNTEC_FUNCTION_MATH_DOMAIN`，动态引数和嵌套表达式保持不推断。
 - **Wasm I/O 函数范围 parity**: Rust 试点补齐 `READDI/READDO/READABIT/SETDO/SETABIT` 点位、写入值，以及 `READRREGBIT/SETRREGBIT` 的 R/bit 范围诊断；动态引数保持不推断。
 - **Wasm 基础函数引数 parity**: Rust 试点补齐 `ALARM/MSG` ID、`PARAM` 整数引数和 `CHKINF` 类别范围诊断，动态引数保持不推断。
+- **Wasm 变量访问 parity**: Rust 试点补齐命名局部/公用变量、`#0/@0` VACANT 赋值和 AR/MAR 静态非法编号诊断；动态索引保持不推断。
 - **M3 后端 Go/No-Go**: JavaScript 继续作为唯一生产后端；Rust/Wasm 保持开发态 CLI/ABI 试点，直到完成完整诊断 parity、TextEdit/导航结果、可复现 CI 构建和回滚验证。
 
 ## 2.15.0 - 2026-09-17
