@@ -48,6 +48,9 @@ async function main() {
     throw new Error(`Unexpected Rust Wasm protocol version: ${actual}`);
   }
   const analyzeRust = createRustWasmAdapter(instance.exports);
+  const analyzeRustNavigation = createRustWasmAdapter(instance.exports, {
+    navigationFilePath: 'G1000'
+  });
   const encoder = new TextEncoder();
   const validSource = 'IF #1 = 1 THEN\nEND_IF;';
   const invalidSource = 'IF #1 = 1 THEN';
@@ -107,7 +110,9 @@ async function main() {
     }
   }
   const navigationText = '%@MACRO\nN10;\nG65 P100;\nG66 P"MyMacro";\nM198 P7;\nM98 P1234;';
-  const rustNavigation = analyzeRust(createRequest(navigationText, 'file:///G1000'));
+  const rustNavigation = analyzeRustNavigation(
+    createRequest(navigationText, 'file:///G1000')
+  );
   const jsNavigation = analyzeNavigationDocument(
     createRequest(navigationText, 'file:///G1000'),
     'G1000'
@@ -127,7 +132,9 @@ async function main() {
     endCharacter: symbol.endCharacter
   }));
   const rustCalls = rustNavigation.navigation.calls;
-  if (JSON.stringify(rustSymbols) !== JSON.stringify(jsSymbols) ||
+  if (rustNavigation.navigation.programEntryName !== jsNavigation.programEntryName ||
+      rustNavigation.navigation.macroProgramName !== jsNavigation.macroProgramName ||
+      JSON.stringify(rustSymbols) !== JSON.stringify(jsSymbols) ||
       JSON.stringify(rustCalls) !== JSON.stringify(jsNavigation.calls)) {
     throw new Error(`Rust Wasm navigation mismatch: ${JSON.stringify(rustNavigation)}`);
   }

@@ -4,6 +4,11 @@ const {
   ANALYSIS_PROTOCOL_VERSION,
   normalizeAnalysisRequest
 } = require('../src/analysisProtocol');
+const {
+  getMacroProgramName,
+  getProgramEntryName,
+  isMacroFileContent
+} = require('../src/navigationSymbols');
 
 function assertObject(value, name) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -107,15 +112,37 @@ function assertNavigationShape(navigation) {
   });
 }
 
+function applyNavigationFileMetadata(result, request, filePath) {
+  if (filePath === undefined) return result;
+  if (typeof filePath !== 'string' || filePath.length === 0) {
+    throw new TypeError('navigationFilePath must be a non-empty string');
+  }
+  if (result.navigation === null) return result;
+
+  const text = request.document.text;
+  if (!isMacroFileContent(filePath, text)) {
+    result.navigation = null;
+    result.symbols = [];
+    return result;
+  }
+
+  result.navigation.programEntryName = getProgramEntryName(filePath);
+  result.navigation.macroProgramName = getMacroProgramName(filePath, text);
+  result.symbols = result.navigation.symbols;
+  return result;
+}
+
 /**
  * Normalize Rust's core JSON result into the shared AnalysisResult shape.
  *
  * @param {import('../src/analysisProtocol').AnalysisRequest} request
  * @param {Object} rawResult
+ * @param {{navigationFilePath?: string}} [options]
  * @returns {import('../src/analysisProtocol').AnalysisResult}
  */
-function normalizeRustAnalysisResult(request, rawResult) {
+function normalizeRustAnalysisResult(request, rawResult, options = {}) {
   const normalizedRequest = normalizeAnalysisRequest(request);
+  assertObject(options, 'options');
   assertObject(rawResult, 'result');
   if (rawResult.protocolVersion !== ANALYSIS_PROTOCOL_VERSION) {
     throw new TypeError(`unsupported Rust protocol version: ${rawResult.protocolVersion}`);
@@ -131,7 +158,7 @@ function normalizeRustAnalysisResult(request, rawResult) {
   rawResult.edits.forEach(assertEditShape);
   if (rawResult.navigation !== null) assertNavigationShape(rawResult.navigation);
 
-  return {
+  const result = {
     protocolVersion: ANALYSIS_PROTOCOL_VERSION,
     document: normalizedRequest.document,
     profile: normalizedRequest.profile,
@@ -141,6 +168,7 @@ function normalizeRustAnalysisResult(request, rawResult) {
     edits: rawResult.edits,
     navigation: rawResult.navigation
   };
+  return applyNavigationFileMetadata(result, normalizedRequest, options.navigationFilePath);
 }
 
 function splitPackedPointer(packed) {
@@ -153,10 +181,12 @@ function splitPackedPointer(packed) {
 
 /**
  * @param {Object} wasmExports
+ * @param {{navigationFilePath?: string}} [options]
  * @returns {(request: import('../src/analysisProtocol').AnalysisRequest) => import('../src/analysisProtocol').AnalysisResult}
  */
-function createRustWasmAdapter(wasmExports) {
+function createRustWasmAdapter(wasmExports, options = {}) {
   assertObject(wasmExports, 'wasmExports');
+  assertObject(options, 'options');
   for (const name of [
     'memory',
     'syntec_core_alloc',
@@ -193,7 +223,8 @@ function createRustWasmAdapter(wasmExports) {
       ).slice();
       return normalizeRustAnalysisResult(
         normalizedRequest,
-        JSON.parse(new TextDecoder().decode(bytes))
+        JSON.parse(new TextDecoder().decode(bytes)),
+        options
       );
     } finally {
       if (outputPointer !== 0 && outputLength !== 0) {
@@ -207,6 +238,7 @@ function createRustWasmAdapter(wasmExports) {
 }
 
 module.exports = {
+  applyNavigationFileMetadata,
   createRustWasmAdapter,
   normalizeRustAnalysisResult,
   splitPackedPointer

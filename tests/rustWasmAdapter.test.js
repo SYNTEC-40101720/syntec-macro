@@ -8,12 +8,12 @@ const {
 } = require('../src/analysisProtocol');
 const { normalizeRustAnalysisResult } = require('../scripts/rustWasmAdapter');
 
-function createRequest() {
+function createRequest(text = 'IF #1 = 1 THEN', uri = 'file:///adapter.nc') {
   return createAnalysisRequest(createDocumentSnapshot({
-    uri: 'file:///adapter.nc',
+    uri,
     version: 3,
     languageId: 'syntec-macro',
-    text: 'IF #1 = 1 THEN'
+    text
   }), { profile: 'generic' });
 }
 
@@ -105,4 +105,31 @@ test('Rust result rejects malformed nested protocol ranges', () => {
     ),
     /end must not precede start/
   );
+});
+
+test('navigation metadata follows the supplied file boundary', () => {
+  const rawResult = createRawResult({
+    navigation: {
+      programEntryName: null,
+      macroProgramName: null,
+      symbols: [],
+      calls: []
+    }
+  });
+  const macroResult = normalizeRustAnalysisResult(
+    createRequest('%@MACRO\nN10;', 'file:///G1000'),
+    rawResult,
+    { navigationFilePath: 'G1000' }
+  );
+  assert.strictEqual(macroResult.navigation.programEntryName, 'G1000');
+  assert.strictEqual(macroResult.navigation.macroProgramName, 'G1000');
+  assert.deepStrictEqual(macroResult.symbols, macroResult.navigation.symbols);
+
+  const nonMacroResult = normalizeRustAnalysisResult(
+    createRequest('G0 X1;', 'file:///notes.txt'),
+    rawResult,
+    { navigationFilePath: 'notes.txt' }
+  );
+  assert.strictEqual(nonMacroResult.navigation, null);
+  assert.deepStrictEqual(nonMacroResult.symbols, []);
 });
