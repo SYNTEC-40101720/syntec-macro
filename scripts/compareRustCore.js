@@ -114,6 +114,14 @@ const CASES = [
     text: 'MSG(\"(\");'
   },
   {
+    name: 'static-mod-decimal',
+    text: '1 MOD 2.5;'
+  },
+  {
+    name: 'static-mod-integer',
+    text: '1 MOD 2;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

@@ -449,6 +449,90 @@ fn find_sequence_positions(chars: &[char], sequence: &str) -> Vec<usize> {
         .collect()
 }
 
+fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
+    if start >= chars.len() {
+        return None;
+    }
+    let mut index = start;
+    let mut has_digit = false;
+    let mut has_decimal = false;
+    if chars[index] == '.' {
+        if !chars
+            .get(index + 1)
+            .is_some_and(|character| character.is_ascii_digit())
+        {
+            return None;
+        }
+        has_decimal = true;
+        index += 1;
+    }
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        has_digit = true;
+        index += 1;
+    }
+    if index < chars.len() && chars[index] == '.' {
+        has_decimal = true;
+        index += 1;
+        while index < chars.len() && chars[index].is_ascii_digit() {
+            has_digit = true;
+            index += 1;
+        }
+    }
+    has_digit.then_some((index, has_decimal))
+}
+
+fn validate_static_mod_decimal(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let mut scan = 0;
+    while scan < chars.len() {
+        let Some((lhs_end, lhs_decimal)) = parse_numeric_token(&chars, scan) else {
+            scan += 1;
+            continue;
+        };
+        let mut cursor = lhs_end;
+        let whitespace_start = cursor;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor == whitespace_start
+            || cursor + 3 > chars.len()
+            || !chars[cursor..cursor + 3]
+                .iter()
+                .zip(['M', 'O', 'D'])
+                .all(|(left, right)| left.eq_ignore_ascii_case(&right))
+        {
+            scan += 1;
+            continue;
+        }
+        cursor += 3;
+        let rhs_whitespace_start = cursor;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor == rhs_whitespace_start {
+            scan += 1;
+            continue;
+        }
+        let Some((rhs_end, rhs_decimal)) = parse_numeric_token(&chars, cursor) else {
+            scan += 1;
+            continue;
+        };
+        if lhs_decimal || rhs_decimal {
+            let col = utf16_prefix_len(&chars, scan);
+            let end_col = utf16_prefix_len(&chars, rhs_end);
+            push_diagnostic_without_code(
+                diagnostics,
+                line,
+                col,
+                end_col,
+                Severity::Error,
+                "MOD 仅适用于 Long 型态；静态数字操作数不可带小数点",
+            );
+        }
+        scan = rhs_end;
+    }
+}
+
 fn validate_unsupported_operators(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
     if clean.trim().is_empty() || clean.trim().eq_ignore_ascii_case("%@MACRO") {
         return;
@@ -544,6 +628,8 @@ fn validate_unsupported_operators(clean: &str, line: usize, diagnostics: &mut Ve
             "! 不支持；NOT 是补数运算，逻辑条件请写成明确比较",
         );
     }
+
+    validate_static_mod_decimal(clean, line, diagnostics);
 
     let fanuc_replacements = [
         ("EQ", "="),
@@ -1375,5 +1461,19 @@ mod tests {
             "括号不匹配：缺少 1 个右方括号"
         );
         assert_eq!(result.diagnostics[2].message, "括号不匹配：多余的右括号");
+    }
+
+    #[test]
+    fn reports_static_mod_decimal_operands_only() {
+        let decimal = analyze_document("1 MOD 2.5;");
+        assert_eq!(decimal.diagnostics.len(), 1);
+        assert_eq!(decimal.diagnostics[0].code, None);
+        assert_eq!(
+            decimal.diagnostics[0].message,
+            "MOD 仅适用于 Long 型态；静态数字操作数不可带小数点"
+        );
+
+        let integer = analyze_document("1 MOD 2;");
+        assert!(integer.diagnostics.is_empty());
     }
 }

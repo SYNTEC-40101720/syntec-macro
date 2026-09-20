@@ -90,6 +90,8 @@ async function main() {
     '#1 := [1 + 2;',
     ');',
     'MSG(\"(\");',
+    '1 MOD 2.5;',
+    '1 MOD 2;',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

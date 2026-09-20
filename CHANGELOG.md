@@ -25,9 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wasm 导航子集 parity**: Rust 试点补齐数字 G/O 目标标准化、静态命名 G 宏、字符串/注释边界和 UTF-16 位置；通过 Rust 单测与 Wasm/JavaScript 差分探针验证，完整文件元数据和引用能力仍待后续 bridge 设计。
 - **Wasm 控制流诊断 parity**: Rust 试点补齐 `ELSE/ELSEIF` 边界、`EXIT` 退出传播、10 层嵌套深度 warning 和文件结束提示，并扩展 CLI/Wasm 差分样例；函数、LTP/Modbus 与格式化能力仍未迁移。
 - **Wasm 基础语法诊断 parity**: Rust 试点补齐 `ELSIF` 和 `DIV` 的稳定错误 code/位置/提示，并加入字符串、注释和多场景差分覆盖；其余运算子、分号、括号和函数诊断仍保持 JavaScript 专属。
-- **Wasm 基础运算子与结构边界 parity**: Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!`、FANUC 比较关键字等可静态确定的诊断，差分覆盖字符串/注释和 UTF-16 范围；括号、静态 MOD 小数和函数诊断仍未迁移。
+- **Wasm 基础运算子与结构边界 parity**: Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!`、FANUC 比较关键字等可静态确定的诊断，差分覆盖字符串/注释和 UTF-16 范围；函数诊断仍未迁移。
 - **Wasm 导航文件元数据边界**: `RustWasmAdapter` 支持可选 `navigationFilePath`，在适配层补齐程序入口/宏文件名并过滤非宏文件导航；旧文本 ABI 与生产 Provider 不变。
-- **Wasm 可选诊断 code 与括号 parity**: Rust JSON bridge 支持无 `code` 字段的共享诊断，补齐括号/方括号多余与缺失 warning，并覆盖 CLI/Wasm/JavaScript 差分；静态 MOD 小数和函数诊断仍未迁移。
+- **Wasm 可选诊断 code 与括号 parity**: Rust JSON bridge 支持无 `code` 字段的共享诊断，补齐括号/方括号多余与缺失 warning，并覆盖 CLI/Wasm/JavaScript 差分；函数诊断仍未迁移。
+- **Wasm 静态 MOD parity**: Rust 试点补齐纯数字 `MOD` 小数操作数诊断，整数和动态表达式保持不误报，并通过 CLI/Wasm/JavaScript 差分验证。
 - **M3 后端 Go/No-Go**: JavaScript 继续作为唯一生产后端；Rust/Wasm 保持开发态 CLI/ABI 试点，直到完成完整诊断 parity、TextEdit/导航结果、可复现 CI 构建和回滚验证。
 
 ## 2.15.0 - 2026-09-17

@@ -517,7 +517,8 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm 导航子集 parity | Rust 导航试点补齐数字 G/O 目标标准化、静态命名 G 宏、字符串/注释隔离和 UTF-16 位置；8 项 Rust 单测与 Wasm/JavaScript 差分探针通过，文件元数据和完整引用能力仍未接入。 |
 | 2026-09-20 | M3 / Wasm 控制流诊断 parity | Rust 试点补齐 `ELSE/ELSEIF`、`EXIT` 退出传播、10 层嵌套深度 warning 与文件结束提示；CLI/Wasm 与 JavaScript 稳定 code/位置差分样例扩展通过，其他诊断规则仍待迁移。 |
 | 2026-09-20 | M3 / Wasm 基础语法诊断 parity | Rust 试点补齐 `ELSIF` 与 `DIV` 的稳定错误 code/位置/提示；CLI/Wasm 差分覆盖扩展到 12 类，运算子、分号、括号和函数诊断仍保持未迁移边界。 |
-| 2026-09-20 | M3 / Wasm 基础运算子与结构边界 parity | Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!` 和 FANUC 比较关键字诊断；三方差分覆盖扩展到 23 类，括号、静态 MOD 小数和函数诊断仍未迁移。 |
+| 2026-09-20 | M3 / Wasm 基础运算子与结构边界 parity | Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!` 和 FANUC 比较关键字诊断；三方差分覆盖扩展到 23 类，函数诊断仍未迁移。 |
 | 2026-09-20 | M3 / Wasm 导航文件元数据边界 | `RustWasmAdapter` 增加可选 `navigationFilePath`，在适配层补齐 `programEntryName`/`macroProgramName` 与非宏文件过滤；不改旧文本 ABI，完整引用能力仍待后续。 |
-| 2026-09-20 | M3 / Wasm 可选诊断 code 与括号 parity | Rust JSON bridge 支持无 `code` 字段的共享诊断，补齐括号/方括号多余与缺失 warning；CLI/Wasm/JavaScript 差分覆盖扩展到 27 类，静态 MOD 小数和函数诊断仍未迁移。 |
+| 2026-09-20 | M3 / Wasm 可选诊断 code 与括号 parity | Rust JSON bridge 支持无 `code` 字段的共享诊断，补齐括号/方括号多余与缺失 warning；CLI/Wasm/JavaScript 差分覆盖扩展到 27 类，函数诊断仍未迁移。 |
+| 2026-09-20 | M3 / Wasm 静态 MOD parity | Rust 试点补齐纯数字 `MOD` 小数操作数诊断，整数和动态表达式保持不误报；三方差分覆盖扩展到 29 类。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |
