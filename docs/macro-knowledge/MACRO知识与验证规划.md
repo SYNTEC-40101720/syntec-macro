@@ -513,4 +513,9 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm 边界探针 | `syntec-core` 编译到 `wasm32-unknown-unknown`，release artifact 约 50.3KB；Node 原生 WebAssembly 通过最小 ABI 完成 UTF-8 内存写入、控制流诊断 JSON、符号/静态调用导航子集和释放，protocol v1 与 JS 稳定字段差分通过。尚未接入完整 `AnalysisResult` 或 VSIX 资产。 |
 | 2026-09-20 | M3 / Wasm bridge 基准 | 10 次测量下 20,000 行档案 JSON bridge p50 约 105ms/p95 约 120ms、JSON 结果约 33.8KB；仍缺少完整诊断规则和 TextEdit，不把该数据当作完整分析性能结论，完整 `AnalysisResult` bridge 仍待评估。 |
 | 2026-09-20 | M3 / Wasm 协议适配器 | 新增开发态 `RustWasmAdapter`，将 Rust JSON 映射为共享 `AnalysisResult`，校验 protocol version、diagnostics、symbols、edits 和 navigation；不接入生产 Provider，完整 feature parity 仍待评估。 |
+| 2026-09-20 | M3 / Wasm 共享结果契约 | Rust JSON bridge 已输出共享协议的嵌套 diagnostic range/source 结构；适配器新增 range、TextEdit、symbol、navigation 深度校验，探针和基准改为验证规范化后的 `AnalysisResult`；完整规则与格式化 parity 仍未完成。 |
+| 2026-09-20 | M3 / Wasm 导航子集 parity | Rust 导航试点补齐数字 G/O 目标标准化、静态命名 G 宏、字符串/注释隔离和 UTF-16 位置；8 项 Rust 单测与 Wasm/JavaScript 差分探针通过，文件元数据和完整引用能力仍未接入。 |
+| 2026-09-20 | M3 / Wasm 控制流诊断 parity | Rust 试点补齐 `ELSE/ELSEIF`、`EXIT` 退出传播、10 层嵌套深度 warning 与文件结束提示；CLI/Wasm 与 JavaScript 稳定 code/位置差分样例扩展通过，其他诊断规则仍待迁移。 |
+| 2026-09-20 | M3 / Wasm 基础语法诊断 parity | Rust 试点补齐 `ELSIF` 与 `DIV` 的稳定错误 code/位置/提示；CLI/Wasm 差分覆盖扩展到 12 类，运算子、分号、括号和函数诊断仍保持未迁移边界。 |
+| 2026-09-20 | M3 / Wasm 基础运算子与结构边界 parity | Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!` 和 FANUC 比较关键字诊断；三方差分覆盖扩展到 23 类，括号、静态 MOD 小数和函数诊断仍未迁移。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

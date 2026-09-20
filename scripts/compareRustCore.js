@@ -36,6 +36,81 @@ const CASES = [
   {
     name: 'comments-and-strings',
     text: 'MSG("IF END_IF // text"); // IF\nIF #1 = 1 THEN\nEND_IF;'
+  },
+  {
+    name: 'unmatched-else',
+    text: 'ELSE'
+  },
+  {
+    name: 'unmatched-elseif',
+    text: 'ELSEIF #1 = 1 THEN'
+  },
+  {
+    name: 'unsupported-elsif',
+    text: 'ELSIF #1 = 1 THEN'
+  },
+  {
+    name: 'unsupported-div',
+    text: '#1 := #2 DIV #3;'
+  },
+  {
+    name: 'trailing-header-semicolon',
+    text: 'IF #1 = 1 THEN;'
+  },
+  {
+    name: 'trailing-branch-semicolon',
+    text: 'ELSE;'
+  },
+  {
+    name: 'unsupported-equality',
+    text: '#1 == #2;'
+  },
+  {
+    name: 'unsupported-inequality',
+    text: '#1 != #2;'
+  },
+  {
+    name: 'unsupported-logical-and',
+    text: '#1 && #2;'
+  },
+  {
+    name: 'unsupported-logical-or',
+    text: '#1 || #2;'
+  },
+  {
+    name: 'unsupported-compound-assignment',
+    text: '#1 += 1;'
+  },
+  {
+    name: 'unsupported-increment',
+    text: '#1++;'
+  },
+  {
+    name: 'unsupported-percent',
+    text: '#1 % #2;'
+  },
+  {
+    name: 'unsupported-logical-not',
+    text: '!#1;'
+  },
+  {
+    name: 'unsupported-fanuc-comparison',
+    text: '#1 EQ #2;'
+  },
+  {
+    name: 'elseif-after-else',
+    text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
+  },
+  {
+    name: 'exit-boundary',
+    text: 'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;'
+  },
+  {
+    name: 'nesting-depth',
+    text: [
+      ...Array(11).fill('IF #1 = 1 THEN'),
+      ...Array(11).fill('END_IF;')
+    ].join('\n')
   }
 ];
 

@@ -5,6 +5,8 @@
 //! comparison. It is not wired into the VS Code extension yet.
 
 pub const PROTOCOL_VERSION: u32 = 1;
+#[cfg(target_arch = "wasm32")]
+const ANALYSIS_SOURCE: &str = "syntec-macro";
 
 /// Minimal ABI probe for the first Wasm boundary milestone.
 #[cfg(target_arch = "wasm32")]
@@ -156,14 +158,21 @@ fn result_to_json(result: &AnalysisResult) -> String {
         if index > 0 {
             json.push(',');
         }
+        let end_character = if diagnostic.end_col == 0 {
+            diagnostic.col + 1
+        } else {
+            diagnostic.end_col
+        };
         json.push_str(&format!(
-            "{{\"line\":{},\"col\":{},\"endCol\":{},\"severity\":\"{}\",\"code\":\"{}\",\"message\":\"{}\"}}",
-            diagnostic.line,
+            "{{\"range\":{{\"start\":{{\"line\":{},\"character\":{}}},\"end\":{{\"line\":{},\"character\":{}}}}},\"message\":\"{}\",\"severity\":\"{}\",\"source\":\"{}\",\"code\":\"{}\"}}",
+            diagnostic.line.saturating_sub(1),
             diagnostic.col,
-            diagnostic.end_col,
+            diagnostic.line.saturating_sub(1),
+            end_character,
+            json_escape(&diagnostic.message),
             diagnostic.severity.as_str(),
+            ANALYSIS_SOURCE,
             json_escape(&diagnostic.code),
-            json_escape(&diagnostic.message)
         ));
     }
     json.push_str("],\"symbols\":[");
@@ -215,6 +224,8 @@ fn result_to_json(result: &AnalysisResult) -> String {
 struct Block {
     keyword: String,
     line: usize,
+    has_else: bool,
+    exited: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -223,6 +234,8 @@ struct LexState {
 }
 
 const OPENERS: [&str; 5] = ["IF", "FOR", "WHILE", "CASE", "REPEAT"];
+const NESTING_DEPTH_LIMIT: usize = 10;
+const LOOP_OPENERS: [&str; 3] = ["FOR", "WHILE", "REPEAT"];
 const CLOSERS: [(&str, &str); 10] = [
     ("END_IF", "IF"),
     ("END_FOR", "FOR"),
@@ -323,7 +336,7 @@ fn keyword_positions(line: &str) -> Vec<(String, usize, usize)> {
             || closer_opener(&upper).is_some()
             || matches!(
                 upper.as_str(),
-                "UNTIL" | "ELSE" | "ELSEIF" | "EXIT" | "GOTO"
+                "UNTIL" | "ELSE" | "ELSEIF" | "ELSIF" | "DIV" | "EXIT" | "GOTO"
             )
         {
             positions.push((upper, start, index));
@@ -333,14 +346,17 @@ fn keyword_positions(line: &str) -> Vec<(String, usize, usize)> {
     positions
 }
 
-fn is_n_label(trimmed: &str) -> bool {
-    let Some(rest) = trimmed.strip_prefix('N') else {
-        return false;
-    };
-    let Some(number) = rest.strip_suffix(';') else {
-        return false;
-    };
-    !number.is_empty() && number.chars().all(|character| character.is_ascii_digit())
+fn n_label_name(trimmed: &str) -> Option<String> {
+    let upper = trimmed.to_ascii_uppercase();
+    let rest = upper.strip_prefix('N')?;
+    let digits_end = rest
+        .char_indices()
+        .find_map(|(index, character)| (!character.is_ascii_digit()).then_some(index))
+        .unwrap_or(rest.len());
+    if digits_end == 0 || rest[digits_end..].trim() != ";" {
+        return None;
+    }
+    Some(format!("N{}", &rest[..digits_end]))
 }
 
 fn command_matches(chars: &[char], index: usize, command: &str) -> bool {
@@ -365,6 +381,340 @@ fn command_matches(chars: &[char], index: usize, command: &str) -> bool {
     !before_is_word && !after_is_word
 }
 
+fn utf16_len(value: &str) -> usize {
+    value.encode_utf16().count()
+}
+
+fn utf16_prefix_len(chars: &[char], index: usize) -> usize {
+    chars[..index.min(chars.len())]
+        .iter()
+        .map(|character| character.len_utf16())
+        .sum()
+}
+
+fn utf16_boundary(
+    source_offsets: &[usize],
+    chars: &[char],
+    index: usize,
+    line_length: usize,
+) -> usize {
+    if index < source_offsets.len() {
+        source_offsets[index]
+    } else if index == chars.len() {
+        line_length
+    } else {
+        line_length
+    }
+}
+
+fn word_positions(line: &str) -> Vec<(String, usize, usize)> {
+    let chars: Vec<char> = line.chars().collect();
+    let mut positions = Vec::new();
+    let mut index = 0;
+
+    while index < chars.len() {
+        if !chars[index].is_ascii_alphabetic() && chars[index] != '_' {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        while index < chars.len() && (chars[index].is_ascii_alphanumeric() || chars[index] == '_') {
+            index += 1;
+        }
+        positions.push((
+            chars[start..index]
+                .iter()
+                .collect::<String>()
+                .to_ascii_uppercase(),
+            start,
+            index,
+        ));
+    }
+    positions
+}
+
+fn find_sequence_positions(chars: &[char], sequence: &str) -> Vec<usize> {
+    let sequence: Vec<char> = sequence.chars().collect();
+    if sequence.is_empty() || sequence.len() > chars.len() {
+        return Vec::new();
+    }
+    (0..=chars.len() - sequence.len())
+        .filter(|index| chars[*index..*index + sequence.len()] == sequence)
+        .collect()
+}
+
+fn validate_unsupported_operators(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    if clean.trim().is_empty() || clean.trim().eq_ignore_ascii_case("%@MACRO") {
+        return;
+    }
+
+    let chars: Vec<char> = clean.chars().collect();
+    let mut push_sequence = |sequence: &str, code: &str, message: &str| {
+        let sequence_length = sequence.chars().count();
+        for start in find_sequence_positions(&chars, sequence) {
+            let col = utf16_prefix_len(&chars, start);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                col + sequence_length,
+                Severity::Error,
+                code,
+                message,
+            );
+        }
+    };
+
+    push_sequence(
+        "==",
+        "SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR",
+        "== 不支持；等于比较请使用单独的 =",
+    );
+    push_sequence(
+        "!=",
+        "SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR",
+        "!= 不支持；不等于比较请使用 <>",
+    );
+    push_sequence(
+        "&&",
+        "SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR",
+        "&& 不支持；逻辑且请使用 AND 或 &",
+    );
+    push_sequence(
+        "||",
+        "SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR",
+        "|| 不支持；逻辑或请使用 OR",
+    );
+    push_sequence(
+        "+=",
+        "SYNTEC_UNSUPPORTED_COMPOUND_ASSIGNMENT",
+        "+= 不支持；请写成 #1 := #1 + 1 这类完整赋值",
+    );
+    push_sequence(
+        "++",
+        "SYNTEC_UNSUPPORTED_INCREMENT",
+        "++ 不支持；请写成 #1 := #1 + 1 这类完整赋值",
+    );
+
+    for start in find_sequence_positions(&chars, "%") {
+        let mut range_start = start;
+        while range_start > 0 && chars[range_start - 1].is_ascii_whitespace() {
+            range_start -= 1;
+        }
+        let mut range_end = start + 1;
+        while range_end < chars.len() && chars[range_end].is_ascii_whitespace() {
+            range_end += 1;
+        }
+        let has_non_space_before = range_start > 0;
+        let has_non_space_after = range_end < chars.len();
+        let followed_by_equals = chars.get(start + 1) == Some(&'=');
+        if has_non_space_before && has_non_space_after && !followed_by_equals {
+            let col = utf16_prefix_len(&chars, range_start);
+            let end_col = utf16_prefix_len(&chars, range_end);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                end_col,
+                Severity::Error,
+                "SYNTEC_UNSUPPORTED_PERCENT_OPERATOR",
+                "% 不支持；取模请使用 MOD，且仅适用于 Long 型态",
+            );
+        }
+    }
+
+    for start in find_sequence_positions(&chars, "!") {
+        if chars.get(start + 1) == Some(&'=') {
+            continue;
+        }
+        let col = utf16_prefix_len(&chars, start);
+        push_diagnostic(
+            diagnostics,
+            line,
+            col,
+            col + 1,
+            Severity::Error,
+            "SYNTEC_UNSUPPORTED_LOGICAL_NOT_OPERATOR",
+            "! 不支持；NOT 是补数运算，逻辑条件请写成明确比较",
+        );
+    }
+
+    let fanuc_replacements = [
+        ("EQ", "="),
+        ("NE", "<>"),
+        ("GT", ">"),
+        ("GE", ">="),
+        ("LT", "<"),
+        ("LE", "<="),
+    ];
+    for (keyword, start, end) in word_positions(clean) {
+        if let Some((_, replacement)) = fanuc_replacements
+            .iter()
+            .find(|(candidate, _)| *candidate == keyword)
+        {
+            let col = utf16_prefix_len(&chars, start);
+            let message = format!("{keyword} 不支持；请使用 {replacement}");
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                utf16_prefix_len(&chars, end),
+                Severity::Error,
+                "SYNTEC_UNSUPPORTED_FANUC_COMPARISON",
+                message,
+            );
+        }
+    }
+}
+
+fn has_word(text: &str, word: &str) -> Option<(usize, usize)> {
+    word_positions(text)
+        .into_iter()
+        .find(|(candidate, _, _)| candidate == word)
+        .map(|(_, start, end)| (start, end))
+}
+
+fn starts_with_word(text: &str, word: &str) -> bool {
+    let trimmed = text.trim_start();
+    let chars: Vec<char> = trimmed.chars().collect();
+    let word_chars: Vec<char> = word.chars().collect();
+    chars.len() >= word_chars.len()
+        && chars[..word_chars.len()]
+            .iter()
+            .zip(word_chars.iter())
+            .all(|(left, right)| left.eq_ignore_ascii_case(right))
+        && chars
+            .get(word_chars.len())
+            .is_none_or(|character| !character.is_ascii_alphanumeric() && *character != '_')
+}
+
+fn is_control_header(statement: &str) -> bool {
+    if starts_with_word(statement, "REPEAT") || statement.eq_ignore_ascii_case("ELSE") {
+        return true;
+    }
+    let markers = [
+        ("IF", "THEN"),
+        ("ELSEIF", "THEN"),
+        ("FOR", "DO"),
+        ("WHILE", "DO"),
+        ("CASE", "OF"),
+    ];
+    markers.iter().any(|(opener, marker)| {
+        starts_with_word(statement, opener)
+            && has_word(statement, marker)
+                .map(|(_, end)| statement[end..].trim().is_empty())
+                .unwrap_or(false)
+    })
+}
+
+fn validate_control_header_terminator(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let Some(last_non_space) = chars
+        .iter()
+        .rposition(|character| !character.is_ascii_whitespace())
+    else {
+        return;
+    };
+    if chars[last_non_space] != ';' {
+        return;
+    }
+    let statement: String = chars[..last_non_space].iter().collect();
+    if !is_control_header(statement.trim()) {
+        return;
+    }
+    let col = utf16_prefix_len(&chars, last_non_space);
+    push_diagnostic(
+        diagnostics,
+        line,
+        col,
+        col + 1,
+        Severity::Error,
+        "SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON",
+        "控制结构行不应以 ; 结尾",
+    );
+}
+
+fn normalize_numeric_target(prefix: &str, digits: &str) -> String {
+    let padding = 4usize.saturating_sub(digits.len());
+    format!("{prefix}{}{}", "0".repeat(padding), digits)
+}
+
+fn is_call_terminator(character: Option<&char>) -> bool {
+    character.is_none_or(|value| value.is_ascii_whitespace() || *value == ';')
+}
+
+fn strip_comments_keep_strings(
+    line: &str,
+    mut in_block_comment: bool,
+) -> (String, Vec<bool>, Vec<usize>, bool) {
+    let chars: Vec<char> = line.chars().collect();
+    let mut source_offsets = Vec::with_capacity(chars.len());
+    let mut source_offset = 0;
+    for character in &chars {
+        source_offsets.push(source_offset);
+        source_offset += character.len_utf16();
+    }
+
+    let mut result = String::with_capacity(line.len());
+    let mut string_mask = Vec::with_capacity(chars.len());
+    let mut result_offsets = Vec::with_capacity(chars.len());
+    let mut in_string = false;
+    let mut index = 0;
+
+    while index < chars.len() {
+        let offset = source_offsets[index];
+        if in_block_comment {
+            if index + 1 < chars.len() && chars[index] == '*' && chars[index + 1] == ')' {
+                result.push(' ');
+                result.push(' ');
+                string_mask.extend([false, false]);
+                result_offsets.push(offset);
+                result_offsets.push(source_offsets[index + 1]);
+                index += 2;
+                in_block_comment = false;
+            } else {
+                result.push(' ');
+                string_mask.push(false);
+                result_offsets.push(offset);
+                index += 1;
+            }
+            continue;
+        }
+
+        if !in_string && index + 1 < chars.len() && chars[index] == '/' && chars[index + 1] == '/' {
+            for cursor in index..chars.len() {
+                result.push(' ');
+                string_mask.push(false);
+                result_offsets.push(source_offsets[cursor]);
+            }
+            break;
+        }
+        if !in_string && index + 1 < chars.len() && chars[index] == '(' && chars[index + 1] == '*' {
+            result.push(' ');
+            result.push(' ');
+            string_mask.extend([false, false]);
+            result_offsets.push(offset);
+            result_offsets.push(source_offsets[index + 1]);
+            index += 2;
+            in_block_comment = true;
+            continue;
+        }
+
+        let character = chars[index];
+        let escaped = character == '"' && is_escaped_quote(&chars, index);
+        result.push(character);
+        string_mask.push(in_string);
+        result_offsets.push(offset);
+        if character == '"' && !escaped {
+            in_string = !in_string;
+        }
+        index += 1;
+    }
+
+    (result, string_mask, result_offsets, in_block_comment)
+}
+
 fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
     let mut state = LexState::default();
     let mut symbols = Vec::new();
@@ -379,10 +729,11 @@ fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
 
     for (line_index, raw_line) in content.split('\n').enumerate() {
         let raw_line = raw_line.trim_end_matches('\r');
-        let (clean, next_state) = strip_comments_and_strings(raw_line, state.in_block_comment);
+        let (clean, string_mask, source_offsets, next_state) =
+            strip_comments_keep_strings(raw_line, state.in_block_comment);
         state.in_block_comment = next_state;
         let trimmed = clean.trim();
-        let line_length = raw_line.chars().count();
+        let line_length = utf16_len(raw_line);
         if trimmed.eq_ignore_ascii_case("%@MACRO") {
             symbols.push(Symbol {
                 name: "%@MACRO".to_string(),
@@ -391,8 +742,7 @@ fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
                 start_character: 0,
                 end_character: line_length,
             });
-        } else if is_n_label(trimmed) {
-            let name = trimmed.trim_end_matches(';').to_string();
+        } else if let Some(name) = n_label_name(trimmed) {
             symbols.push(Symbol {
                 name,
                 kind: "label".to_string(),
@@ -405,6 +755,10 @@ fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
         let chars: Vec<char> = clean.chars().collect();
         let mut index = 0;
         while index < chars.len() {
+            if string_mask[index] {
+                index += 1;
+                continue;
+            }
             let Some((command, prefix)) = commands
                 .iter()
                 .find(|(command, _)| command_matches(&chars, index, command))
@@ -421,22 +775,53 @@ fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
                 index = command_end;
                 continue;
             }
-            let start = cursor;
+            if string_mask[cursor] {
+                index = command_end;
+                continue;
+            }
+            let p_index = cursor;
             cursor += 1;
+            if *prefix == "G" && cursor < chars.len() && chars[cursor] == '"' {
+                let content_start = cursor + 1;
+                cursor = content_start;
+                while cursor < chars.len() {
+                    if chars[cursor] == '"' && !is_escaped_quote(&chars, cursor) {
+                        break;
+                    }
+                    cursor += 1;
+                }
+                if cursor == content_start
+                    || cursor >= chars.len()
+                    || !is_call_terminator(chars.get(cursor + 1))
+                {
+                    index = command_end;
+                    continue;
+                }
+                let target_name: String = chars[content_start..cursor].iter().collect();
+                calls.push(NavigationCall {
+                    target_name,
+                    line: line_index,
+                    start: utf16_boundary(&source_offsets, &chars, content_start, line_length),
+                    end: utf16_boundary(&source_offsets, &chars, cursor, line_length),
+                });
+                index = cursor + 1;
+                continue;
+            }
+
             let digits_start = cursor;
             while cursor < chars.len() && chars[cursor].is_ascii_digit() {
                 cursor += 1;
             }
-            if digits_start == cursor {
+            if digits_start == cursor || !is_call_terminator(chars.get(cursor)) {
                 index = command_end;
                 continue;
             }
             let digits: String = chars[digits_start..cursor].iter().collect();
             calls.push(NavigationCall {
-                target_name: format!("{prefix}{digits}"),
+                target_name: normalize_numeric_target(prefix, &digits),
                 line: line_index,
-                start,
-                end: cursor,
+                start: utf16_boundary(&source_offsets, &chars, p_index, line_length),
+                end: utf16_boundary(&source_offsets, &chars, cursor, line_length),
             });
             index = cursor;
         }
@@ -489,6 +874,7 @@ fn close_block(
     };
 
     if match_index != stack.len() - 1 {
+        let current = &stack[stack.len() - 1].keyword;
         push_diagnostic(
             diagnostics,
             line,
@@ -496,7 +882,7 @@ fn close_block(
             end_col,
             Severity::Error,
             "SYNTEC_CONTROL_NESTING_ORDER",
-            format!("{closer} 嵌套顺序错误"),
+            format!("{closer} 嵌套顺序错误：当前未闭合的是 {current}"),
         );
     }
     stack.truncate(match_index);
@@ -514,6 +900,8 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         let (clean, next_block_comment) =
             strip_comments_and_strings(raw_line.trim_end_matches('\r'), state.in_block_comment);
         state.in_block_comment = next_block_comment;
+        validate_unsupported_operators(&clean, line_number, &mut diagnostics);
+        validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -521,11 +909,102 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         let mut closed_repeat_by_until = false;
 
         for (keyword, col, end_col) in positions {
+            if keyword == "ELSIF" {
+                push_diagnostic(
+                    &mut diagnostics,
+                    line_number,
+                    col,
+                    end_col,
+                    Severity::Error,
+                    "SYNTEC_UNSUPPORTED_ELSIF",
+                    "ELSIF 不支持，请使用 ELSEIF",
+                );
+                continue;
+            }
+            if keyword == "DIV" {
+                push_diagnostic(
+                    &mut diagnostics,
+                    line_number,
+                    col,
+                    end_col,
+                    Severity::Error,
+                    "SYNTEC_UNSUPPORTED_DIV",
+                    "DIV 不支持；整数除法请使用 /，分子与分母皆为整数时结果仍为整数",
+                );
+                continue;
+            }
+
             if is_opener(&keyword) {
+                if stack.len() >= NESTING_DEPTH_LIMIT {
+                    push_diagnostic(
+                        &mut diagnostics,
+                        line_number,
+                        col,
+                        end_col,
+                        Severity::Warning,
+                        "SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED",
+                        format!(
+                            "{keyword} 嵌套深度已达 {NESTING_DEPTH_LIMIT} 层，超过可能触发控制器 COM-007（巢状超过 10 层）"
+                        ),
+                    );
+                }
                 stack.push(Block {
                     keyword,
                     line: line_number,
+                    has_else: false,
+                    exited: false,
                 });
+                continue;
+            }
+
+            if keyword == "ELSE" {
+                let branch_index = stack
+                    .iter()
+                    .rposition(|block| block.keyword == "IF" || block.keyword == "CASE");
+                if let Some(branch_index) = branch_index {
+                    if let Some(if_index) = (0..=branch_index)
+                        .rev()
+                        .find(|index| stack[*index].keyword == "IF")
+                    {
+                        stack[if_index].has_else = true;
+                    }
+                } else {
+                    push_diagnostic(
+                        &mut diagnostics,
+                        line_number,
+                        col,
+                        end_col,
+                        Severity::Error,
+                        "SYNTEC_CONTROL_UNMATCHED_ELSE",
+                        "ELSE 没有匹配的 IF 或 CASE",
+                    );
+                }
+                continue;
+            }
+
+            if keyword == "ELSEIF" {
+                let if_index = stack.iter().rposition(|block| block.keyword == "IF");
+                match if_index {
+                    None => push_diagnostic(
+                        &mut diagnostics,
+                        line_number,
+                        col,
+                        end_col,
+                        Severity::Error,
+                        "SYNTEC_CONTROL_UNMATCHED_ELSEIF",
+                        "ELSEIF 没有匹配的 IF",
+                    ),
+                    Some(if_index) if stack[if_index].has_else => push_diagnostic(
+                        &mut diagnostics,
+                        line_number,
+                        col,
+                        end_col,
+                        Severity::Error,
+                        "SYNTEC_CONTROL_ELSEIF_AFTER_ELSE",
+                        "IF 块已有 ELSE，再次遇到 ELSEIF",
+                    ),
+                    Some(_) => {}
+                }
                 continue;
             }
 
@@ -547,6 +1026,21 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
                         "SYNTEC_CONTROL_UNMATCHED_UNTIL",
                         "UNTIL 没有匹配的 REPEAT",
                     );
+                }
+                continue;
+            }
+
+            if keyword == "EXIT" {
+                if let Some(loop_index) = stack
+                    .iter()
+                    .rposition(|block| LOOP_OPENERS.contains(&block.keyword.as_str()))
+                {
+                    stack[loop_index].exited = true;
+                    for index in (0..loop_index).rev() {
+                        if stack[index].keyword == "IF" {
+                            stack[index].exited = true;
+                        }
+                    }
                 }
                 continue;
             }
@@ -573,6 +1067,14 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
     }
 
     for block in stack {
+        if block.exited {
+            continue;
+        }
+        let expected_closer = if block.keyword == "REPEAT" {
+            "UNTIL".to_string()
+        } else {
+            format!("END_{}", block.keyword)
+        };
         push_diagnostic(
             &mut diagnostics,
             block.line,
@@ -580,7 +1082,10 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
             0,
             Severity::Warning,
             "SYNTEC_CONTROL_UNCLOSED_BLOCK",
-            format!("{} 块缺少闭合语句", block.keyword),
+            format!(
+                "{} 块缺少对应的 {}（文件结束）",
+                block.keyword, expected_closer
+            ),
         );
     }
 
@@ -617,6 +1122,10 @@ mod tests {
         assert_eq!(result.diagnostics.len(), 1);
         assert_eq!(result.diagnostics[0].severity, Severity::Warning);
         assert_eq!(result.diagnostics[0].code, "SYNTEC_CONTROL_UNCLOSED_BLOCK");
+        assert_eq!(
+            result.diagnostics[0].message,
+            "IF 块缺少对应的 END_IF（文件结束）"
+        );
     }
 
     #[test]
@@ -631,5 +1140,125 @@ mod tests {
         assert_eq!(result.symbols.len(), 2);
         assert_eq!(result.symbols[1].name, "N10");
         assert_eq!(result.calls[0].target_name, "G1000");
+    }
+
+    #[test]
+    fn normalizes_numeric_and_named_navigation_calls() {
+        let result = analyze_document("G65 P100;\nG66 P\"MyMacro\";\nM198 P7;\nM98 P1234;");
+        assert_eq!(
+            result
+                .calls
+                .iter()
+                .map(|call| call.target_name.as_str())
+                .collect::<Vec<_>>(),
+            ["G0100", "MyMacro", "O0007", "O1234"]
+        );
+        assert_eq!(result.calls[0].start, 4);
+        assert_eq!(result.calls[0].end, 8);
+        assert_eq!(result.calls[1].start, 6);
+        assert_eq!(result.calls[1].end, 13);
+    }
+
+    #[test]
+    fn navigation_ignores_strings_and_comments() {
+        let result =
+            analyze_document("MSG(\"G65 P9999\"); // M98 P8888\n(* G66 P7777 *)\nG65 P42;");
+        assert_eq!(result.calls.len(), 1);
+        assert_eq!(result.calls[0].target_name, "G0042");
+    }
+
+    #[test]
+    fn navigation_positions_use_utf16_offsets() {
+        let result = analyze_document("G65 P\"宏😀\";");
+        assert_eq!(result.calls.len(), 1);
+        assert_eq!(result.calls[0].start, 6);
+        assert_eq!(result.calls[0].end, 9);
+    }
+
+    #[test]
+    fn validates_else_and_else_if_boundaries() {
+        let unmatched_else = analyze_document("ELSE");
+        assert_eq!(
+            unmatched_else.diagnostics[0].code,
+            "SYNTEC_CONTROL_UNMATCHED_ELSE"
+        );
+
+        let unmatched_else_if = analyze_document("ELSEIF #1 = 1 THEN");
+        assert_eq!(
+            unmatched_else_if.diagnostics[0].code,
+            "SYNTEC_CONTROL_UNMATCHED_ELSEIF"
+        );
+
+        let after_else = analyze_document("IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;");
+        assert_eq!(
+            after_else.diagnostics[0].code,
+            "SYNTEC_CONTROL_ELSEIF_AFTER_ELSE"
+        );
+    }
+
+    #[test]
+    fn warns_when_control_flow_nesting_exceeds_ten_levels() {
+        let source = (0..11)
+            .map(|_| "IF #1 = 1 THEN")
+            .chain((0..11).map(|_| "END_IF;"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let result = analyze_document(&source);
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED"));
+    }
+
+    #[test]
+    fn exit_suppresses_unclosed_loop_and_enclosing_if_warnings() {
+        let result = analyze_document("IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;");
+        assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_unsupported_control_keywords() {
+        let elsif = analyze_document("ELSIF #1 = 1 THEN");
+        assert_eq!(elsif.diagnostics.len(), 1);
+        assert_eq!(elsif.diagnostics[0].code, "SYNTEC_UNSUPPORTED_ELSIF");
+
+        let div = analyze_document("#1 = #2 DIV #3;");
+        assert_eq!(div.diagnostics.len(), 1);
+        assert_eq!(div.diagnostics[0].code, "SYNTEC_UNSUPPORTED_DIV");
+        assert_eq!(div.diagnostics[0].col, 8);
+    }
+
+    #[test]
+    fn reports_control_header_trailing_semicolon() {
+        let result = analyze_document("IF #1 = 1 THEN;");
+        assert!(result.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON" && diagnostic.col == 14
+        }));
+    }
+
+    #[test]
+    fn reports_common_unsupported_operators() {
+        let result = analyze_document(
+            "#1 == #2;\n#1 != #2;\n#1 && #2;\n#1 || #2;\n#1 += 1;\n#1++;\n#1 % #2;\n!#1;\n#1 EQ #2;",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR",
+                "SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR",
+                "SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR",
+                "SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR",
+                "SYNTEC_UNSUPPORTED_COMPOUND_ASSIGNMENT",
+                "SYNTEC_UNSUPPORTED_INCREMENT",
+                "SYNTEC_UNSUPPORTED_PERCENT_OPERATOR",
+                "SYNTEC_UNSUPPORTED_LOGICAL_NOT_OPERATOR",
+                "SYNTEC_UNSUPPORTED_FANUC_COMPARISON",
+            ]
+        );
     }
 }

@@ -15,16 +15,96 @@ function assertArray(value, name) {
   if (!Array.isArray(value)) throw new TypeError(`${name} must be an array`);
 }
 
+function assertNonNegativeInteger(value, name) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new TypeError(`${name} must be a non-negative integer`);
+  }
+}
+
+function assertPosition(position, name) {
+  assertObject(position, name);
+  assertNonNegativeInteger(position.line, `${name}.line`);
+  assertNonNegativeInteger(position.character, `${name}.character`);
+}
+
+function assertRange(range, name) {
+  assertObject(range, name);
+  assertPosition(range.start, `${name}.start`);
+  assertPosition(range.end, `${name}.end`);
+  if (range.end.line < range.start.line ||
+      (range.end.line === range.start.line &&
+       range.end.character < range.start.character)) {
+    throw new TypeError(`${name} end must not precede start`);
+  }
+}
+
 function assertDiagnosticShape(diagnostic, index) {
   assertObject(diagnostic, `result.diagnostics[${index}]`);
-  assertObject(diagnostic.range, `result.diagnostics[${index}].range`);
-  assertObject(diagnostic.range.start, `result.diagnostics[${index}].range.start`);
-  assertObject(diagnostic.range.end, `result.diagnostics[${index}].range.end`);
-  if (typeof diagnostic.message !== 'string' ||
-      typeof diagnostic.severity !== 'string' ||
-      typeof diagnostic.code !== 'string') {
+  const name = `result.diagnostics[${index}]`;
+  assertRange(diagnostic.range, `${name}.range`);
+  if (typeof diagnostic.message !== 'string' || diagnostic.message.length === 0 ||
+      !['error', 'warning', 'info', 'hint'].includes(diagnostic.severity) ||
+      typeof diagnostic.source !== 'string' || diagnostic.source.length === 0 ||
+      (diagnostic.code !== undefined &&
+       (typeof diagnostic.code !== 'string' || diagnostic.code.length === 0)) ||
+      (diagnostic.keyword !== undefined &&
+       (typeof diagnostic.keyword !== 'string' || diagnostic.keyword.length === 0))) {
     throw new TypeError(`result.diagnostics[${index}] has invalid fields`);
   }
+}
+
+function assertSymbolShape(symbol, index, name = 'result.symbols') {
+  assertObject(symbol, `${name}[${index}]`);
+  if (typeof symbol.name !== 'string' || symbol.name.length === 0 ||
+      typeof symbol.kind !== 'string' || symbol.kind.length === 0) {
+    throw new TypeError(`${name}[${index}] has invalid name or kind`);
+  }
+  assertNonNegativeInteger(symbol.line, `${name}[${index}].line`);
+  if (symbol.startCharacter !== undefined) {
+    assertNonNegativeInteger(symbol.startCharacter, `${name}[${index}].startCharacter`);
+  }
+  if (symbol.endCharacter !== undefined) {
+    assertNonNegativeInteger(symbol.endCharacter, `${name}[${index}].endCharacter`);
+  }
+  if (symbol.startCharacter !== undefined && symbol.endCharacter !== undefined &&
+      symbol.endCharacter < symbol.startCharacter) {
+    throw new TypeError(`${name}[${index}] endCharacter must not precede startCharacter`);
+  }
+}
+
+function assertEditShape(edit, index) {
+  assertObject(edit, `result.edits[${index}]`);
+  assertRange(edit.range, `result.edits[${index}].range`);
+  if (typeof edit.newText !== 'string') {
+    throw new TypeError(`result.edits[${index}].newText must be a string`);
+  }
+}
+
+function assertNavigationShape(navigation) {
+  assertObject(navigation, 'result.navigation');
+  if ((navigation.programEntryName !== null &&
+       typeof navigation.programEntryName !== 'string') ||
+      (navigation.macroProgramName !== null &&
+       typeof navigation.macroProgramName !== 'string')) {
+    throw new TypeError('result.navigation names must be strings or null');
+  }
+  assertArray(navigation.symbols, 'result.navigation.symbols');
+  navigation.symbols.forEach((symbol, index) => {
+    assertSymbolShape(symbol, index, 'result.navigation.symbols');
+  });
+  assertArray(navigation.calls, 'result.navigation.calls');
+  navigation.calls.forEach((call, index) => {
+    assertObject(call, `result.navigation.calls[${index}]`);
+    if (typeof call.targetName !== 'string' || call.targetName.length === 0) {
+      throw new TypeError(`result.navigation.calls[${index}].targetName must be a non-empty string`);
+    }
+    assertNonNegativeInteger(call.line, `result.navigation.calls[${index}].line`);
+    assertNonNegativeInteger(call.start, `result.navigation.calls[${index}].start`);
+    assertNonNegativeInteger(call.end, `result.navigation.calls[${index}].end`);
+    if (call.end < call.start) {
+      throw new TypeError(`result.navigation.calls[${index}] end must not precede start`);
+    }
+  });
 }
 
 /**
@@ -46,8 +126,10 @@ function normalizeRustAnalysisResult(request, rawResult) {
   assertArray(rawResult.diagnostics, 'result.diagnostics');
   assertArray(rawResult.symbols, 'result.symbols');
   assertArray(rawResult.edits, 'result.edits');
-  if (rawResult.navigation !== null) assertObject(rawResult.navigation, 'result.navigation');
   rawResult.diagnostics.forEach(assertDiagnosticShape);
+  rawResult.symbols.forEach((symbol, index) => assertSymbolShape(symbol, index));
+  rawResult.edits.forEach(assertEditShape);
+  if (rawResult.navigation !== null) assertNavigationShape(rawResult.navigation);
 
   return {
     protocolVersion: ANALYSIS_PROTOCOL_VERSION,
@@ -86,26 +168,41 @@ function createRustWasmAdapter(wasmExports) {
   }
 
   return request => {
-    const text = request.document.text;
+    const normalizedRequest = normalizeAnalysisRequest(request);
+    const text = normalizedRequest.document.text;
     const input = new TextEncoder().encode(text);
     const inputPointer = wasmExports.syntec_core_alloc(input.length);
-    new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
-    const packed = wasmExports.syntec_core_analyze_json(inputPointer, input.length);
-    wasmExports.syntec_core_dealloc(inputPointer, input.length);
-    const output = splitPackedPointer(packed);
-    if (output.pointer === 0 || output.length === 0) {
-      throw new Error('Rust Wasm returned an empty result');
+    if (input.length > 0 && inputPointer === 0) {
+      throw new Error('Rust Wasm returned a null input buffer');
     }
-    const bytes = new Uint8Array(
-      wasmExports.memory.buffer,
-      output.pointer,
-      output.length
-    ).slice();
-    wasmExports.syntec_core_free_output(output.pointer, output.length);
-    return normalizeRustAnalysisResult(
-      request,
-      JSON.parse(new TextDecoder().decode(bytes))
-    );
+    let outputPointer = 0;
+    let outputLength = 0;
+    try {
+      new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
+      const packed = wasmExports.syntec_core_analyze_json(inputPointer, input.length);
+      const output = splitPackedPointer(packed);
+      outputPointer = output.pointer;
+      outputLength = output.length;
+      if (outputPointer === 0 || outputLength === 0) {
+        throw new Error('Rust Wasm returned an empty result');
+      }
+      const bytes = new Uint8Array(
+        wasmExports.memory.buffer,
+        outputPointer,
+        outputLength
+      ).slice();
+      return normalizeRustAnalysisResult(
+        normalizedRequest,
+        JSON.parse(new TextDecoder().decode(bytes))
+      );
+    } finally {
+      if (outputPointer !== 0 && outputLength !== 0) {
+        wasmExports.syntec_core_free_output(outputPointer, outputLength);
+      }
+      if (inputPointer !== 0 || input.length !== 0) {
+        wasmExports.syntec_core_dealloc(inputPointer, input.length);
+      }
+    }
   };
 }
 

@@ -66,3 +66,43 @@ test('Rust result rejects protocol and shape drift', () => {
     /result\.symbols must be an array/
   );
 });
+
+test('Rust result rejects malformed nested protocol ranges', () => {
+  assert.throws(
+    () => normalizeRustAnalysisResult(
+      createRequest(),
+      createRawResult({
+        diagnostics: [{
+          range: {
+            start: { line: 0, character: 4 },
+            end: { line: 0, character: 3 }
+          },
+          message: 'invalid',
+          severity: 'warning',
+          source: 'syntec-core',
+          code: 'SYNTEC_TEST'
+        }]
+      })
+    ),
+    /end must not precede start/
+  );
+  assert.throws(
+    () => normalizeRustAnalysisResult(
+      createRequest(),
+      createRawResult({
+        navigation: {
+          programEntryName: null,
+          macroProgramName: null,
+          symbols: [],
+          calls: [{
+            targetName: 'G1000',
+            line: 0,
+            start: 3,
+            end: 2
+          }]
+        }
+      })
+    ),
+    /end must not precede start/
+  );
+});

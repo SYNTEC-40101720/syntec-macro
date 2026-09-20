@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **M3 Wasm 边界探针**: `syntec-core` 可编译到 `wasm32-unknown-unknown`，Node 通过最小 ABI 分配/写入 UTF-8、调用控制流诊断 JSON/导航子集并释放内存；release artifact 约 50.3KB，已完成 JS/Rust 稳定字段差分，暂不接入生产桥接。
 - **Wasm bridge 基准**: 10 次测量下 20,000 行档案 JSON bridge p50 约 58ms/p95 约 60ms、结果约 33.8KB；该 Rust 实现仍缺少完整诊断规则和 TextEdit，不作为完整 JavaScript 分析性能结论。
 - **Rust Wasm 协议适配器**: 新增开发态 `RustWasmAdapter`，将 Rust JSON 规范化为共享 `AnalysisResult` 形状并拒绝 protocol/字段漂移；不注册到生产 Provider。
+- **Wasm 共享结果契约**: Rust JSON bridge 的诊断改为共享协议的嵌套 range/source 结构，补齐 symbols/navigation/edit 形状校验；探针和基准均经同一适配器验证，仍不注册到生产 Provider。
+- **Wasm 导航子集 parity**: Rust 试点补齐数字 G/O 目标标准化、静态命名 G 宏、字符串/注释边界和 UTF-16 位置；通过 Rust 单测与 Wasm/JavaScript 差分探针验证，完整文件元数据和引用能力仍待后续 bridge 设计。
+- **Wasm 控制流诊断 parity**: Rust 试点补齐 `ELSE/ELSEIF` 边界、`EXIT` 退出传播、10 层嵌套深度 warning 和文件结束提示，并扩展 CLI/Wasm 差分样例；函数、LTP/Modbus 与格式化能力仍未迁移。
+- **Wasm 基础语法诊断 parity**: Rust 试点补齐 `ELSIF` 和 `DIV` 的稳定错误 code/位置/提示，并加入字符串、注释和多场景差分覆盖；其余运算子、分号、括号和函数诊断仍保持 JavaScript 专属。
+- **Wasm 基础运算子与结构边界 parity**: Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!`、FANUC 比较关键字等可静态确定的诊断，差分覆盖字符串/注释和 UTF-16 范围；括号、静态 MOD 小数和函数诊断仍未迁移。
 - **M3 后端 Go/No-Go**: JavaScript 继续作为唯一生产后端；Rust/Wasm 保持开发态 CLI/ABI 试点，直到完成完整诊断 parity、TextEdit/导航结果、可复现 CI 构建和回滚验证。
 
 ## 2.15.0 - 2026-09-17

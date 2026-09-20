@@ -1,4 +1,4 @@
-// M3 Wasm 边界探针：只验证导出符号和协议版本，不接入生产 Provider。
+// M3 Wasm 开发态探针：验证 ABI、共享 AnalysisResult 结构和稳定字段差分。
 
 const fs = require('fs');
 const path = require('path');
@@ -7,6 +7,7 @@ const {
   analyzeNavigationDocument
 } = require('../src/analysisCore');
 const { createRequest } = require('./benchmarkAnalysis');
+const { createRustWasmAdapter } = require('./rustWasmAdapter');
 
 const DEFAULT_WASM_PATH = path.join(
   __dirname,
@@ -46,6 +47,7 @@ async function main() {
   if (actual !== 1) {
     throw new Error(`Unexpected Rust Wasm protocol version: ${actual}`);
   }
+  const analyzeRust = createRustWasmAdapter(instance.exports);
   const encoder = new TextEncoder();
   const validSource = 'IF #1 = 1 THEN\nEND_IF;';
   const invalidSource = 'IF #1 = 1 THEN';
@@ -63,46 +65,49 @@ async function main() {
     throw new Error(`Rust Wasm diagnostic count mismatch: valid=${validCount}, invalid=${invalidCount}`);
   }
 
-  const analyzeJsonResult = text => {
-    const input = encoder.encode(text);
-    const inputPointer = alloc(input.length);
-    new Uint8Array(memory.buffer, inputPointer, input.length).set(input);
-    const packed = BigInt(analyzeJson(inputPointer, input.length));
-    dealloc(inputPointer, input.length);
-    const outputPointer = Number(packed >> 32n);
-    const outputLength = Number(packed & 0xffffffffn);
-    if (outputPointer === 0 || outputLength === 0) {
-      throw new Error('Rust Wasm JSON result is empty');
-    }
-    const output = new Uint8Array(memory.buffer, outputPointer, outputLength).slice();
-    freeOutput(outputPointer, outputLength);
-    return JSON.parse(new TextDecoder().decode(output));
-  };
-  const stableDiagnostics = diagnostics => diagnostics.map(diagnostic => ({
-    line: diagnostic.line,
-    col: diagnostic.col,
-    endCol: diagnostic.endCol || diagnostic.col + 1,
+  const cases = [validSource, invalidSource, 'MSG("IF END_IF"); // IF\nEND_IF;'];
+  const parityCases = [
+    ...cases,
+    'ELSE',
+    'ELSEIF #1 = 1 THEN',
+    'ELSIF #1 = 1 THEN',
+    '#1 := #2 DIV #3;',
+    'IF #1 = 1 THEN;',
+    'ELSE;',
+    '#1 == #2;',
+    '#1 != #2;',
+    '#1 && #2;',
+    '#1 || #2;',
+    '#1 += 1;',
+    '#1++;',
+    '#1 % #2;',
+    '!#1;',
+    '#1 EQ #2;',
+    'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
+    'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
+    [
+      ...Array(11).fill('IF #1 = 1 THEN'),
+      ...Array(11).fill('END_IF;')
+    ].join('\n')
+  ];
+  const stableDiagnostics = result => result.diagnostics.map(diagnostic => ({
+    line: diagnostic.range.start.line + 1,
+    col: diagnostic.range.start.character,
+    endCol: diagnostic.range.end.character,
     severity: diagnostic.severity,
     code: diagnostic.code
   }));
-  const cases = [validSource, invalidSource, 'MSG("IF END_IF"); // IF\nEND_IF;'];
-  for (const text of cases) {
-    const rustResult = analyzeJsonResult(text);
+  for (const text of parityCases) {
+    const rustResult = analyzeRust(createRequest(text, 'file:///wasm-probe.nc'));
     const javascriptResult = analyzeDocument(createRequest(text, 'file:///wasm-probe.nc'));
-    const rustDiagnostics = stableDiagnostics(rustResult.diagnostics);
-    const javascriptDiagnostics = stableDiagnostics(javascriptResult.diagnostics.map(diagnostic => ({
-      line: diagnostic.range.start.line + 1,
-      col: diagnostic.range.start.character,
-      endCol: diagnostic.range.end.character,
-      severity: diagnostic.severity,
-      code: diagnostic.code
-    })));
+    const rustDiagnostics = stableDiagnostics(rustResult);
+    const javascriptDiagnostics = stableDiagnostics(javascriptResult);
     if (JSON.stringify(rustDiagnostics) !== JSON.stringify(javascriptDiagnostics)) {
       throw new Error(`Rust Wasm JSON mismatch: ${JSON.stringify(rustResult)}`);
     }
   }
-  const navigationText = '%@MACRO\nN10;\nG65 P1000;';
-  const rustNavigation = analyzeJsonResult(navigationText);
+  const navigationText = '%@MACRO\nN10;\nG65 P100;\nG66 P"MyMacro";\nM198 P7;\nM98 P1234;';
+  const rustNavigation = analyzeRust(createRequest(navigationText, 'file:///G1000'));
   const jsNavigation = analyzeNavigationDocument(
     createRequest(navigationText, 'file:///G1000'),
     'G1000'

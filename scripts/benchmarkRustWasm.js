@@ -9,6 +9,7 @@ const {
   createRequest
 } = require('./benchmarkAnalysis');
 const { analyzeDocument } = require('../src/analysisCore');
+const { normalizeRustAnalysisResult } = require('./rustWasmAdapter');
 
 const DEFAULT_WASM_PATH = path.join(
   __dirname,
@@ -106,10 +107,14 @@ function main(args = process.argv.slice(2)) {
   console.info(`Rust Wasm JSON benchmark: ${iterations} measured runs, artifact ${bytes.length} bytes`);
   for (const [name, text, uri] of cases) {
     const measured = measure(exports, text, iterations);
-    const rustDiagnostics = measured.result.diagnostics.map(diagnostic => ({
-      line: diagnostic.line,
-      col: diagnostic.col,
-      endCol: diagnostic.endCol || diagnostic.col + 1,
+    const rustResult = normalizeRustAnalysisResult(
+      createRequest(text, uri),
+      measured.result
+    );
+    const rustDiagnostics = rustResult.diagnostics.map(diagnostic => ({
+      line: diagnostic.range.start.line + 1,
+      col: diagnostic.range.start.character,
+      endCol: diagnostic.range.end.character,
       severity: diagnostic.severity,
       code: diagnostic.code
     }));
