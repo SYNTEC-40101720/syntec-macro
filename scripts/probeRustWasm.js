@@ -105,6 +105,7 @@ async function main() {
     'ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);',
     '#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 := 1;\nAR-1;\nMAR1.5;\nAR[-2];',
     'AR[#1];\nMAR[100];\n#1 := 1;',
+    '@401 := 1;\n@440 := 1;\n@10081 := 1;\n@10512 := 1;\n@111000 := 1;\n@450 := 1;\n@10500 := 1;',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

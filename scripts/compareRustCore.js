@@ -174,6 +174,10 @@ const CASES = [
     text: 'AR[#1];\nMAR[100];\n#1 := 1;'
   },
   {
+    name: 'reserved-r-writes',
+    text: '@401 := 1;\n@440 := 1;\n@10081 := 1;\n@10512 := 1;\n@111000 := 1;\n@450 := 1;\n@10500 := 1;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

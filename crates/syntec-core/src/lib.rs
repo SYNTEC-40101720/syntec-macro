@@ -834,6 +834,81 @@ fn validate_variable_access(clean: &str, line: usize, diagnostics: &mut Vec<Diag
         }
     }
 
+    let first_code_character = chars
+        .iter()
+        .position(|character| !character.is_ascii_whitespace());
+    if let Some(start) = first_code_character {
+        if chars[start] == '@' {
+            let mut cursor = start + 1;
+            while cursor < chars.len() && chars[cursor].is_ascii_digit() {
+                cursor += 1;
+            }
+            if cursor > start + 1 {
+                let mut assignment_cursor = cursor;
+                while assignment_cursor < chars.len()
+                    && chars[assignment_cursor].is_ascii_whitespace()
+                {
+                    assignment_cursor += 1;
+                }
+                let is_assignment = chars.get(assignment_cursor) == Some(&':')
+                    && chars.get(assignment_cursor + 1) == Some(&'=')
+                    || chars.get(assignment_cursor) == Some(&'=')
+                        && chars.get(assignment_cursor + 1) != Some(&'=');
+                if is_assignment {
+                    let number = chars[start + 1..cursor]
+                        .iter()
+                        .collect::<String>()
+                        .parse::<usize>()
+                        .ok();
+                    let mapped_register = number.and_then(|number| {
+                        if (401..=655).contains(&number) {
+                            Some(number - 400)
+                        } else if (10000..=14095).contains(&number) {
+                            Some(number - 10000)
+                        } else if (100000..=165535).contains(&number) {
+                            Some(number - 100000)
+                        } else {
+                            None
+                        }
+                    });
+                    if let (Some(number), Some(register)) = (number, mapped_register) {
+                        let reserved = register <= 49
+                            || (81..=102).contains(&register)
+                            || (512..=639).contains(&register)
+                            || (640..=1023).contains(&register)
+                            || (11000..=14999).contains(&register);
+                        if reserved {
+                            let reason = if (40..=49).contains(&register) {
+                                "PLC 警报讯息区"
+                            } else if (81..=100).contains(&register) {
+                                "对应参数 Pr3401~Pr3420 唯读区"
+                            } else if (101..=102).contains(&register) {
+                                "刀具状态 FRAM 唯读区"
+                            } else if (512..=639).contains(&register) {
+                                "CNC 系统介面区（不支持位元存取）"
+                            } else if (11000..=14999).contains(&register) {
+                                "未列出保留区段（写入可能导致不可预期行为）"
+                            } else {
+                                "CNC 系统介面区"
+                            };
+                            push_diagnostic(
+                                diagnostics,
+                                line,
+                                utf16_prefix_len(&chars, start + 1),
+                                utf16_prefix_len(&chars, cursor + 1),
+                                Severity::Warning,
+                                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+                                format!(
+                                    "@{number} 映射到 R{register}（{reason}），属于 R 寄存器保留区段；写入可能导致不可预期行为"
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let mut index = 0;
     while index < chars.len() {
         let (prefix, prefix_length) = if index + 3 <= chars.len()
@@ -2135,5 +2210,36 @@ mod tests {
 
         let dynamic = analyze_document("AR[#1];\nMAR[100];\n#1 := 1;");
         assert!(dynamic.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_reserved_r_writes_without_flagging_writable_ranges() {
+        let result = analyze_document(
+            "@401 := 1;\n@440 := 1;\n@10081 := 1;\n@10512 := 1;\n@111000 := 1;\n@450 := 1;\n@10500 := 1;",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+                "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE",
+            ]
+        );
+        assert!(result.diagnostics[0].message.contains("@401 映射到 R1"));
+        assert!(result.diagnostics[1].message.contains("PLC 警报讯息区"));
+        assert!(result.diagnostics[2]
+            .message
+            .contains("对应参数 Pr3401~Pr3420 唯读区"));
+        assert!(result.diagnostics[3]
+            .message
+            .contains("CNC 系统介面区（不支持位元存取）"));
+        assert!(result.diagnostics[4].message.contains("未列出保留区段"));
     }
 }
