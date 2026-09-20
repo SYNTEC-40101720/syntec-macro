@@ -1915,6 +1915,120 @@ fn strip_comments_keep_strings(
     (result, string_mask, result_offsets, in_block_comment)
 }
 
+/// Mirror of `src/fileResolver.js` `MACRO_FILE_EXTENSIONS`.
+const MACRO_FILE_EXTENSIONS: [&str; 11] = [
+    ".nc", ".cnc", ".tap", ".prt", ".mpf", ".ptp", ".pim", ".anc", ".bj", ".edit", ".demo",
+];
+
+/// Mirror of `navigationSymbols.js getPortableFileName`: extract the POSIX
+/// basename of a URI/path, accepting `/`, `\` as separators and stripping the
+/// leading `file://` / `file:` scheme if present. Returns `None` for empty
+/// paths so the caller can skip navigation metadata computation.
+fn portable_file_name(uri_or_path: &str) -> Option<String> {
+    let mut normalized = uri_or_path.replace('\\', "/");
+    for scheme in ["file://", "file:"] {
+        if let Some(rest) = normalized.strip_prefix(scheme) {
+            normalized = rest.to_string();
+            break;
+        }
+    }
+    // Drop leading slashes from `file:///...`.
+    let trimmed = normalized.trim_start_matches('/');
+    if trimmed.is_empty() {
+        return None;
+    }
+    let last_segment = trimmed.rsplit('/').next()?;
+    if last_segment.is_empty() {
+        None
+    } else {
+        Some(last_segment.to_string())
+    }
+}
+
+/// Mirror of `navigationSymbols.js getProgramEntryName`: returns the uppercased
+/// basename (without extension if it is a MACRO_FILE_EXTENSION) when the
+/// resulting name matches `[GO]?<digits>`. The JS variant requires `^[GO]\d+$`,
+/// so e.g. `G1000.nc` -> `G1000`, `O1234` -> `O1234`, `notes.nc` -> `None`.
+fn get_program_entry_name(uri_or_path: &str) -> Option<String> {
+    let file_name = portable_file_name(uri_or_path)?;
+    let extension = file_name
+        .char_indices()
+        .rev()
+        .find(|(_, character)| *character == '.')
+        .map(|(index, _)| file_name[index..].to_ascii_lowercase());
+    let base_name = match extension.as_deref() {
+        Some(ext) if MACRO_FILE_EXTENSIONS.contains(&ext) => {
+            file_name.split_at(file_name.len() - ext.len()).0
+        }
+        _ => file_name.as_str(),
+    };
+    let upper = base_name.to_ascii_uppercase();
+    if !upper
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric())
+        || upper.is_empty()
+    {
+        return None;
+    }
+    let first = upper.chars().next()?;
+    if !matches!(first, 'G' | 'O') {
+        return None;
+    }
+    if !upper[1..].chars().all(|character| character.is_ascii_digit()) || upper[1..].is_empty() {
+        return None;
+    }
+    Some(upper)
+}
+
+/// Mirror of `navigationSymbols.js isMacroFileContent`: a file is macro content
+/// when its basename matches the entry-name rule, the extension is a registered
+/// MACRO_FILE_EXTENSION, or (when there is no extension) the source contains a
+/// `%@MACRO` line. The `%@MACRO` check is delegated to the caller so we can
+/// reuse the symbols produced by `extract_navigation`.
+fn is_macro_file_content(uri_or_path: &str, has_macro_header: bool) -> bool {
+    if get_program_entry_name(uri_or_path).is_some() {
+        return true;
+    }
+    let Some(file_name) = portable_file_name(uri_or_path) else {
+        return false;
+    };
+    let extension = file_name
+        .char_indices()
+        .rev()
+        .find(|(_, character)| *character == '.')
+        .map(|(index, _)| file_name[index..].to_ascii_lowercase());
+    if let Some(ref ext) = extension {
+        if MACRO_FILE_EXTENSIONS.contains(&ext.as_str()) {
+            return true;
+        }
+    } else if has_macro_header {
+        return true;
+    }
+    false
+}
+
+/// Mirror of `navigationSymbols.js getMacroProgramName`: returns the uppercased
+/// basename (without MACRO_FILE_EXTENSION) when the content has a `%@MACRO`
+/// header, otherwise `None`.
+fn get_macro_program_name(uri_or_path: &str, has_macro_header: bool) -> Option<String> {
+    if !has_macro_header {
+        return None;
+    }
+    let file_name = portable_file_name(uri_or_path)?;
+    let extension = file_name
+        .char_indices()
+        .rev()
+        .find(|(_, character)| *character == '.')
+        .map(|(index, _)| file_name[index..].to_ascii_lowercase());
+    let base_name = match extension.as_deref() {
+        Some(ext) if MACRO_FILE_EXTENSIONS.contains(&ext) => {
+            file_name.split_at(file_name.len() - ext.len()).0
+        }
+        _ => file_name.as_str(),
+    };
+    Some(base_name.to_ascii_uppercase())
+}
+
 fn extract_navigation(content: &str) -> (Vec<Symbol>, Vec<NavigationCall>) {
     let mut state = LexState::default();
     let mut symbols = Vec::new();
@@ -4623,13 +4737,28 @@ pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
     }
 
     let (navigation_symbols, navigation_calls) = extract_navigation(content);
-    let navigation_symbols_ref = navigation_symbols.clone();
-    let navigation = Some(AnalysisNavigation {
-        program_entry_name: None,
-        macro_program_name: None,
-        symbols: navigation_symbols,
-        calls: navigation_calls,
-    });
+    let has_macro_header = navigation_symbols
+        .iter()
+        .any(|symbol| symbol.kind == "macroHeader");
+    // P0-B 第 2 项 完整结果: 全部导航元数据（programEntryName/macroProgramName
+    // /symbols/calls）在 Rust 侧计算，而非 JS 适配层 post-fill。
+    // 非宏文件返回 None 以镜像 JS `buildNavigationIndexEntry` 早返。
+    let navigation = if is_macro_file_content(&document.uri, has_macro_header) {
+        Some(AnalysisNavigation {
+            program_entry_name: get_program_entry_name(&document.uri),
+            macro_program_name: get_macro_program_name(&document.uri, has_macro_header),
+            symbols: navigation_symbols.clone(),
+            calls: navigation_calls,
+        })
+    } else {
+        None
+    };
+    // `AnalysisResult.symbols` 镜像 `AnalysisNavigation.symbols`。当文档不是
+    // macro file 时 JS 顶层 symbols 也清空，避免锁定调用者期望 macro content。
+    let navigation_symbols_ref = match &navigation {
+        Some(nav) => nav.symbols.clone(),
+        None => Vec::new(),
+    };
 
     AnalysisResult::for_document(document, &profile, diagnostics, navigation, &navigation_symbols_ref)
 }

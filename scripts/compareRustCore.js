@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { createRequest } = require('./benchmarkAnalysis');
-const { analyzeDocument } = require('../src/analysisCore');
+const {
+  analyzeDocument,
+  analyzeNavigationDocument
+} = require('../src/analysisCore');
 
 const DEFAULT_RUST_CLI = path.join(
   __dirname,
@@ -639,6 +642,108 @@ function getRustDiagnosticsByRequest(rustCli, text, uri = 'file:///compare.nc', 
   }));
 }
 
+/**
+ * P0-B 第 2 项 完整结果— navigation 差分用例集. 与 CASES 不同——后者只关心诊断字段；
+ * 海需要专门的用例覆盖 macro file、ISO file、non-macro file、宏头 / N-label /
+ * G65/G66/M98/M198 调用边界. 每个用例的 `uri` + `text` 传给 JS analyzeNavigationDocument
+ * 与 Rust --request, 逐字段比较 navigation.
+ */
+const NAVIGATION_CASES = [
+  {
+    name: 'macro-with-calls',
+    uri: 'file:///G1000.nc',
+    text: '%@MACRO\nN100;\nG65 P2000;\nM98 P3000;\n'
+  },
+  {
+    name: 'macro-named-call',
+    uri: 'file:///G1000.nc',
+    text: '%@MACRO\nN1;\nN2;\nG66 P_"Path"\n'
+  },
+  {
+    name: 'macro-extension-matching',
+    uri: 'file:///O42.cnc',
+    text: '%@MACRO\nN1;\n'
+  },
+  {
+    name: 'macro-no-extension-with-header',
+    uri: 'file:///G42',
+    text: '%@MACRO\nN1;\n'
+  },
+  {
+    name: 'iso-format-no-macro-header',
+    uri: 'file:///iso-demo.nc',
+    text: '%\nN1;\nG65 P1000;\n'
+  },
+  {
+    name: 'non-macro-file',
+    uri: 'file:///notes.txt',
+    text: 'G0 X1;\n'
+  },
+  {
+    name: 'mismatched-basename-no-extension',
+    uri: 'file:///README',
+    text: 'G0 X1;\nN1;\n'
+  },
+  {
+    name: 'numeric-macro-basename',
+    uri: 'file:///1234',
+    text: '%@MACRO\nN1;\n'
+  },
+  {
+    name: 'g-prefixed-basename-no-extension',
+    uri: 'file:///G9999',
+    text: '%@MACRO\nN1;\nG66.1 P_"NamedCall"\n'
+  },
+  {
+    name: 'm198-call-from-macro',
+    uri: 'file:///G0072.nc',
+    text: '%@MACRO\nN10;\nM198 P555;\n'
+  }
+];
+
+function getJavaScriptNavigation(uri, text) {
+  const fakePath = uri.replace(/^file:\/\/\//, '');
+  const request = createRequest(text, uri);
+  const result = analyzeNavigationDocument(request, fakePath);
+  if (result.navigation === null) return null;
+  // Strip `document`/`profile`/`backend` fields so the comparison stays
+  // scoped to the navigation payload itself.
+  return {
+    programEntryName: result.navigation.programEntryName,
+    macroProgramName: result.navigation.macroProgramName,
+    symbols: result.navigation.symbols,
+    calls: result.navigation.calls
+  };
+}
+
+function getRustNavigation(rustCli, uri, text) {
+  const request = JSON.stringify({
+    protocolVersion: 1,
+    document: { uri, version: 17, languageId: 'syntec-macro', text },
+    profile: 'generic'
+  });
+  const result = spawnSync(rustCli, ['--request'], {
+    input: request,
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`Rust core --request exited with ${result.status}: ${result.stderr || result.stdout}`);
+  }
+  const trimmed = result.stdout.trim();
+  if (trimmed.length === 0) {
+    throw new Error('Rust core --request emitted an empty AnalysisResult');
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(`Rust core --request emitted non-JSON output: ${error.message}\n${trimmed}`);
+  }
+  return parsed.navigation;
+}
+
 function main() {
   const rustCli = process.env.SYNTEC_RUST_CLI || DEFAULT_RUST_CLI;
   if (!fs.existsSync(rustCli)) {
@@ -681,15 +786,37 @@ function main() {
     p0BCount += 1;
   }
   console.info(`P0-B analysis request transfer: ${p0BCount}/${CASES.length} cases equivalent under --request mode`);
+
+  // P0-B 第 2 项 完整结果— navigation 差分门禁: 逐字段比较 JS 与 Rust 的
+  // navigation 输出（programEntryName / macroProgramName / symbols / calls）。
+  // 黄金样例覆盖 macro file / ISO file / non-macro file / 命名调用 /
+  // M198 调用 / 不同扩展名与裸 basename 等边界.
+  let navigationCount = 0;
+  for (const testCase of NAVIGATION_CASES) {
+    const jsNavigation = getJavaScriptNavigation(testCase.uri, testCase.text);
+    const rustNavigation = getRustNavigation(rustCli, testCase.uri, testCase.text);
+    if (JSON.stringify(jsNavigation) !== JSON.stringify(rustNavigation)) {
+      throw new Error(
+        `${testCase.name} navigation mismatch:\n` +
+        `JavaScript: ${JSON.stringify(jsNavigation)}\n` +
+        `Rust: ${JSON.stringify(rustNavigation)}`
+      );
+    }
+    navigationCount += 1;
+  }
+  console.info(`P0-B navigation parity: ${navigationCount}/${NAVIGATION_CASES.length} cases equivalent`);
 }
 
 if (require.main === module) main();
 
 module.exports = {
   CASES,
+  NAVIGATION_CASES,
   getJavaScriptDiagnostics,
+  getJavaScriptNavigation,
   getRustDiagnostics,
   getRustDiagnosticsByRequest,
+  getRustNavigation,
   normalizeDiagnostic,
   parseRustOutput
 };

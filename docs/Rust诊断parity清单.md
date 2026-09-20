@@ -4,7 +4,7 @@
 
 更新日期：2026-09-20
 当前 Rust 覆盖：67 / 67（按 code 字符串去重后为 64 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。
-未覆盖：0 个 code。`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——本批保持两端共同无 emit，parity 等价。至此 P0-A.1 "诊断 code 收口" 全部 67 个稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上（差分扩展到 130 类），P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 130/130 等价），下一步进入 P0-B 第 2 项「完整结果」（symbols/navigation/TextEdit/profile 协商）。
+未覆盖：0 个 code。`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——本批保持两端共同无 emit，parity 等价。至此 P0-A.1 "诊断 code 收口" 全部 67 个稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上（差分扩展到 130 类），P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 130/130 等价），P0-B 第 2 项 navigation parity 已合上（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 在 Rust 侧依据 `document.uri` 完整计算 + navigation 差分 10/10 等价），下一步进入 P0-B 剩余「完整结果」（edits/TextEdit 与 profile 协商）。
 
 ## 状态定义
 
