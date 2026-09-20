@@ -41,7 +41,9 @@ function validateCaseLineStyle(cleanLine, lineNum, stack) {
   // DEFAULT 支援但不推荐
   const defaultMatch = cleanLine.match(/\bDEFAULT\b\s*:/i);
   if (defaultMatch) {
-    diagnostics.push(createWarning(lineNum, defaultMatch.index, defaultMatch[0].length, 'DEFAULT 支援但不推荐；建议使用 ELSE'));
+    diagnostics.push(createWarning(lineNum, defaultMatch.index, defaultMatch.index + defaultMatch[0].length, 'DEFAULT 支援但不推荐；建议使用 ELSE', {
+      code: DiagnosticCode.UNSUPPORTED_DEFAULT
+    }));
     return diagnostics;
   }
 

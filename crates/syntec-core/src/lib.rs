@@ -2135,6 +2135,69 @@ fn validate_parentheses(clean: &str, line: usize, diagnostics: &mut Vec<Diagnost
     }
 }
 
+fn validate_case_line_style(
+    clean: &str,
+    line: usize,
+    stack: &[Block],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let Some(top) = stack.last() else {
+        return;
+    };
+    if top.keyword != "CASE" {
+        return;
+    }
+    let chars: Vec<char> = clean.chars().collect();
+    let target: Vec<char> = "DEFAULT".chars().collect();
+    let mut cursor = 0;
+    while cursor + target.len() <= chars.len() {
+        let Some(start) = chars[cursor..]
+            .windows(target.len())
+            .position(|window| {
+                window
+                    .iter()
+                    .zip(target.iter())
+                    .all(|(left, right)| left.eq_ignore_ascii_case(right))
+            })
+        else {
+            break;
+        };
+        let absolute_start = cursor + start;
+        let boundary_before = absolute_start == 0
+            || {
+                let prev = chars[absolute_start - 1];
+                !prev.is_ascii_alphanumeric() && prev != '_'
+            };
+        let after_default = absolute_start + target.len();
+        let boundary_after = after_default >= chars.len()
+            || {
+                let next = chars[after_default];
+                !next.is_ascii_alphanumeric() && next != '_'
+            };
+        if boundary_before && boundary_after {
+            let mut scan = after_default;
+            while scan < chars.len() && chars[scan].is_ascii_whitespace() {
+                scan += 1;
+            }
+            if scan < chars.len() && chars[scan] == ':' {
+                let col = utf16_prefix_len(&chars, absolute_start);
+                let end_col = utf16_prefix_len(&chars, scan + 1);
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    col,
+                    end_col,
+                    Severity::Warning,
+                    "SYNTEC_UNSUPPORTED_DEFAULT",
+                    "DEFAULT 支援但不推荐；建议使用 ELSE",
+                );
+                return;
+            }
+        }
+        cursor = absolute_start + 1;
+    }
+}
+
 fn close_block(
     stack: &mut Vec<Block>,
     closer: &str,
@@ -2219,6 +2282,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_static_math_functions(&clean, line_number, &mut diagnostics);
         validate_static_io_functions(&clean, line_number, &mut diagnostics);
         validate_static_basic_functions(&clean, line_number, &mut diagnostics);
+        validate_case_line_style(&clean, line_number, &stack, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -2868,5 +2932,31 @@ mod tests {
 
         let valid = analyze_document("GOTO 100;\nN100;\nG65 P1000;");
         assert!(valid.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn warns_case_default_label_with_code() {
+        let result = analyze_document("CASE #1 OF\n  DEFAULT:\nEND_CASE;");
+        assert_eq!(result.diagnostics.len(), 1);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert_eq!(diagnostic.line, 2);
+        assert_eq!(diagnostic.col, 2);
+        assert_eq!(diagnostic.end_col, 10);
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("SYNTEC_UNSUPPORTED_DEFAULT")
+        );
+
+        // Outside a CASE block, DEFAULT: must not trigger the warning.
+        let outside = analyze_document("DEFAULT:");
+        assert!(outside.diagnostics.is_empty());
+
+        // Unindented DEFAULT: covers the index 0 boundary case.
+        let unindented = analyze_document("CASE #1 OF\nDEFAULT:\nEND_CASE;");
+        assert_eq!(unindented.diagnostics.len(), 1);
+        assert_eq!(unindented.diagnostics[0].line, 2);
+        assert_eq!(unindented.diagnostics[0].col, 0);
+        assert_eq!(unindented.diagnostics[0].end_col, 8);
     }
 }

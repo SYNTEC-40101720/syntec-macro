@@ -542,3 +542,5 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / 中文诊断 parity | Rust 试点补齐代码区中文字符/中文标点错误，保留字符串、行注释和块注释豁免；CLI/Wasm/JavaScript 差分覆盖扩展到 49 类。 |
 | 2026-09-20 | M3 / 调用边界 parity | Rust 试点补齐静态 GOTO 目标缺失 warning 与 `G65/G66/G66.1` 非行末 G 码 warning，保持字符串/注释边界和文件级标签收集；三方差分覆盖扩展到 51 类。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |
+| 2026-09-20 | M3 / Rust parity 清单 | 新增 `docs/Rust诊断parity清单.md`，对照 `src/diagnosticCodes.js` 全部 67 个 code 登记 Rust 覆盖状态（42 已覆盖 / 25 待迁移）、未覆盖项与迁移批次，作为 3.x P0-A.1 诊断 code 收口的执行依据。 |
+| 2026-09-20 | M3 / CASE DEFAULT parity | 修正 `controlFlowValidator.js` 中 `DEFAULT:` 警告的 `endCol` 计算（由 `match[0].length` 改为 `match.index + match[0].length`）并附加 `SYNTEC_UNSUPPORTED_DEFAULT` code；Rust 试点新增 `validate_case_line_style` 等价实现，补齐 CASE 块内 `DEFAULT` 标签的 warning；新增 `case-default-label` 差分样例和 Rust 单测；三方差分覆盖扩展到 52 类。 |

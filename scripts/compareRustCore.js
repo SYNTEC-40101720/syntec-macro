@@ -210,6 +210,10 @@ const CASES = [
     text: 'GOTO 100;\nN100;\nG65 P1000;'
   },
   {
+    name: 'case-default-label',
+    text: 'CASE #1 OF\n  DEFAULT:\nEND_CASE;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

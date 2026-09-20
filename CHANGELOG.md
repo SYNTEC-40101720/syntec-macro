@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Rust 诊断 parity 清单**: 新增 `docs/Rust诊断parity清单.md`，对照 `src/diagnosticCodes.js` 全部 67 个 code 登记 Rust 覆盖状态、未覆盖项与迁移批次，作为 3.x Rust/Wasm 切换 P0-A.1 的执行依据。
+
 ### Changed
+
+- **Wasm CASE DEFAULT parity**: 修正 `controlFlowValidator.js` 中 `DEFAULT:` 警告的 `endCol` 计算（由 `match[0].length` 改为 `match.index + match[0].length`）并附加 `SYNTEC_UNSUPPORTED_DEFAULT` code；Rust 试点新增 `validate_case_line_style` 等价实现，补齐 CASE 块内 `DEFAULT` 标签的 warning；新增 `case-default-label` 差分样例和 Rust 单测，覆盖缩进与未缩进两种边界。
 
 - **后端切换边界**: `AnalysisHost` 新增可注入的 `javascript`/`rust-wasm` backend selector；Rust 结果失败或结构非法时必须经 `onFallback` 显式记录后回退 JavaScript，默认生产后端仍为 JavaScript。
 - **RustWasmAdapter 生产边界**: 将协议适配器移入 `src/` 并纳入 VSIX 代码清单，开发脚本保留兼容转发；适配器不注册、不默认启用且不携带 Wasm 资产。
