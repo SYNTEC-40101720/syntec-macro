@@ -1,0 +1,22 @@
+{
+  "protocolVersion": 1,
+  "crateVersion": "0.1.0",
+  "targetTriple": "wasm32-unknown-unknown",
+  "wasmPath": "syntec_core.wasm",
+  "byteLength": 311963,
+  "sha256": "7b69e5dcac2adc78aae592b51bbddd4f9c79bf41e1a2dda1effd0156c38ba669",
+  "exports": [
+    "memory",
+    "syntec_core_alloc",
+    "syntec_core_dealloc",
+    "syntec_core_free_output",
+    "syntec_core_analyze_request_json",
+    "syntec_core_analyze_json"
+  ],
+  "abiFlags": {
+    "requestAbi": true,
+    "legacyTextAbi": true,
+    "formatDocument": true
+  },
+  "builtAt": "2026-09-20T07:52:18.143Z"
+}

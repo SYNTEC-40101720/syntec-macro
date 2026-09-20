@@ -10,36 +10,37 @@ const {
 } = require('./benchmarkAnalysis');
 const { analyzeDocument } = require('../src/analysisCore');
 const { normalizeRustAnalysisResult } = require('./rustWasmAdapter');
+const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 
-const DEFAULT_WASM_PATH = path.join(
+const DEFAULT_MANIFEST_PATH = path.join(
   __dirname,
   '..',
-  'crates',
-  'syntec-core',
-  'target',
-  'wasm32-unknown-unknown',
-  'release',
-  'syntec_core.wasm'
+  'assets',
+  'rust-wasm',
+  'manifest.json'
 );
 
-function loadWasm(wasmPath) {
-  if (!fs.existsSync(wasmPath)) {
-    throw new Error(`Rust Wasm artifact not found: ${wasmPath}`);
+async function loadWasm(override) {
+  if (override) {
+    if (!fs.existsSync(override)) {
+      throw new Error(`Rust Wasm override not found: ${override}`);
+    }
+    const bytes = fs.readFileSync(override);
+    const { instance } = await WebAssembly.instantiate(bytes);
+    const exports = instance.exports;
+    for (const name of [
+      'memory',
+      'syntec_core_alloc',
+      'syntec_core_dealloc',
+      'syntec_core_analyze_json',
+      'syntec_core_free_output'
+    ]) {
+      if (!exports[name]) throw new Error(`Rust Wasm export is missing: ${name}`);
+    }
+    return { bytes, exports };
   }
-  const bytes = fs.readFileSync(wasmPath);
-  const module = new WebAssembly.Module(bytes);
-  const instance = new WebAssembly.Instance(module);
-  const exports = instance.exports;
-  for (const name of [
-    'memory',
-    'syntec_core_alloc',
-    'syntec_core_dealloc',
-    'syntec_core_analyze_json',
-    'syntec_core_free_output'
-  ]) {
-    if (!exports[name]) throw new Error(`Rust Wasm export is missing: ${name}`);
-  }
-  return { bytes, exports };
+  const { instance, bytes } = await loadRustWasmAsset(DEFAULT_MANIFEST_PATH);
+  return { bytes, exports: instance.exports };
 }
 
 function callJson(exports, text) {
@@ -90,15 +91,15 @@ function stableJavaScriptDiagnostics(text, uri) {
   }));
 }
 
-function main(args = process.argv.slice(2)) {
+async function main(args = process.argv.slice(2)) {
   const iterationsIndex = args.indexOf('--iterations');
   const iterations = Number(iterationsIndex >= 0 ? args[iterationsIndex + 1] : 10);
   if (!Number.isInteger(iterations) || iterations <= 0) {
     throw new Error('--iterations must be a positive integer');
   }
 
-  const wasmPath = process.env.SYNTEC_RUST_WASM || DEFAULT_WASM_PATH;
-  const { bytes, exports } = loadWasm(wasmPath);
+  const override = process.env.SYNTEC_RUST_WASM;
+  const { bytes, exports } = await loadWasm(override);
   const cases = [
     ['fixture', fs.readFileSync(path.join(__dirname, '..', 'tests', 'fixtures', 'test-demo.nc'), 'utf8'), 'file:///fixture.nc'],
     ['large', createLargeMacroText(20000), 'file:///large.nc']
@@ -130,7 +131,12 @@ function main(args = process.argv.slice(2)) {
   }
 }
 
-if (require.main === module) main();
+if (require.main === module) {
+  main().catch(err => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exitCode = 1;
+  });
+}
 
 module.exports = {
   callJson,

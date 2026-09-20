@@ -6,7 +6,8 @@ const { spawnSync } = require('child_process');
 const { createRequest } = require('./benchmarkAnalysis');
 const {
   analyzeDocument,
-  analyzeNavigationDocument
+  analyzeNavigationDocument,
+  formatDocument
 } = require('../src/analysisCore');
 
 const DEFAULT_RUST_CLI = path.join(
@@ -716,6 +717,80 @@ function getJavaScriptNavigation(uri, text) {
   };
 }
 
+/**
+ * P0-B 第 2 项 edits/TextEdit 差分用例集. Each case asserts a JS formatter
+ * output plus a Rust `--request` mode emits the same single whole-document
+ * TextEdit (or `edits: []` when the output equals the input).
+ */
+const FORMAT_CASES = [
+  { name: 'blank', text: '' },
+  { name: 'macro-header-only', text: '%@MACRO\n' },
+  { name: 'program-delimiter', text: '%\n' },
+  { name: 'indented-block', text: 'IF #1 = 1 THEN\n#1 := 1;\nEND_IF;\n' },
+  { name: 'missing-then-body', text: 'IF #1 = 1 THEN\nEND_IF;\n' },
+  { name: 'nested-block', text: 'IF #1 = 1 THEN\nWHILE #2 = 1 DO\n#2 := 2;\nEND_WHILE;\nEND_IF;\n' },
+  { name: 'alias-closer', text: 'IF #1 = 1 THEN\n#3 := 3;\nENDIF;\n' },
+  { name: 'case-block', text: 'CASE #1 OF\n1:\n#4 := 4;\nEND_CASE;\n' },
+  { name: 'repeat-until', text: 'REPEAT\n#5 := #5 + 1;\nUNTIL #5 >= 10 END_REPEAT;\n' },
+  { name: 'assignment-equals', text: '#1 = 2;\n' },
+  { name: 'control-structure-trailing-semicolon', text: 'IF #1 = 1 THEN;\nEND_IF;\n' },
+  { name: 'dangling-comparison', text: '#1 < 2;\n' },
+  { name: 'comment-line', text: '@1 := 1; // comment\n' },
+  { name: 'block-comment-span', text: '(* block\n comment *)\n@2 := 2;\n' },
+  { name: 'string-with-if', text: 'MSG("IF #1 THEN ELSE");\n' },
+  { name: 'if-with-inline-body', text: 'IF #1 = 1 THEN #6 := 1; END_IF;\n' },
+  { name: 'crlf-eol', text: 'IF #1 = 1 THEN\r\n#1 := 1;\r\nEND_IF;\r\n' }
+];
+
+function getJavaScriptEdit(text) {
+  const request = createRequest(text, 'file:///formatter.nc');
+  const result = formatDocument(request);
+  if (result.edits.length === 0) {
+    return { editsLength: 0, newText: null };
+  }
+  // Only one whole-document edit is expected per JS contract.
+  return { editsLength: 1, newText: result.edits[0].newText };
+}
+
+function getRustEdit(rustCli, text) {
+  const request = JSON.stringify({
+    protocolVersion: 1,
+    document: { uri: 'file:///formatter.nc', version: 1, languageId: 'syntec-macro', text },
+    profile: 'generic'
+  });
+  const result = spawnSync(rustCli, ['--request'], {
+    input: request,
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`Rust core --request exited with ${result.status}: ${result.stderr || result.stdout}`);
+  }
+  const trimmed = result.stdout.trim();
+  if (trimmed.length === 0) {
+    throw new Error('Rust core --request emitted an empty AnalysisResult');
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(`Rust core --request emitted non-JSON output: ${error.message}\n${trimmed}`);
+  }
+  if (!Array.isArray(parsed.edits)) {
+    return { editsLength: 0, newText: null };
+  }
+  // Allow only 0 or 1 edits; reject multi-edit drift early so the contract
+  // stays single whole-document.
+  if (parsed.edits.length > 1) {
+    throw new Error(`Rust core --request returned multiple TextEdit entries: ${parsed.edits.length}`);
+  }
+  if (parsed.edits.length === 0) {
+    return { editsLength: 0, newText: null };
+  }
+  return { editsLength: 1, newText: parsed.edits[0].newText };
+}
+
 function getRustNavigation(rustCli, uri, text) {
   const request = JSON.stringify({
     protocolVersion: 1,
@@ -805,6 +880,23 @@ function main() {
     navigationCount += 1;
   }
   console.info(`P0-B navigation parity: ${navigationCount}/${NAVIGATION_CASES.length} cases equivalent`);
+
+  // P0-B 第 2 项 edits/TextEdit 差分: 黄金样例逐字段比较 JS formatDocument
+  // 与 Rust `--request` 模式产出的整文档 TextEdit.newText.
+  let formatCount = 0;
+  for (const testCase of FORMAT_CASES) {
+    const jsEdit = getJavaScriptEdit(testCase.text);
+    const rustEdit = getRustEdit(rustCli, testCase.text);
+    if (JSON.stringify(jsEdit) !== JSON.stringify(rustEdit)) {
+      throw new Error(
+        `${testCase.name} edits mismatch:\n` +
+        `JavaScript: ${JSON.stringify(jsEdit)}\n` +
+        `Rust: ${JSON.stringify(rustEdit)}`
+      );
+    }
+    formatCount += 1;
+  }
+  console.info(`P0-B edits parity: ${formatCount}/${FORMAT_CASES.length} formatter cases equivalent`);
 }
 
 if (require.main === module) main();
@@ -812,11 +904,14 @@ if (require.main === module) main();
 module.exports = {
   CASES,
   NAVIGATION_CASES,
+  FORMAT_CASES,
   getJavaScriptDiagnostics,
   getJavaScriptNavigation,
+  getJavaScriptEdit,
   getRustDiagnostics,
   getRustDiagnosticsByRequest,
   getRustNavigation,
+  getRustEdit,
   normalizeDiagnostic,
   parseRustOutput
 };

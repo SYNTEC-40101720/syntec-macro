@@ -91,12 +91,27 @@
           "items": {
             "type": "string"
           }
+        },
+        "syntecMacro.analysisBackend": {
+          "type": "string",
+          "enum": [
+            "javascript",
+            "rust-wasm-shadow",
+            "rust-wasm"
+          ],
+          "default": "javascript",
+          "enumDescriptions": [
+            "JavaScript analyzer（默认，v2.15.0 起生产后端）",
+            "Shadow 模式：双跑 JS + Rust Wasm，记录差分但不影响最终诊断；Rust 启动失败时静默回退 JS",
+            "Rust Wasm 为主，加载/运行失败显式回退 JavaScript（P0-C 第 3 项未完成前不要在生产开启）"
+          ],
+          "description": "分析后端选择（Rust/Wasm 仍是开发态对照；切换后立即重启 worker）"
         }
       }
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
@@ -106,6 +121,8 @@
     "compare:rust": "node scripts/compareRustCore.js",
     "probe:rust:wasm": "node scripts/probeRustWasm.js",
     "benchmark:rust:wasm": "node scripts/benchmarkRustWasm.js",
+    "build:rust:wasm:asset": "node scripts/buildRustWasmAsset.js",
+    "check:rust:wasm:asset": "node scripts/buildRustWasmAsset.js --check",
     "test:parser:tree-sitter": "node scripts/testTreeSitterSpike.js",
     "typecheck:analysis": "tsc --noEmit -p tsconfig.analysis.json",
     "docs:diagnostics": "node scripts/generateDiagnosticDocs.js",

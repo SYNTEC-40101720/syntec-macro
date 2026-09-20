@@ -19,6 +19,7 @@ tsconfig.analysis.json
 
 # Build tools & scripts
 scripts/
+assets/
 *.py
 *.ps1
 build/

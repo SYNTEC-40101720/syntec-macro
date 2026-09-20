@@ -1,0 +1,73 @@
+name: Rust/Wasm
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    name: Build wasm + asset parity + probes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/syntec-core/target
+          key: rust-wasm-${{ runner.os }}-${{ hashFiles('crates/syntec-core/Cargo.toml', 'crates/syntec-core/src/**') }}
+          restore-keys: rust-wasm-${{ runner.os }}-
+
+      - name: Build wasm artifact (release)
+        working-directory: crates/syntec-core
+        run: cargo build --release --lib --target wasm32-unknown-unknown
+
+      - name: Refresh production wasm asset + manifest
+        run: npm run build:rust:wasm:asset
+
+      - name: Verify asset integrity (manifest + SHA-256)
+        run: npm run check:rust:wasm:asset
+
+      - name: Verify committed asset did not drift
+        run: |
+          if ! git diff --exit-code -- assets/rust-wasm; then
+            echo "::error::assets/rust-wasm drift detected—run 'npm run build:rust:wasm:asset' and commit the updated asset/manifest"
+            git diff --stat -- assets/rust-wasm
+            exit 1
+          fi
+
+      - name: AssetsInRustWasmAssetLoader telemetry contract tests
+        run: node --test tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/rustWasmAdapter.test.js
+
+      - name: Run Rust/JS parity diff suite
+        run: npm run compare:rust
+
+      - name: Probe Rust Wasm ABI
+        run: npm run probe:rust:wasm
+
+      - name: Benchmark Rust Wasm (smoke, 5 iterations)
+        run: npm run benchmark:rust:wasm -- --iterations 5

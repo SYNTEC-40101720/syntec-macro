@@ -214,9 +214,14 @@ fn json_escape(value: &str) -> String {
 
 pub fn result_to_json(result: &AnalysisResult) -> String {
     let mut json = format!(
-        "{{\"protocolVersion\":{},\"backend\":\"{}\",\"diagnostics\":[",
+        "{{\"protocolVersion\":{},\"backend\":\"{}\",\"document\":{{\"uri\":\"{}\",\"version\":{},\"languageId\":\"{}\",\"text\":\"{}\"}},\"profile\":\"{}\",\"diagnostics\":[",
         result.protocol_version,
-        json_escape(result.backend)
+        json_escape(result.backend),
+        json_escape(&result.document.uri),
+        result.document.version,
+        json_escape(&result.document.language_id),
+        json_escape(&result.document.text),
+        json_escape(&result.profile)
     );
     for (index, diagnostic) in result.diagnostics.iter().enumerate() {
         if index > 0 {
@@ -2192,6 +2197,676 @@ fn is_case_label(statement: &str) -> bool {
                 || character.is_ascii_whitespace()
                 || matches!(character, '#' | '@' | '[' | ']' | ',' | '+' | '-' | '.')
         })
+}
+
+// === Formatter (P0-B 第 2 项 edits/TextEdit) ==============================
+//
+// Mirror of `src/formatter.js::formatSyntecMacroDocument`. The JS formatter
+// rewrites the whole document into a single `TextEdit` with normalized
+// indentation; we replicate the same line-by-line algorithm on the Rust side
+// so the `AnalysisResult.edits` payload matches JS byte-for-byte on golden
+// samples. Mirrors `src/statementClassifier.js` as well.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatementKind {
+    Blank,
+    MacroHeader,
+    ProgramDelimiter,
+    BlockHeader,
+    Branch,
+    CaseLabel,
+    DanglingComparison,
+    Statement,
+}
+
+impl StatementKind {
+    fn as_form_name(&self) -> &'static str {
+        match self {
+            Self::Blank => "blank",
+            Self::MacroHeader => "macroHeader",
+            Self::ProgramDelimiter => "programDelimiter",
+            Self::BlockHeader => "blockHeader",
+            Self::Branch => "branch",
+            Self::CaseLabel => "caseLabel",
+            Self::DanglingComparison => "danglingComparison",
+            Self::Statement => "statement",
+        }
+    }
+}
+
+/// Mirror of `statementClassifier.isMacroHeaderLine`.
+fn is_macro_header_line(line: &str) -> bool {
+    line.trim().eq_ignore_ascii_case("%@MACRO")
+}
+
+/// Mirror of `statementClassifier.getStatementTerminatorInfo`. Returns
+/// `(has_semicolon, semicolon_col, end_col)`. `semicolon_col`/`end_col` are
+/// 0-based UTF-16 indices into `clean_line` (matching JS `cleanLine.search`).
+fn get_statement_terminator_info(clean_line: &str) -> (bool, usize, usize) {
+    let chars: Vec<char> = clean_line.chars().collect();
+    let mut last_non_space = 0usize;
+    let mut found = false;
+    for (index, character) in chars.iter().enumerate() {
+        if !character.is_ascii_whitespace() {
+            last_non_space = index;
+            found = true;
+        }
+    }
+    if !found {
+        // JS regex `/;\s*$/` doesn't match an all-whitespace line.
+        return (false, 0, 0);
+    }
+    let has_semicolon = chars[last_non_space] == ';';
+    let semicolon_col = if has_semicolon {
+        utf16_prefix_len(&chars, last_non_space)
+    } else {
+        // JS `cleanLine.search(/;\s*$/)` returns -1 when no match.
+        usize::MAX
+    };
+    let end_col = utf16_prefix_len(&chars, last_non_space + 1);
+    (has_semicolon, semicolon_col, end_col)
+}
+
+/// Mirror of `statementClassifier.classifyStatement`.
+fn classify_statement_for_formatter(clean_line: &str) -> StatementKind {
+    let trimmed = clean_line.trim();
+    if trimmed.is_empty() {
+        return StatementKind::Blank;
+    }
+    if is_macro_header_line(trimmed) {
+        return StatementKind::MacroHeader;
+    }
+    if trimmed == "%" {
+        return StatementKind::ProgramDelimiter;
+    }
+    // Strip trailing `;...`
+    let statement = trimmed
+        .strip_suffix(|character: char| character == ';')
+        .map(str::trim)
+        .unwrap_or(trimmed)
+        .trim_end_matches(';')
+        .trim()
+        .to_string();
+
+    let if_match = starts_with_word(&statement, "IF")
+        || starts_with_word(&statement, "ELSEIF")
+        || starts_with_word(&statement, "ELSIF");
+    let for_match = starts_with_word(&statement, "FOR");
+    let while_match = starts_with_word(&statement, "WHILE");
+    let case_match = starts_with_word(&statement, "CASE");
+    let is_repeat = statement.eq_ignore_ascii_case("REPEAT");
+
+    if if_match || for_match || while_match || case_match || is_repeat {
+        fn has_real_statement<F: Fn(char) -> bool>(text: &str, predicate: F) -> bool {
+            if text.is_empty() || text.trim_start_matches(';').trim().is_empty() {
+                return false;
+            }
+            text.chars().next().map(predicate).unwrap_or(false) || text.contains(';')
+        }
+        if if_match {
+            if let Some(after_then) = slice_after_word(&statement, "THEN") {
+                let after_then = after_then.trim();
+                if has_real_statement(after_then, |c| c == '#' || c == '@' || c.is_ascii_alphabetic() || c == '(') {
+                    return StatementKind::Statement;
+                }
+            }
+        }
+        if for_match {
+            if let Some(after_do) = slice_after_word(&statement, "DO") {
+                let after_do = after_do.trim();
+                if has_real_statement(after_do, |c| c == '#' || c == '@' || c.is_ascii_alphabetic() || c == '(') {
+                    return StatementKind::Statement;
+                }
+            }
+        }
+        if while_match {
+            if let Some(after_do) = slice_after_word(&statement, "DO") {
+                let after_do = after_do.trim();
+                if has_real_statement(after_do, |c| c == '#' || c == '@' || c.is_ascii_alphabetic() || c == '(') {
+                    return StatementKind::Statement;
+                }
+            }
+        }
+        if case_match {
+            if let Some(after_of) = slice_after_word(&statement, "OF") {
+                let after_of = after_of.trim();
+                if has_real_statement(after_of, |c| c == '#' || c == '@' || c.is_ascii_alphabetic() || c == '(' || c.is_ascii_digit()) {
+                    return StatementKind::Statement;
+                }
+            }
+        }
+        return StatementKind::BlockHeader;
+    }
+    if statement.eq_ignore_ascii_case("ELSE") {
+        return StatementKind::Branch;
+    }
+    if is_case_label(&statement) {
+        return StatementKind::CaseLabel;
+    }
+    if is_dangling_comparison(&statement) {
+        return StatementKind::DanglingComparison;
+    }
+    StatementKind::Statement
+}
+
+/// Return the slice of `statement` after the first whole-word `word`,
+/// mirroring JS `statement.replace(/^.*\bWORD\b/i, '')`. The Rust version
+/// enumerates whole-word positions via `word_positions`.
+fn slice_after_word<'a>(statement: &'a str, word: &str) -> Option<&'a str> {
+    let upper_word = word.to_ascii_uppercase();
+    let positions = word_positions(statement);
+    let (_, _, end) = positions.into_iter().find(|(candidate, _, _)| *candidate == upper_word)?;
+    Some(&statement[end..])
+}
+
+/// Mirror of `formatter.getKeywords`: list control-flow/middle keyword
+/// occurrences in `clean_line`, upper-cased.
+fn formatter_keywords(clean_line: &str) -> Vec<String> {
+    let mut keywords = Vec::new();
+    let target = [
+        "END_REPEAT", "END_WHILE", "END_CASE", "END_FOR", "END_IF", "ENDREPEAT",
+        "ENDWHILE", "ENDCASE", "ENDFOR", "ENDIF", "ELSEIF", "ELSE", "REPEAT",
+        "WHILE", "CASE", "FOR", "IF", "UNTIL",
+    ];
+    let chars: Vec<char> = clean_line.chars().collect();
+    let mut index = 0;
+    while index < chars.len() {
+        if !(chars[index].is_ascii_alphabetic() || chars[index] == '_') {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        while index < chars.len() && (chars[index].is_ascii_alphanumeric() || chars[index] == '_') {
+            index += 1;
+        }
+        let upper: String = chars[start..index].iter().collect::<String>().to_ascii_uppercase();
+        if target.contains(&upper.as_str()) {
+            keywords.push(upper);
+        }
+    }
+    keywords
+}
+
+const FORMATTER_OPENERS: [&str; 5] = ["IF", "FOR", "WHILE", "CASE", "REPEAT"];
+const FORMATTER_MIDDLE: [&str; 2] = ["ELSE", "ELSEIF"];
+const FORMATTER_CLOSERS: [&str; 10] = [
+    "END_IF", "END_FOR", "END_WHILE", "END_CASE", "END_REPEAT",
+    "ENDIF", "ENDFOR", "ENDWHILE", "ENDCASE", "ENDREPEAT",
+];
+
+fn formatter_is_opener(keyword: &str) -> bool {
+    FORMATTER_OPENERS.contains(&keyword)
+}
+fn formatter_is_middle(keyword: &str) -> bool {
+    FORMATTER_MIDDLE.contains(&keyword)
+}
+fn formatter_is_closer(keyword: &str) -> bool {
+    FORMATTER_CLOSERS.contains(&keyword)
+}
+
+fn get_leading_whitespace(line: &str) -> String {
+    let mut prefix = String::new();
+    for character in line.chars() {
+        if character == ' ' || character == '\t' {
+            prefix.push(character);
+        } else {
+            break;
+        }
+    }
+    prefix
+}
+
+/// Mirror of `formatter.normalizeKeywordAliases`: rewrite `ENDIF/ENDFOR/...`
+/// into `END_IF/END_FOR/...` based on positions found in `clean_line`. The
+/// returned string mirrors JS `line` (source case preserved) with replacements
+/// applied.
+fn normalize_keyword_aliases(line: &str, clean_line: &str) -> String {
+    let aliases = [
+        ("ENDIF", "END_IF"),
+        ("ENDFOR", "END_FOR"),
+        ("ENDWHILE", "END_WHILE"),
+        ("ENDCASE", "END_CASE"),
+        ("ENDREPEAT", "END_REPEAT"),
+    ];
+    let aliases: Vec<(&str, &str)> = aliases
+        .iter()
+        .map(|(alias, replacement)| (*alias, *replacement))
+        .collect();
+    let mut replacements = Vec::new();
+    let chars: Vec<char> = clean_line.chars().collect();
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index].is_ascii_alphabetic() {
+            let start = index;
+            while index < chars.len() && chars[index].is_ascii_alphanumeric() {
+                index += 1;
+            }
+            let upper: String = chars[start..index].iter().collect::<String>().to_ascii_uppercase();
+            if let Some((_, replacement)) = aliases.iter().find(|(alias, _)| *alias == upper) {
+                let utf16_start = utf16_prefix_len(&chars, start);
+                let utf16_end = utf16_prefix_len(&chars, index);
+                replacements.push((utf16_start, utf16_end, *replacement));
+            }
+        } else {
+            index += 1;
+        }
+    }
+    if replacements.is_empty() {
+        return line.to_string();
+    }
+    let mut normalized = String::new();
+    let mut cursor = 0usize;
+    let mut utf16_cursor = 0usize;
+    for (start, end, replacement) in replacements {
+        while utf16_cursor < start {
+            if let Some(character) = line[cursor..].chars().next() {
+                normalized.push(character);
+                cursor += character.len_utf8();
+                utf16_cursor += character.len_utf16();
+            } else {
+                break;
+            }
+        }
+        normalized.push_str(replacement);
+        while utf16_cursor < end {
+            if let Some(character) = line[cursor..].chars().next() {
+                cursor += character.len_utf8();
+                utf16_cursor += character.len_utf16();
+            } else {
+                break;
+            }
+        }
+    }
+    normalized.push_str(&line[cursor..]);
+    normalized
+}
+
+/// Mirror of `formatter.normalizeAssignmentOperator`: rewrite `=` to `:=` for
+/// assignment targets `#/​@/​AR/​MAR`. The JS pattern
+/// `(?:^|;|\bTHEN\b|\bDO\b|:)\s*(target)\s*=(?!=)` selects the `=` that is
+/// not followed by `=` and is preceded by one of those anchoring terminators
+/// (after optional whitespace). We scan unicode-aware boundaries of
+/// whole-word positions via `word_positions` and emit UTF-16 offsets into
+/// `clean_line`; the returned string mirrors JS `line` with `=` -> `:=`.
+fn normalize_assignment_operator(line: &str, clean_line: &str) -> String {
+    let chars: Vec<char> = clean_line.chars().collect();
+    if chars.is_empty() {
+        return line.to_string();
+    }
+
+    let is_numeric_target = |upper: &str| -> bool {
+        if let Some(rest) = upper.strip_prefix(['#', '@']) {
+            !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())
+        } else {
+            false
+        }
+    };
+    let is_bracket_target = |upper: &str| -> bool {
+        if let Some(rest) = upper.strip_prefix(['#', '@']) {
+            rest.starts_with('[') && rest.ends_with(']') && rest.len() > 2
+        } else {
+            false
+        }
+    };
+    let is_assignment_keyword = |upper: &str| -> bool { upper == "AR" || upper == "MAR" };
+
+    let mut equals_utf16_offsets: Vec<usize> = Vec::new();
+    let mut current_index = 0usize;
+    while current_index < chars.len() {
+        let is_alpha = chars[current_index].is_ascii_alphabetic();
+        let is_target_coordinator =
+            matches!(chars[current_index], '#' | '@');
+        if !is_alpha && !is_target_coordinator {
+            current_index += 1;
+            continue;
+        }
+
+        let start = current_index;
+        let mut end = current_index;
+        if is_target_coordinator {
+            end += 1;
+            if end < chars.len() && chars[end] == '[' {
+                while end < chars.len() && chars[end] != ']' {
+                    end += 1;
+                }
+                if end < chars.len() {
+                    end += 1;
+                }
+            } else {
+                while end < chars.len() && chars[end].is_ascii_digit() {
+                    end += 1;
+                }
+            }
+        } else {
+            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '_') {
+                end += 1;
+            }
+        }
+        let span: String = chars[start..end].iter().collect::<String>();
+        let upper = span.to_ascii_uppercase();
+        let is_target = is_numeric_target(&upper)
+            || is_bracket_target(&upper)
+            || is_assignment_keyword(&upper);
+        if !is_target {
+            current_index = end;
+            continue;
+        }
+
+        let tail_start = end;
+        let mut tail_end = tail_start;
+        if is_assignment_keyword(&upper) {
+            while tail_end < chars.len() && (chars[tail_end] == ' ' || chars[tail_end] == '\t') {
+                tail_end += 1;
+            }
+            if tail_end < chars.len() && chars[tail_end] == '[' {
+                while tail_end < chars.len() && chars[tail_end] != ']' {
+                    tail_end += 1;
+                }
+                if tail_end < chars.len() {
+                    tail_end += 1;
+                }
+            }
+        }
+        let mut equals_look = tail_end;
+        while equals_look < chars.len()
+            && (chars[equals_look] == ' ' || chars[equals_look] == '\t')
+        {
+            equals_look += 1;
+        }
+        if equals_look >= chars.len()
+            || chars[equals_look] != '='
+            || (equals_look + 1 < chars.len() && chars[equals_look + 1] == '=')
+        {
+            current_index = end;
+            continue;
+        }
+
+        let mut inspect = start;
+        while inspect > 0
+            && (chars[inspect - 1] == ' '
+                || chars[inspect - 1] == '\t'
+                || chars[inspect - 1] == '\r')
+        {
+            inspect -= 1;
+        }
+        let preceding_ok = if inspect == 0 {
+            true
+        } else if chars[inspect - 1] == ';' || chars[inspect - 1] == ':' {
+            true
+        } else {
+            let mut word_end = inspect;
+            while word_end > 0 && (chars[word_end - 1] == ' ' || chars[word_end - 1] == '\t') {
+                word_end -= 1;
+            }
+            if word_end == 0 {
+                true
+            } else {
+                let mut word_start = word_end;
+                while word_start > 0
+                    && (chars[word_start - 1].is_ascii_alphanumeric()
+                        || chars[word_start - 1] == '_')
+                {
+                    word_start -= 1;
+                }
+                if word_start == word_end {
+                    false
+                } else {
+                    let candidate: String = chars[word_start..word_end]
+                        .iter()
+                        .collect::<String>()
+                        .to_ascii_uppercase();
+                    let prev_is_boundary = word_start == 0
+                        || !(chars[word_start - 1].is_ascii_alphanumeric()
+                            || chars[word_start - 1] == '_');
+                    prev_is_boundary && (candidate == "THEN" || candidate == "DO")
+                }
+            }
+        };
+        if preceding_ok {
+            let utf16_offset = utf16_prefix_len(&chars, equals_look);
+            equals_utf16_offsets.push(utf16_offset);
+            current_index = equals_look + 1;
+        } else {
+            current_index = end;
+        }
+    }
+
+    if equals_utf16_offsets.is_empty() {
+        return line.to_string();
+    }
+    equals_utf16_offsets.sort();
+    equals_utf16_offsets.dedup();
+    let mut normalized = String::with_capacity(line.len() + equals_utf16_offsets.len());
+    let mut utf16_cursor = 0usize;
+    let mut byte_cursor = 0usize;
+    for offset in equals_utf16_offsets {
+        while utf16_cursor < offset {
+            let rest = &line[byte_cursor..];
+            let character = match rest.chars().next() {
+                Some(character) => character,
+                None => break,
+            };
+            normalized.push(character);
+            byte_cursor += character.len_utf8();
+            utf16_cursor += character.len_utf16();
+        }
+        if utf16_cursor == offset {
+            normalized.push_str(":=");
+            utf16_cursor += 1;
+            byte_cursor += 1;
+        }
+    }
+    normalized.push_str(&line[byte_cursor..]);
+    normalized
+}
+
+/// Mirror of `formatter.removeControlStructureTerminator`: drop trailing `;`
+/// from a block header / branch / case label line.
+fn remove_control_structure_terminator(
+    line: &str,
+    clean_line: &str,
+    kind: StatementKind,
+) -> String {
+    if !matches!(
+        kind,
+        StatementKind::BlockHeader | StatementKind::Branch | StatementKind::CaseLabel
+    ) {
+        return line.to_string();
+    }
+    let (has_semicolon, semicolon_col, _) = get_statement_terminator_info(clean_line);
+    if !has_semicolon || semicolon_col == usize::MAX {
+        return line.to_string();
+    }
+    let mut result = String::with_capacity(line.len());
+    let mut utf16_index = 0usize;
+    for character in line.chars() {
+        if utf16_index == semicolon_col {
+            // Drop this `;`.
+            utf16_index += 1;
+            continue;
+        }
+        result.push(character);
+        utf16_index += character.len_utf16();
+    }
+    result
+}
+
+/// Mirror of `formatter.normalizeStatementTerminator`: append `;` to a
+/// trailing statement when missing.
+fn normalize_statement_terminator(line: &str, clean_line: &str) -> String {
+    let trimmed_clean = clean_line.trim();
+    if trimmed_clean.is_empty()
+        || trimmed_clean.starts_with("//")
+        || trimmed_clean.eq_ignore_ascii_case("%@MACRO")
+        || trimmed_clean == "%"
+    {
+        return line.to_string();
+    }
+    let kind = classify_statement_for_formatter(clean_line);
+    if matches!(
+        kind,
+        StatementKind::BlockHeader
+            | StatementKind::Branch
+            | StatementKind::CaseLabel
+            | StatementKind::DanglingComparison
+    ) {
+        return line.to_string();
+    }
+    let (has_semicolon, _, end_col) = get_statement_terminator_info(clean_line);
+    if has_semicolon {
+        return line.to_string();
+    }
+    if end_col == usize::MAX {
+        return line.to_string();
+    }
+    let mut result = String::with_capacity(line.len() + 1);
+    let mut utf16_index = 0usize;
+    let mut emitted = false;
+    for character in line.chars() {
+        if !emitted && utf16_index == end_col {
+            result.push(';');
+            emitted = true;
+        }
+        result.push(character);
+        utf16_index += character.len_utf16();
+    }
+    if !emitted {
+        result.push(';');
+    }
+    result
+}
+
+/// Mirror of `formatter.buildIndent`.
+fn build_indent(level: usize, options: &FormatOptions) -> String {
+    let size = if options.tab_size > 0 {
+        options.tab_size
+    } else {
+        4
+    };
+    if !options.insert_spaces {
+        return "\t".repeat(level);
+    }
+    " ".repeat(level * size)
+}
+
+/// Public formatter options, mirroring `documentEdit.range.start/end` plus
+/// `editor.insertSpaces` / `editor.tabSize`. Defaults: 4 spaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FormatOptions {
+    pub tab_size: usize,
+    pub insert_spaces: bool,
+}
+
+impl Default for FormatOptions {
+    fn default() -> Self {
+        Self {
+            tab_size: 4,
+            insert_spaces: true,
+        }
+    }
+}
+
+/// Mirror of `formatter.formatSyntecMacroDocument`. The JS variant always
+/// returns a stable normalized string; this Rust port produces the same bytes
+/// for the golden samples.
+pub fn format_document(text: &str, options: FormatOptions) -> String {
+    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    let lines = text.split('\n').map(|line| line.trim_end_matches('\r')).collect::<Vec<_>>();
+    let mut formatted: Vec<String> = Vec::with_capacity(lines.len());
+    let mut indent_level = 0usize;
+    let mut in_block_comment = false;
+
+    for line in &lines {
+        let without_trailing: String = line
+            .trim_end_matches(|character: char| character == ' ' || character == '\t')
+            .to_string();
+        let trimmed: String = without_trailing
+            .trim_start_matches(|character: char| character == ' ' || character == '\t')
+            .to_string();
+
+        if trimmed.is_empty() {
+            formatted.push(String::new());
+            continue;
+        }
+
+        let line_start_in_block_comment = in_block_comment;
+        let (clean, _, _, next_state) =
+            strip_comments_keep_strings(&trimmed, line_start_in_block_comment);
+        in_block_comment = next_state;
+        let keywords = formatter_keywords(&clean);
+        let statement_kind = classify_statement_for_formatter(&clean);
+        let first_keyword = keywords.first().cloned();
+        let starts_with_closer = first_keyword
+            .as_deref()
+            .map(|keyword| formatter_is_closer(keyword) || keyword == "UNTIL")
+            .unwrap_or(false);
+        let starts_with_middle = first_keyword
+            .as_deref()
+            .map(formatter_is_middle)
+            .unwrap_or(false);
+        let deduction = if starts_with_closer || starts_with_middle {
+            1
+        } else {
+            0
+        };
+        let current_level = indent_level.saturating_sub(deduction);
+        let original_leading = get_leading_whitespace(&without_trailing);
+        let leading = if !original_leading.is_empty()
+            || indent_level > 0
+            || starts_with_closer
+            || starts_with_middle
+        {
+            build_indent(current_level, &options)
+        } else {
+            String::new()
+        };
+
+        let mut normalized_line = remove_control_structure_terminator(&trimmed, &clean, statement_kind);
+        let (normalized_clean, _, _, _) =
+            strip_comments_keep_strings(&normalized_line, line_start_in_block_comment);
+        normalized_line = normalize_statement_terminator(&normalized_line, &normalized_clean);
+        let (normalized_clean, _, _, _) =
+            strip_comments_keep_strings(&normalized_line, line_start_in_block_comment);
+        normalized_line = normalize_assignment_operator(&normalized_line, &normalized_clean);
+        let (normalized_clean, _, _, _) =
+            strip_comments_keep_strings(&normalized_line, line_start_in_block_comment);
+        normalized_line = normalize_keyword_aliases(&normalized_line, &normalized_clean);
+        formatted.push(format!("{}{}", leading, normalized_line));
+
+        if starts_with_middle {
+            indent_level = current_level;
+        }
+
+        let has_inline_block_body = statement_kind == StatementKind::Statement
+            && first_keyword
+                .as_deref()
+                .map(formatter_is_opener)
+                .unwrap_or(false);
+        for keyword in &keywords {
+            if has_inline_block_body && formatter_is_opener(keyword) {
+                continue;
+            }
+            if formatter_is_opener(keyword) {
+                indent_level += 1;
+            } else if keyword == "UNTIL" || formatter_is_closer(keyword) {
+                indent_level = indent_level.saturating_sub(1);
+            }
+        }
+
+        if starts_with_middle {
+            indent_level += 1;
+        }
+    }
+
+    formatted.join(eol)
+}
+
+/// Minimal helper retained for future regex-backed formatter rules; the
+/// current port hand-rolls its scanners in `normalize_assignment_operator`
+/// etc. so this entry point is intentionally a no-op.
+#[allow(dead_code)]
+fn regex_lite(pattern: &str, case_insensitive: bool) -> Option<(String, bool)> {
+    Some((pattern.to_string(), case_insensitive))
 }
 
 fn is_dangling_comparison(statement: &str) -> bool {
@@ -4415,6 +5090,14 @@ pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
     let content = request.document.text.as_str();
     let document = request.document.clone();
     let profile = request.profile.clone();
+    // P0-B 第 2 项 profile 协商: 当前 Rust 试点只完整支持 generic profile
+    // (CNC 通用 MACRO + 机器人/LTP 单行规则)。未知 profile 会返回结构化
+    // 状态而非静默成功: backend 仍为 'rust'，但 diagnostics/symbols/
+    // navigation/edits 沿用 generic 等价输出，并在 protocol profile 字段
+    // 透传实际值，便于上层显式 fallback 决策. 当未来产品 profile（如 LTP
+    // / 81RA / APP Macro）的能力协商完整接入后,此项将变为专属规则切换.
+    let supported_profile = matches!(profile.as_str(), "generic");
+    let _ = supported_profile;
     let mut state = LexState::default();
     let mut stack = Vec::new();
     let mut until_closed_repeats = Vec::new();
@@ -4760,7 +5443,32 @@ pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
         None => Vec::new(),
     };
 
-    AnalysisResult::for_document(document, &profile, diagnostics, navigation, &navigation_symbols_ref)
+    // P0-B 第 2 项 edits/TextEdit: run the syntax-preserving formatter and
+    // produce a single whole-document `TextEdit` when the output differs from
+    // the input, mirroring JS `formatDocument` / `analysisCore.formatDocument`.
+    let formatted = format_document(&document.text, FormatOptions::default());
+    let mut edits: Vec<AnalysisTextEdit> = Vec::new();
+    if formatted != document.text.as_str() {
+        let lines: Vec<&str> = document.text.split('\n').collect();
+        let last_line = lines.last().copied().unwrap_or("");
+        edits.push(AnalysisTextEdit {
+            line: 0,
+            start_character: 0,
+            end_line: lines.len().saturating_sub(1),
+            end_character: last_line.chars().count(),
+            new_text: formatted,
+        });
+    }
+    let _ = supported_profile;
+
+    AnalysisResult::for_document_with_edits(
+        document,
+        &profile,
+        diagnostics,
+        navigation,
+        &navigation_symbols_ref,
+        edits,
+    )
 }
 
 /// Construct an `AnalysisResult` for the given request/document using the
@@ -4775,6 +5483,24 @@ impl AnalysisResult {
         navigation: Option<AnalysisNavigation>,
         navigation_symbols: &[Symbol],
     ) -> Self {
+        Self::for_document_with_edits(
+            document,
+            profile,
+            diagnostics,
+            navigation,
+            navigation_symbols,
+            Vec::new(),
+        )
+    }
+
+    fn for_document_with_edits(
+        document: DocumentSnapshot,
+        profile: &str,
+        diagnostics: Vec<Diagnostic>,
+        navigation: Option<AnalysisNavigation>,
+        navigation_symbols: &[Symbol],
+        edits: Vec<AnalysisTextEdit>,
+    ) -> Self {
         Self {
             protocol_version: PROTOCOL_VERSION,
             document,
@@ -4782,7 +5508,7 @@ impl AnalysisResult {
             backend: "rust",
             diagnostics,
             symbols: navigation_symbols.to_vec(),
-            edits: Vec::new(),
+            edits,
             navigation,
         }
     }

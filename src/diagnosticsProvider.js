@@ -17,6 +17,8 @@ const {
   FANUC_COMPARISON_REPLACEMENTS
 } = require('./diagnosticActions');
 const { LANG_ID, isFeatureEnabled } = require('./providerShared');
+const { getAnalysisBackendSetting } = require('./providerShared');
+const { WORKER_BACKEND_DEFAULT } = require('./providerShared');
 
 const DIAGNOSTIC_DEBOUNCE_MS = 300;
 const VALIDATOR_TIMEOUT_MS = 5000;
@@ -33,15 +35,45 @@ let docRequestId = 0;
 const docRequestIds = new Map();
 const fallbackAnalysisHost = new AnalysisHost();
 
+// Shadow 模式日志 sink：Extension Host 通过 setShadowLogSink 注入
+// OutputChannel；未注入时丢弃日志（不影响用户诊断）。
+let shadowLogSink = null;
+
+function setShadowLogSink(sink) {
+  shadowLogSink = sink;
+}
+
+function endShadowLogSink() {
+  shadowLogSink = null;
+}
+
 function setDiagnosticCollection(collection) {
   diagnosticCollection = collection;
+}
+
+function getCurrentWorkerBackend() {
+  // 同步读取配置；改动时 worker 需要重启才能生效——这是 P0-C 第 2 项
+  // 设计上的边界：避免运行中切换造成内存竞态。
+  const configured = getAnalysisBackendSetting();
+  return configured || WORKER_BACKEND_DEFAULT;
 }
 
 function getValidatorWorker() {
   if (validatorWorker) return validatorWorker;
   try {
-    validatorWorker = new Worker(require.resolve('./validatorWorker.js'));
-    validatorWorker.on('message', ({ id, result, error }) => {
+    validatorWorker = new Worker(require.resolve('./validatorWorker.js'), {
+      workerData: {
+        backend: getCurrentWorkerBackend()
+      }
+    });
+    validatorWorker.on('message', (message) => {
+      // Shadow 模式日志：从 worker 的 control 消息转发到 OutputChannel（生产）
+      // 或 devtools console（开发）。这里只过滤日志，不阻断诊断消息。
+      if (message && message.kind === 'log') {
+        if (shadowLogSink) shadowLogSink(message.message);
+        return;
+      }
+      const { id, result, error } = message || {};
       const resolve = pendingRequests.get(id);
       if (!resolve) return;
       pendingRequests.delete(id);
@@ -313,10 +345,13 @@ function dispose() {
     validatorWorker.terminate();
     validatorWorker = null;
   }
+  endShadowLogSink();
 }
 
 module.exports = {
   setDiagnosticCollection,
+  setShadowLogSink,
+  getCurrentWorkerBackend,
   scheduleDiagnostics,
   provideCodeActions,
   dispose

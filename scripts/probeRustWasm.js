@@ -8,25 +8,42 @@ const {
 } = require('../src/analysisCore');
 const { createRequest } = require('./benchmarkAnalysis');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
+const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 
-const DEFAULT_WASM_PATH = path.join(
+const DEFAULT_MANIFEST_PATH = path.join(
   __dirname,
   '..',
-  'crates',
-  'syntec-core',
-  'target',
-  'wasm32-unknown-unknown',
-  'release',
-  'syntec_core.wasm'
+  'assets',
+  'rust-wasm',
+  'manifest.json'
 );
 
-async function main() {
-  const wasmPath = process.env.SYNTEC_RUST_WASM || DEFAULT_WASM_PATH;
-  if (!fs.existsSync(wasmPath)) {
-    throw new Error(`Rust Wasm artifact not found: ${wasmPath}; build it before probing`);
+/**
+ * 加载 Wasm 实例。优先从 manifest 走生产加载器（P0-C 第 1 项）；
+ * 当 `SYNTEC_RUST_WASM` 设置时，直接当作 wasm 文件路径绕过 manifest
+ * （开发逃逸端口），用于 `cargo build` 刚生成的 artifact 即测即试。
+ *
+ * @returns {Promise<{instance: WebAssembly.Instance, bytes: Buffer}>}
+ */
+async function loadWasm() {
+  const override = process.env.SYNTEC_RUST_WASM;
+  if (override) {
+    if (!fs.existsSync(override)) {
+      throw new Error(`Rust Wasm override not found: ${override}`);
+    }
+    const bytes = fs.readFileSync(override);
+    const { instance } = await WebAssembly.instantiate(bytes);
+    if (!instance.exports.memory || typeof instance.exports.syntec_core_alloc !== 'function') {
+      throw new Error('Rust Wasm override is missing required exports');
+    }
+    return { instance, bytes };
   }
-  const bytes = fs.readFileSync(wasmPath);
-  const { instance } = await WebAssembly.instantiate(bytes);
+  const { instance, bytes } = await loadRustWasmAsset(DEFAULT_MANIFEST_PATH);
+  return { instance, bytes };
+}
+
+async function main() {
+  const { instance, bytes } = await loadWasm();
   const version = instance.exports.syntec_core_protocol_version;
   const alloc = instance.exports.syntec_core_alloc;
   const dealloc = instance.exports.syntec_core_dealloc;
@@ -166,6 +183,57 @@ async function main() {
       JSON.stringify(rustCalls) !== JSON.stringify(jsNavigation.calls)) {
     throw new Error(`Rust Wasm navigation mismatch: ${JSON.stringify(rustNavigation)}`);
   }
+
+  // P0-B 真实 request 传输 ABI: ensure `syntec_core_analyze_request_json`
+  // exported and producing same AnalysisResult JSON the adapter would route.
+  const requestAbi = instance.exports.syntec_core_analyze_request_json;
+  if (typeof requestAbi !== 'function') {
+    throw new Error('Rust Wasm artifact is missing syntec_core_analyze_request_json export');
+  }
+  const requestPayload = JSON.stringify({
+    protocolVersion: 1,
+    document: {
+      uri: 'file:///G1000.nc',
+      version: 1,
+      languageId: 'syntec-macro',
+      text: '%@MACRO\nN1;\n'
+    },
+    profile: 'generic'
+  });
+  const requestBytes = new TextEncoder().encode(requestPayload);
+  const requestPointer = alloc(requestBytes.length);
+  if (requestBytes.length > 0 && requestPointer === 0) {
+    throw new Error('Rust Wasm returned a null request buffer');
+  }
+  let requestResultPointer = 0;
+  let requestResultLength = 0;
+  try {
+    new Uint8Array(memory.buffer, requestPointer, requestBytes.length).set(requestBytes);
+    const packed = requestAbi(requestPointer, requestBytes.length);
+    const pointer = Number(BigInt(packed) >> 32n);
+    const length = Number(BigInt(packed) & 0xffffffffn);
+    if (pointer === 0 || length === 0) {
+      throw new Error('syntec_core_analyze_request_json returned an empty result');
+    }
+    requestResultPointer = pointer;
+    requestResultLength = length;
+    const outputBytes = new Uint8Array(memory.buffer, pointer, length).slice();
+    const parsed = JSON.parse(new TextDecoder().decode(outputBytes));
+    if (parsed.protocolVersion !== 1 || parsed.backend !== 'rust') {
+      throw new Error(`Rust Wasm request ABI returned unexpected result: ${JSON.stringify(parsed)}`);
+    }
+    if (parsed.document.uri !== 'file:///G1000.nc' || parsed.profile !== 'generic') {
+      throw new Error(`Rust Wasm request ABI did not echo document/profile: ${JSON.stringify(parsed)}`);
+    }
+  } finally {
+    if (requestResultPointer !== 0 && requestResultLength !== 0) {
+      freeOutput(requestResultPointer, requestResultLength);
+    }
+    if (requestPointer !== 0 || requestBytes.length !== 0) {
+      dealloc(requestPointer, requestBytes.length);
+    }
+  }
+
   console.info(`Rust Wasm JSON ABI probe passed: v${actual}, counts=${validCount}/${invalidCount} (${bytes.length} bytes)`);
 }
 

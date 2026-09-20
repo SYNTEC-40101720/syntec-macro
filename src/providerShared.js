@@ -17,4 +17,34 @@ function isFeatureEnabled(resource, key) {
   return getConfig(resource).get(key, true);
 }
 
-module.exports = { LANG_ID, functionIndex, getConfig, isFeatureEnabled };
+// P0-C 第 2 项：Worker 端 backend 选择
+const WORKER_BACKEND_DEFAULT = 'javascript';
+const WORKER_BACKEND_OPTIONS = Object.freeze([
+  'javascript',
+  'rust-wasm-shadow',
+  'rust-wasm'
+]);
+
+/**
+ * 读 `syntecMacro.analysisBackend` 配置；非法值回退到 default。
+ * 后端切换的行为由 createAnalysisBackend 兜底；这里只做配置校验。
+ *
+ * @returns {string}
+ */
+function getAnalysisBackendSetting() {
+  const configured = getConfig().get('analysisBackend', WORKER_BACKEND_DEFAULT);
+  if (!WORKER_BACKEND_OPTIONS.includes(configured)) {
+    return WORKER_BACKEND_DEFAULT;
+  }
+  return configured;
+}
+
+module.exports = {
+  LANG_ID,
+  functionIndex,
+  getConfig,
+  isFeatureEnabled,
+  WORKER_BACKEND_DEFAULT,
+  WORKER_BACKEND_OPTIONS,
+  getAnalysisBackendSetting
+};
