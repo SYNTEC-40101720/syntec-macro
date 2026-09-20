@@ -150,6 +150,14 @@ const CASES = [
     text: '#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);'
   },
   {
+    name: 'static-io-ranges',
+    text: 'READDI(512);\nSETDO(1, 2);\nREADRREGBIT(65536, 0);\nREADRREGBIT(1, 32);'
+  },
+  {
+    name: 'dynamic-io-ranges',
+    text: 'READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

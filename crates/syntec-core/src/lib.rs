@@ -638,6 +638,77 @@ fn validate_static_math_functions(clean: &str, line: usize, diagnostics: &mut Ve
     }
 }
 
+fn validate_static_io_functions(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    for function_name in ["READDI", "READDO", "READABIT", "SETDO", "SETABIT"] {
+        for call in static_function_calls(clean, function_name) {
+            let value = call.args.first().and_then(|arg| parse_static_number(arg));
+            if value.is_some_and(|value| value.fract() != 0.0 || !(0.0..=511.0).contains(&value)) {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_IO_POINT_RANGE",
+                    &format!("{function_name} 点编号范围为 0~511"),
+                );
+            }
+        }
+    }
+
+    for (function_name, argument_index) in [("SETDO", 1usize), ("SETABIT", 1), ("SETRREGBIT", 2)] {
+        for call in static_function_calls(clean, function_name) {
+            let value = call
+                .args
+                .get(argument_index)
+                .and_then(|arg| parse_static_number(arg));
+            if value.is_some_and(|value| value != 0.0 && value != 1.0) {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_IO_VALUE_RANGE",
+                    &format!("{function_name} 写入值应为 0 或 1"),
+                );
+            }
+        }
+    }
+
+    for function_name in ["READRREGBIT", "SETRREGBIT"] {
+        for call in static_function_calls(clean, function_name) {
+            let register = call.args.first().and_then(|arg| parse_static_number(arg));
+            if register
+                .is_some_and(|value| value.fract() != 0.0 || !(0.0..=65535.0).contains(&value))
+            {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_R_REGISTER_RANGE",
+                    &format!("{function_name} 的 R 值编号范围为 0~65535"),
+                );
+            }
+            let bit = call.args.get(1).and_then(|arg| parse_static_number(arg));
+            if bit.is_some_and(|value| value.fract() != 0.0 || !(0.0..=31.0).contains(&value)) {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_R_BIT_RANGE",
+                    &format!("{function_name} 的 bit 范围为 0~31"),
+                );
+            }
+        }
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1325,6 +1396,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
         validate_static_math_functions(&clean, line_number, &mut diagnostics);
+        validate_static_io_functions(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -1759,6 +1831,32 @@ mod tests {
             .all(|diagnostic| diagnostic.code.as_deref() == Some("SYNTEC_FUNCTION_MATH_DOMAIN")));
 
         let dynamic = analyze_document("#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);");
+        assert!(dynamic.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_static_io_and_register_ranges_only() {
+        let result = analyze_document(
+            "READDI(512);\nSETDO(1, 2);\nREADRREGBIT(65536, 0);\nREADRREGBIT(1, 32);",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_FUNCTION_IO_POINT_RANGE",
+                "SYNTEC_FUNCTION_IO_VALUE_RANGE",
+                "SYNTEC_FUNCTION_R_REGISTER_RANGE",
+                "SYNTEC_FUNCTION_R_BIT_RANGE",
+            ]
+        );
+
+        let dynamic = analyze_document(
+            "READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);",
+        );
         assert!(dynamic.diagnostics.is_empty());
     }
 }

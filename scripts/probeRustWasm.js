@@ -99,6 +99,8 @@ async function main() {
     'G65 P1000',
     '#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := ACOS(1.1);\n#6 := ASIN(-1.1);',
     '#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);',
+    'READDI(512);\nSETDO(1, 2);\nREADRREGBIT(65536, 0);\nREADRREGBIT(1, 32);',
+    'READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [
