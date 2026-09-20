@@ -539,4 +539,5 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm SYSDATA/DRVDATA parity | Rust 试点补齐 SYSDATA 整数引数、DRVDATA 站号整数和第二引数格式诊断，动态变量保持不推断；三方差分覆盖扩展到 46 类。 |
 | 2026-09-20 | M3 / Wasm 赋值风格 parity | Rust 试点补齐行首 `#/@/AR/MAR` 使用单独 `=` 的说明型 warning，条件比较、`==` 和 `:=` 保持不误报；三方差分覆盖扩展到 48 类。 |
 | 2026-09-20 | M3 / 后端切换控制器 | `AnalysisHost` 接入显式 `javascript`/`rust-wasm` selector 和非静默 JS fallback；默认仍为 JavaScript，Rust/Wasm 只有通过完整导入门禁后才允许成为生产后端。 |
+| 2026-09-20 | M3 / 中文诊断 parity | Rust 试点补齐代码区中文字符/中文标点错误，保留字符串、行注释和块注释豁免；CLI/Wasm/JavaScript 差分覆盖扩展到 49 类。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

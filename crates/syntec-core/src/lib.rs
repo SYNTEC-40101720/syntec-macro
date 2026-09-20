@@ -1922,6 +1922,7 @@ fn validate_statement_terminator(clean: &str, line: usize, diagnostics: &mut Vec
     if trimmed.eq_ignore_ascii_case("%@MACRO")
         || trimmed == "%"
         || chars[last_non_space] == ';'
+        || is_chinese_punctuation(chars[last_non_space])
         || trimmed.eq_ignore_ascii_case("ELSE")
         || is_control_header(trimmed)
         || is_case_label(trimmed)
@@ -1940,6 +1941,44 @@ fn validate_statement_terminator(clean: &str, line: usize, diagnostics: &mut Vec
         "SYNTEC_MISSING_SEMICOLON",
         "语句应以 ; 结尾",
     );
+}
+
+fn is_chinese_punctuation(character: char) -> bool {
+    matches!(
+        character,
+        '；' | '：' | '，' | '。' | '！' | '？' | '【' | '】' | '《' | '》' | '（' | '）' | '、'
+    )
+}
+
+fn validate_chinese_characters(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    if let Some(index) = chars.iter().position(|character| {
+        ('\u{3400}'..='\u{4dbf}').contains(character)
+            || ('\u{4e00}'..='\u{9fff}').contains(character)
+    }) {
+        let col = utf16_prefix_len(&chars, index);
+        push_diagnostic_without_code(
+            diagnostics,
+            line,
+            col,
+            col + chars[index].len_utf16(),
+            Severity::Error,
+            "中文字符：宏程序只允许使用英文字符",
+        );
+    }
+    for (index, character) in chars.iter().enumerate() {
+        if is_chinese_punctuation(*character) {
+            let col = utf16_prefix_len(&chars, index);
+            push_diagnostic_without_code(
+                diagnostics,
+                line,
+                col,
+                col + character.len_utf16(),
+                Severity::Error,
+                format!("中文标点 \"{character}\"：宏程序应使用英文字符"),
+            );
+        }
+    }
 }
 
 fn validate_parentheses(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
@@ -1963,6 +2002,7 @@ fn validate_parentheses(clean: &str, line: usize, diagnostics: &mut Vec<Diagnost
                     );
                 }
             }
+
             '[' => brackets.push(index),
             ']' => {
                 if brackets.pop().is_none() {
@@ -2070,6 +2110,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
             line_start_in_block,
             &mut diagnostics,
         );
+        validate_chinese_characters(&clean, line_number, &mut diagnostics);
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_variable_access(&clean, line_number, &mut diagnostics);
         validate_assignment_style(&clean, line_number, &mut diagnostics);
@@ -2681,5 +2722,24 @@ mod tests {
 
         let valid = analyze_document("IF #1 = 2 THEN\n#1 := 2;\nEND_IF;");
         assert!(valid.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_chinese_code_characters_without_flagging_strings_or_comments() {
+        let result =
+            analyze_document("中文;\n#1 := 1；\nMSG(\"中文\"); // 中文\n(* 中文 *)\n#2 := 2;");
+        assert_eq!(result.diagnostics.len(), 2);
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code.is_none()));
+        assert_eq!(
+            result.diagnostics[0].message,
+            "中文字符：宏程序只允许使用英文字符"
+        );
+        assert_eq!(
+            result.diagnostics[1].message,
+            "中文标点 \"；\"：宏程序应使用英文字符"
+        );
     }
 }

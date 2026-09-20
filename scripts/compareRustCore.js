@@ -198,6 +198,10 @@ const CASES = [
     text: 'IF #1 = 2 THEN\n#1 := 2;\nEND_IF;'
   },
   {
+    name: 'chinese-code-boundaries',
+    text: '中文;\n#1 := 1；\nMSG(\"中文\"); // 中文\n(* 中文 *)\n#2 := 2;'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },
