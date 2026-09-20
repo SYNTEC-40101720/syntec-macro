@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Wasm P0-B 真实 request 传输**: Rust 试点新增 `analyze_request_json` 入口与 `parse_analysis_request` JSON 解析器（不引入 serde、保留 ~50KB Wasm 足迹），在 Rust 侧校验完整 `AnalysisRequest` 的 `protocolVersion`、`document.uri`、`document.version`、`document.languageId`、`document.text`、`profile`，不再由 JS 适配层事后补齐 document/profile；CLI 新增 `--request` 模式从 stdin 读取一份 `AnalysisRequest` JSON 并输出协议兼容的 `AnalysisResult` JSON，与默认文本模式共存；新增 Wasm 导出 `syntec_core_analyze_request_json`（接收整份 Request JSON，校验失败返回 0 以触发显式 fallback），`result_to_json` 修正顶层对象闭合 `}` 并补齐完整 navigation 字段序列化（programEntryName/macroProgramName/symbols/calls）；`createRustWasmAdapter` 优先走新 ABI，把整份 Request JSON 传给 Rust，缺失新 ABI 时显式降级到 legacy 文本路径并保持 `onFallback` 路径；`compare:rust` 增加 P0-B 差分环节——对 130 类样例同时跑 legacy text mode 与 `--request` 模式，确认两者诊断序列完全等价 (130/130)；新增 `tests/rustWasmAdapter.test.js` 4 项 `createRustWasmAdapter` 选择逻辑测试（请求 ABI 优先、拒绝错误请求、legacy 兼容降级、双 ABI 缺失抛错）。本节点合上 P0-B 真实 request 传输，下一步进入 P0-B 完整结果（symbols/navigation/TextEdit/profile 协商）。
+
 - **Rust 诊断 parity 清单**: 新增 `docs/Rust诊断parity清单.md`，对照 `src/diagnosticCodes.js` 全部 67 个 code 登记 Rust 覆盖状态、未覆盖项与迁移批次，作为 3.x Rust/Wasm 切换 P0-A.1 的执行依据。
 
 ### Changed

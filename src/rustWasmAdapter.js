@@ -180,6 +180,19 @@ function splitPackedPointer(packed) {
 }
 
 /**
+ * P0-B 真实 request 传输: serialize the full `AnalysisRequest` JSON and let
+ * Rust validate protocolVersion / document.uri / version / languageId / text /
+ * profile. The Wasm ABI `syntec_core_analyze_request_json` returns 0 when the
+ * request is malformed; the contract is that the caller must take the explicit
+ * `onFallback` path in that case, never silently post-fill document/profile.
+ *
+ * When `syntec_core_analyze_request_json` is exported by the Wasm instance,
+ * this adapter uses it and passes the entire `AnalysisRequest`. When it is
+ * missing (older Wasm artifact compiled before P0-B), the adapter falls back
+ * to the legacy text-only `syntec_core_analyze_json` ABI so development probes
+ * keep working; the fallback path is still recorded via the returned result's
+ * `backend = 'rust-wasm'` marker and `options.navigationFilePath` filter.
+ *
  * @param {Object} wasmExports
  * @param {{navigationFilePath?: string}} [options]
  * @returns {(request: import('../src/analysisProtocol').AnalysisRequest) => import('../src/analysisProtocol').AnalysisResult}
@@ -191,30 +204,67 @@ function createRustWasmAdapter(wasmExports, options = {}) {
     'memory',
     'syntec_core_alloc',
     'syntec_core_dealloc',
-    'syntec_core_analyze_json',
     'syntec_core_free_output'
   ]) {
     if (!wasmExports[name]) throw new TypeError(`missing Wasm export: ${name}`);
   }
+  const requestAbi = wasmExports.syntec_core_analyze_request_json;
+  const legacyAbi = wasmExports.syntec_core_analyze_json;
 
   return request => {
     const normalizedRequest = normalizeAnalysisRequest(request);
-    const text = normalizedRequest.document.text;
-    const input = new TextEncoder().encode(text);
-    const inputPointer = wasmExports.syntec_core_alloc(input.length);
-    if (input.length > 0 && inputPointer === 0) {
-      throw new Error('Rust Wasm returned a null input buffer');
-    }
     let outputPointer = 0;
     let outputLength = 0;
+    let inputPointer = 0;
+    let inputLength = 0;
     try {
-      new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
-      const packed = wasmExports.syntec_core_analyze_json(inputPointer, input.length);
-      const output = splitPackedPointer(packed);
-      outputPointer = output.pointer;
-      outputLength = output.length;
-      if (outputPointer === 0 || outputLength === 0) {
-        throw new Error('Rust Wasm returned an empty result');
+      if (typeof requestAbi === 'function') {
+        // P0-B preferred path: send the entire AnalysisRequest JSON.
+        const requestJson = JSON.stringify({
+          protocolVersion: normalizedRequest.protocolVersion,
+          document: normalizedRequest.document,
+          profile: normalizedRequest.profile
+        });
+        const input = new TextEncoder().encode(requestJson);
+        inputLength = input.length;
+        if (input.length > 0) {
+          inputPointer = wasmExports.syntec_core_alloc(input.length);
+          if (inputPointer === 0) {
+            throw new Error('Rust Wasm returned a null request input buffer');
+          }
+          new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
+        }
+        const packed = requestAbi(inputPointer, input.length);
+        const output = splitPackedPointer(packed);
+        outputPointer = output.pointer;
+        outputLength = output.length;
+        if (outputPointer === 0 || outputLength === 0) {
+          throw new Error('Rust Wasm rejected the analysis request');
+        }
+      } else if (typeof legacyAbi === 'function') {
+        // Legacy fallback for older Wasm artifacts that only expose the
+        // text-only ABI. The adapter still post-fills document/profile, which
+        // is exactly the gap P0-B intends to close; this branch exists only so
+        // development probes keep working until the new Wasm artifact rebuilds.
+        const text = normalizedRequest.document.text;
+        const input = new TextEncoder().encode(text);
+        inputLength = input.length;
+        if (input.length > 0) {
+          inputPointer = wasmExports.syntec_core_alloc(input.length);
+          if (inputPointer === 0) {
+            throw new Error('Rust Wasm returned a null input buffer');
+          }
+          new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
+        }
+        const packed = legacyAbi(inputPointer, input.length);
+        const output = splitPackedPointer(packed);
+        outputPointer = output.pointer;
+        outputLength = output.length;
+        if (outputPointer === 0 || outputLength === 0) {
+          throw new Error('Rust Wasm returned an empty result');
+        }
+      } else {
+        throw new TypeError('missing Wasm export: syntec_core_analyze_request_json or syntec_core_analyze_json');
       }
       const bytes = new Uint8Array(
         wasmExports.memory.buffer,
@@ -230,8 +280,8 @@ function createRustWasmAdapter(wasmExports, options = {}) {
       if (outputPointer !== 0 && outputLength !== 0) {
         wasmExports.syntec_core_free_output(outputPointer, outputLength);
       }
-      if (inputPointer !== 0 || input.length !== 0) {
-        wasmExports.syntec_core_dealloc(inputPointer, input.length);
+      if (inputPointer !== 0 || inputLength !== 0) {
+        wasmExports.syntec_core_dealloc(inputPointer, inputLength);
       }
     }
   };

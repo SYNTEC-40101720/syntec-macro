@@ -592,6 +592,53 @@ function getRustDiagnostics(rustCli, text) {
   return parseRustOutput(result.stdout);
 }
 
+/**
+ * P0-B 真实 request 传输 path: serialize a full AnalysisRequest JSON and feed
+ * it to `syntec-core-cli --request`. The CLI validates protocolVersion / URI /
+ * version / languageId / text / profile on the Rust side and emits a single
+ * AnalysisResult JSON line. Returns the diagnostics array in the same
+ * normalized shape as `getRustDiagnostics`.
+ */
+function getRustDiagnosticsByRequest(rustCli, text, uri = 'file:///compare.nc', version = 7) {
+  const request = JSON.stringify({
+    protocolVersion: 1,
+    document: { uri, version, languageId: 'syntec-macro', text },
+    profile: 'generic'
+  });
+  const result = spawnSync(rustCli, ['--request'], {
+    input: request,
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`Rust core --request exited with ${result.status}: ${result.stderr || result.stdout}`);
+  }
+  const trimmed = result.stdout.trim();
+  if (trimmed.length === 0) {
+    throw new Error('Rust core --request emitted an empty AnalysisResult');
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error(`Rust core --request emitted non-JSON output: ${error.message}\n${trimmed}`);
+  }
+  if (parsed.protocolVersion !== 1) {
+    throw new Error(`unsupported Rust protocol version: ${parsed.protocolVersion}`);
+  }
+  // Normalize diagnostics; the request-mode JSON is the shared AnalysisResult
+  // shape (range + message + severity + source + optional code), so reuse
+  // `normalizeDiagnostic` after reshaping into the legacy Record form.
+  return (parsed.diagnostics || []).map((diagnostic) => normalizeDiagnostic({
+    line: diagnostic.range.start.line + 1,
+    col: diagnostic.range.start.character,
+    endCol: diagnostic.range.end.character,
+    severity: diagnostic.severity,
+    code: diagnostic.code
+  }));
+}
+
 function main() {
   const rustCli = process.env.SYNTEC_RUST_CLI || DEFAULT_RUST_CLI;
   if (!fs.existsSync(rustCli)) {
@@ -610,6 +657,30 @@ function main() {
     }
     console.info(`${testCase.name}: equivalent control-flow diagnostics`);
   }
+
+  // P0-B 真实 request 路径差分: confirm the new --request mode produces
+  // exactly the same diagnostics as the legacy text-mode ABI. The 130-case
+  // suite is reused so any drift between the two Rust entry points surfaces
+  // alongside the JS/Rust parity check.
+  let p0BCount = 0;
+  for (const testCase of CASES) {
+    const legacyDiagnostics = getRustDiagnostics(rustCli, testCase.text);
+    const requestDiagnostics = getRustDiagnosticsByRequest(
+      rustCli,
+      testCase.text,
+      `file:///${testCase.name}.nc`,
+      17
+    );
+    if (JSON.stringify(legacyDiagnostics) !== JSON.stringify(requestDiagnostics)) {
+      throw new Error(
+        `${testCase.name} P0-B request/text mismatch:\n` +
+        `legacy:  ${JSON.stringify(legacyDiagnostics)}\n` +
+        `request: ${JSON.stringify(requestDiagnostics)}`
+      );
+    }
+    p0BCount += 1;
+  }
+  console.info(`P0-B analysis request transfer: ${p0BCount}/${CASES.length} cases equivalent under --request mode`);
 }
 
 if (require.main === module) main();
@@ -618,6 +689,7 @@ module.exports = {
   CASES,
   getJavaScriptDiagnostics,
   getRustDiagnostics,
+  getRustDiagnosticsByRequest,
   normalizeDiagnostic,
   parseRustOutput
 };

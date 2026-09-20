@@ -6,7 +6,10 @@ const {
   createAnalysisRequest,
   createDocumentSnapshot
 } = require('../src/analysisProtocol');
-const { normalizeRustAnalysisResult } = require('../scripts/rustWasmAdapter');
+const {
+  createRustWasmAdapter,
+  normalizeRustAnalysisResult
+} = require('../scripts/rustWasmAdapter');
 
 function createRequest(text = 'IF #1 = 1 THEN', uri = 'file:///adapter.nc') {
   return createAnalysisRequest(createDocumentSnapshot({
@@ -139,4 +142,123 @@ test('Rust diagnostics may omit the optional code field', () => {
   delete rawResult.diagnostics[0].code;
   const result = normalizeRustAnalysisResult(createRequest(), rawResult);
   assert.strictEqual(result.diagnostics[0].code, undefined);
+});
+
+/**
+ * Minimal fake Wasm module. Records the bytes written into its memory and
+ * returns a packed JSON output produced by `encodeOutput`. Supports both the
+ * P0-B request ABI (`syntec_core_analyze_request_json`) and the legacy
+ * text-only ABI (`syntec_core_analyze_json`).
+ */
+function createFakeWasm({ requestAbi, legacyAbi, output, requestSink = null, textSink = null }) {
+  const memory = new WebAssembly.Memory({ initial: 1 });
+  const view = () => new Uint8Array(memory.buffer);
+  return {
+    memory,
+    syntec_core_alloc(size) {
+      const pointer = 16;
+      if (16 + size > view().length) {
+        memory.grow(Math.ceil((16 + size - view().length) / 65536));
+      }
+      return pointer;
+    },
+    syntec_core_dealloc() {},
+    syntec_core_analyze_request_json: requestAbi
+      ? (pointer, length) => {
+        const bytes = view().subarray(pointer, pointer + length);
+        if (requestSink) requestSink.push(Buffer.from(bytes).toString('utf8'));
+        if (output === null) return 0n;
+        const encoded = new TextEncoder().encode(output);
+        const outPointer = 1024;
+        if (outPointer + encoded.length > view().length) {
+          memory.grow(Math.ceil((outPointer + encoded.length - view().length) / 65536));
+        }
+        view().set(encoded, outPointer);
+        return (BigInt(outPointer) << 32n) | BigInt(encoded.length);
+      }
+      : undefined,
+    syntec_core_analyze_json: legacyAbi
+      ? (pointer, length) => {
+        const bytes = view().subarray(pointer, pointer + length);
+        if (textSink) textSink.push(Buffer.from(bytes).toString('utf8'));
+        if (output === null) return 0n;
+        const encoded = new TextEncoder().encode(output);
+        const outPointer = 1024;
+        if (outPointer + encoded.length > view().length) {
+          memory.grow(Math.ceil((outPointer + encoded.length - view().length) / 65536));
+        }
+        view().set(encoded, outPointer);
+        return (BigInt(outPointer) << 32n) | BigInt(encoded.length);
+      }
+      : undefined,
+    syntec_core_free_output() {}
+  };
+}
+
+function rawResultJson() {
+  return JSON.stringify({
+    protocolVersion: 1,
+    backend: 'rust',
+    diagnostics: [],
+    symbols: [],
+    edits: [],
+    navigation: null
+  });
+}
+
+test('createRustWasmAdapter prefers the P0-B request ABI and forwards the full AnalysisRequest', () => {
+  const receivedRequest = [];
+  const receivedText = [];
+  const wasm = createFakeWasm({
+    requestAbi: true,
+    legacyAbi: true,
+    output: rawResultJson(),
+    requestSink: receivedRequest,
+    textSink: receivedText
+  });
+  const adapter = createRustWasmAdapter(wasm);
+  const request = createRequest('N10;\n', 'file:///G1000');
+  const result = adapter(request);
+  assert.strictEqual(result.backend, 'rust-wasm');
+  assert.strictEqual(receivedRequest.length, 1);
+  assert.deepStrictEqual(receivedText, []); // request path must not touch the legacy ABI
+  const forwarded = JSON.parse(receivedRequest[0]);
+  assert.strictEqual(forwarded.protocolVersion, 1);
+  assert.strictEqual(forwarded.document.uri, 'file:///G1000');
+  assert.strictEqual(forwarded.document.text, 'N10;\n');
+  assert.strictEqual(forwarded.profile, 'generic');
+});
+
+test('createRustWasmAdapter surfaces a fallback-worthy error when the request ABI rejects the payload', () => {
+  const wasm = createFakeWasm({
+    requestAbi: true,
+    legacyAbi: false,
+    output: null,
+    requestSink: []
+  });
+  const adapter = createRustWasmAdapter(wasm);
+  assert.throws(() => adapter(createRequest('N10;', 'file:///bad')), /rejected the analysis request/);
+});
+
+test('createRustWasmAdapter falls back to the legacy text ABI when the request ABI is missing', () => {
+  const receivedText = [];
+  const wasm = createFakeWasm({
+    requestAbi: false,
+    legacyAbi: true,
+    output: rawResultJson(),
+    textSink: receivedText
+  });
+  const adapter = createRustWasmAdapter(wasm);
+  const result = adapter(createRequest('N10;', 'file:///G1000'));
+  assert.strictEqual(result.backend, 'rust-wasm');
+  assert.deepStrictEqual(receivedText, ['N10;']);
+});
+
+test('createRustWasmAdapter requires at least one analyzer export', () => {
+  const wasm = createFakeWasm({ requestAbi: false, legacyAbi: false, output: null, requestSink: [] });
+  const adapter = createRustWasmAdapter(wasm);
+  assert.throws(
+    () => adapter(createRequest('N10;', 'file:///G1000')),
+    /missing Wasm export: syntec_core_analyze_request_json or syntec_core_analyze_json/
+  );
 });

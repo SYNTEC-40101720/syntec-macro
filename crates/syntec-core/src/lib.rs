@@ -7,7 +7,6 @@
 use std::collections::HashSet;
 
 pub const PROTOCOL_VERSION: u32 = 1;
-#[cfg(target_arch = "wasm32")]
 const ANALYSIS_SOURCE: &str = "syntec-macro";
 
 /// Minimal ABI probe for the first Wasm boundary milestone.
@@ -76,6 +75,36 @@ pub unsafe extern "C" fn syntec_core_free_output(pointer: *mut u8, length: usize
     if !pointer.is_null() {
         let slice = std::ptr::slice_from_raw_parts_mut(pointer, length);
         drop(Box::from_raw(slice));
+    }
+}
+
+/// Wasm ABI for P0-B 真实 request 传输: receives a JSON-serialized
+/// `AnalysisRequest` (protocolVersion + document.{uri, version, languageId,
+/// text} + profile) and returns a packed (pointer, length) pair holding the
+/// `AnalysisResult` JSON. Returns 0 on parse/validation failure so the adapter
+/// must take the explicit `onFallback` path instead of silently post-filling
+/// document/profile from the JS side. The caller frees the output via
+/// `syntec_core_free_output`.
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe extern "C" fn syntec_core_analyze_request_json(pointer: *const u8, length: usize) -> u64 {
+    if pointer.is_null() {
+        return 0;
+    }
+    let bytes = std::slice::from_raw_parts(pointer, length);
+    let Ok(json) = std::str::from_utf8(bytes) else {
+        return 0;
+    };
+    match analyze_request_json(json) {
+        Ok(result) => {
+            let json = result_to_json(&result)
+                .into_bytes()
+                .into_boxed_slice();
+            let length = json.len() as u32;
+            let pointer = Box::into_raw(json) as *mut u8 as u32;
+            ((pointer as u64) << 32) | length as u64
+        }
+        Err(_) => 0,
     }
 }
 
@@ -165,7 +194,6 @@ pub struct AnalysisResult {
     pub navigation: Option<AnalysisNavigation>,
 }
 
-#[cfg(target_arch = "wasm32")]
 fn json_escape(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for character in value.chars() {
@@ -184,8 +212,7 @@ fn json_escape(value: &str) -> String {
     escaped
 }
 
-#[cfg(target_arch = "wasm32")]
-fn result_to_json(result: &AnalysisResult) -> String {
+pub fn result_to_json(result: &AnalysisResult) -> String {
     let mut json = format!(
         "{{\"protocolVersion\":{},\"backend\":\"{}\",\"diagnostics\":[",
         result.protocol_version,
@@ -231,34 +258,64 @@ fn result_to_json(result: &AnalysisResult) -> String {
             symbol.end_character
         ));
     }
-    json.push_str("],\"edits\":[],\"navigation\":{\"programEntryName\":null,\"macroProgramName\":null,\"symbols\":[");
-    for (index, symbol) in result.symbols.iter().enumerate() {
+    json.push_str("],\"edits\":[");
+    for (index, edit) in result.edits.iter().enumerate() {
         if index > 0 {
             json.push(',');
         }
         json.push_str(&format!(
-            "{{\"name\":\"{}\",\"kind\":\"{}\",\"line\":{},\"startCharacter\":{},\"endCharacter\":{}}}",
-            json_escape(&symbol.name),
-            json_escape(&symbol.kind),
-            symbol.line,
-            symbol.start_character,
-            symbol.end_character
+            "{{\"range\":{{\"start\":{{\"line\":{},\"character\":{}}},\"end\":{{\"line\":{},\"character\":{}}}}},\"newText\":\"{}\"}}",
+            edit.line,
+            edit.start_character,
+            edit.end_line,
+            edit.end_character,
+            json_escape(&edit.new_text),
         ));
     }
-    json.push_str("],\"calls\":[");
-    for (index, call) in result.calls.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
+    match &result.navigation {
+        None => json.push_str("],\"navigation\":null"),
+        Some(navigation) => {
+            json.push_str("],\"navigation\":{\"programEntryName\":");
+            match &navigation.program_entry_name {
+                Some(value) => json.push_str(&format!("\"{}\"", json_escape(value))),
+                None => json.push_str("null"),
+            }
+            json.push_str(",\"macroProgramName\":");
+            match &navigation.macro_program_name {
+                Some(value) => json.push_str(&format!("\"{}\"", json_escape(value))),
+                None => json.push_str("null"),
+            }
+            json.push_str(",\"symbols\":[");
+            for (index, symbol) in navigation.symbols.iter().enumerate() {
+                if index > 0 {
+                    json.push(',');
+                }
+                json.push_str(&format!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\",\"line\":{},\"startCharacter\":{},\"endCharacter\":{}}}",
+                    json_escape(&symbol.name),
+                    json_escape(&symbol.kind),
+                    symbol.line,
+                    symbol.start_character,
+                    symbol.end_character
+                ));
+            }
+            json.push_str("],\"calls\":[");
+            for (index, call) in navigation.calls.iter().enumerate() {
+                if index > 0 {
+                    json.push(',');
+                }
+                json.push_str(&format!(
+                    "{{\"targetName\":\"{}\",\"line\":{},\"start\":{},\"end\":{}}}",
+                    json_escape(&call.target_name),
+                    call.line,
+                    call.start,
+                    call.end
+                ));
+            }
+            json.push_str("]}");
         }
-        json.push_str(&format!(
-            "{{\"targetName\":\"{}\",\"line\":{},\"start\":{},\"end\":{}}}",
-            json_escape(&call.target_name),
-            call.line,
-            call.start,
-            call.end
-        ));
     }
-    json.push_str("]}}");
+    json.push('}');
     json
 }
 
@@ -3955,24 +4012,12 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
     })
 }
 
-/// Parse a JSON-serialized `AnalysisRequest` and run the full analysis. Used by
-/// the Wasm ABI (`syntec_core_analyze_request_json`) and CLI request mode to
-/// enforce P0-B 真实 request 传输: protocol version, URI, version, languageId,
-/// text, and profile are all required/validated on the Rust side rather than
-/// having the adapter post-fill document/profile. Returns an error string when
-/// the request is malformed (the caller Wasm ABI will surface it via an empty
-/// pointer/length pair so adapters can take the explicit fallback path).
-pub fn analyze_request_json(json: &str) -> Result<AnalysisResult, String> {
-    parse_analysis_request(json).map(|request| analyze_request(request))
-}
-
-/// Parse a JSON-serialized `AnalysisRequest` and run the full analysis. Used by
-/// the Wasm ABI (`syntec_core_analyze_request_json`) and CLI request mode to
-/// enforce P0-B 真实 request 传输: protocol version, URI, version, languageId,
-/// text, and profile are all required/validated on the Rust side rather than
-/// having the adapter post-fill document/profile. Returns an error string when
-/// the request is malformed (the caller Wasm ABI will surface it via an empty
-/// pointer/length pair so adapters can take the explicit fallback path).
+/// Request-mode CLI flag: when `--request` is the first argument, the CLI
+/// reads a JSON-serialized `AnalysisRequest` from stdin and writes a
+/// protocol-compatible `AnalysisResult` JSON to stdout. This enforces P0-B
+/// 真实 request 传输 (URI/version/languageId/text/profile validated on the
+/// Rust side). Without `--request`, the legacy text mode is preserved so the
+/// 130 existing differential samples keep passing unchanged.
 pub fn analyze_request_json(json: &str) -> Result<AnalysisResult, String> {
     parse_analysis_request(json).map(|request| analyze_request(request))
 }
@@ -3988,10 +4033,14 @@ pub fn parse_analysis_request(json: &str) -> Result<AnalysisRequest, String> {
     if trimmed.is_empty() {
         return Err("analysis request must not be empty".to_string());
     }
-    let root = JsonValue::parse(trimmed)?.as_object()?;
-    let protocol_version = match root.get("protocolVersion") {
-        None | Some(JsonValue::Null) => PROTOCOL_VERSION,
-        Some(JsonValue::Number(value)) => {
+    let parsed = JsonValue::parse(trimmed)?;
+    let root = match parsed {
+        JsonValue::Object(entries) => entries,
+        other => return Err(format!("expected JSON object, got {other:?}")),
+    };
+    let protocol_version = match object_get(&root, "protocolVersion") {
+        None | Some(&JsonValue::Null) => PROTOCOL_VERSION,
+        Some(&JsonValue::Number(ref value)) => {
             let n = value.parse::<u32>().map_err(|_| {
                 format!("unsupported analysis protocol version: {value}")
             })?;
@@ -4004,13 +4053,13 @@ pub fn parse_analysis_request(json: &str) -> Result<AnalysisRequest, String> {
             return Err(format!("analysis request.protocolVersion must be a number, got {other:?}"))
         }
     };
-    let document_value = root.get("document").ok_or_else(|| {
+    let document_value = object_get(&root, "document").ok_or_else(|| {
         "analysis request must contain a document snapshot".to_string()
     })?;
     let document = parse_document_snapshot(document_value)?;
-    let profile = match root.get("profile") {
-        None | Some(JsonValue::Null) => "generic".to_string(),
-        Some(JsonValue::String(value)) => {
+    let profile = match object_get(&root, "profile") {
+        None | Some(&JsonValue::Null) => "generic".to_string(),
+        Some(&JsonValue::String(ref value)) => {
             if value.is_empty() {
                 return Err("analysis request.profile must be a non-empty string".to_string());
             }
@@ -4023,28 +4072,28 @@ pub fn parse_analysis_request(json: &str) -> Result<AnalysisRequest, String> {
 
 fn parse_document_snapshot(value: &JsonValue) -> Result<DocumentSnapshot, String> {
     let object = value.as_object()?;
-    let uri = match object.get("uri") {
-        Some(JsonValue::String(value)) => value.clone(),
+    let uri = match object_get(object, "uri") {
+        Some(&JsonValue::String(ref value)) => value.clone(),
         None => String::new(),
         Some(other) => return Err(format!("document.uri must be a string, got {other:?}")),
     };
-    let version = match object.get("version") {
-        None | Some(JsonValue::Null) => 0,
-        Some(JsonValue::Number(value)) => value
+    let version = match object_get(object, "version") {
+        None | Some(&JsonValue::Null) => 0,
+        Some(&JsonValue::Number(ref value)) => value
             .parse::<u32>()
             .map_err(|_| format!("document.version must be a non-negative integer, got {value}"))?,
         Some(other) => return Err(format!("document.version must be a number, got {other:?}")),
     };
-    let language_id = match object.get("languageId") {
-        None | Some(JsonValue::Null) => "syntec-macro".to_string(),
-        Some(JsonValue::String(value)) => value.clone(),
+    let language_id = match object_get(object, "languageId") {
+        None | Some(&JsonValue::Null) => "syntec-macro".to_string(),
+        Some(&JsonValue::String(ref value)) => value.clone(),
         Some(other) => return Err(format!("document.languageId must be a string, got {other:?}")),
     };
     if language_id.is_empty() {
         return Err("document.languageId must be a non-empty string".to_string());
     }
-    let text = match object.get("text") {
-        Some(JsonValue::String(value)) => value.clone(),
+    let text = match object_get(object, "text") {
+        Some(&JsonValue::String(ref value)) => value.clone(),
         None => return Err("document.text is required".to_string()),
         Some(other) => return Err(format!("document.text must be a string, got {other:?}")),
     };
@@ -4069,15 +4118,13 @@ enum JsonValue {
 impl JsonValue {
     fn parse(input: &str) -> Result<JsonValue, String> {
         let mut chars = input.chars().peekable();
-        parse_value(&mut chars)?;
-        parse_value(&mut chars).map_err(|_| "expected a single JSON value".to_string()).and_then(|value| {
-            skip_whitespace(&mut chars);
-            if chars.peek().is_some() {
-                Err("unexpected trailing content after JSON value".to_string())
-            } else {
-                Ok(value)
-            }
-        })
+        let value = parse_value(&mut chars)?;
+        skip_whitespace(&mut chars);
+        if chars.peek().is_some() {
+            Err("unexpected trailing content after JSON value".to_string())
+        } else {
+            Ok(value)
+        }
     }
 
     fn as_object(&self) -> Result<&Vec<(String, JsonValue)>, String> {
@@ -4086,6 +4133,16 @@ impl JsonValue {
             other => Err(format!("expected JSON object, got {other:?}")),
         }
     }
+}
+
+/// Convenience helper mirroring JS `object[key]` semantics for parsing
+/// `AnalysisRequest`: returns the first entry whose key matches `key`, or
+/// `None` when missing. Keeps the parser allocation-free and serde-free.
+fn object_get<'a>(
+    entries: &'a [(String, JsonValue)],
+    key: &str,
+) -> Option<&'a JsonValue> {
+    entries.iter().find(|(name, _)| name == key).map(|(_, value)| value)
 }
 
 fn parse_value(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<JsonValue, String> {
@@ -4184,7 +4241,7 @@ fn parse_string(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<Stri
                             let value = digit.to_digit(16).ok_or_else(|| format!("invalid unicode escape digit: {digit}"))?;
                             code_point = (code_point << 4) | value;
                         }
-                        if let Ok(character) = char::from_u32(code_point) {
+                        if let Some(character) = char::from_u32(code_point) {
                             out.push(character);
                         } else {
                             return Err(format!("invalid unicode code point: {code_point}"));
@@ -4566,6 +4623,7 @@ pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
     }
 
     let (navigation_symbols, navigation_calls) = extract_navigation(content);
+    let navigation_symbols_ref = navigation_symbols.clone();
     let navigation = Some(AnalysisNavigation {
         program_entry_name: None,
         macro_program_name: None,
@@ -4573,7 +4631,7 @@ pub fn analyze_request(request: AnalysisRequest) -> AnalysisResult {
         calls: navigation_calls,
     });
 
-    AnalysisResult::for_document(document, profile, diagnostics, navigation, &navigation_symbols)
+    AnalysisResult::for_document(document, &profile, diagnostics, navigation, &navigation_symbols_ref)
 }
 
 /// Construct an `AnalysisResult` for the given request/document using the
