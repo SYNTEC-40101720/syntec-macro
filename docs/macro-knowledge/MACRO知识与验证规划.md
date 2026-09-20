@@ -524,4 +524,5 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm 缺少分号 parity | Rust 试点补齐普通赋值、结束语句和 G 码等语句的缺少分号错误，排除控制结构头、分支、CASE 标签和宏头；三方差分覆盖扩展到 34 类。 |
 | 2026-09-20 | M3 / Wasm 数学函数域 parity | Rust 试点补齐 `ATAN2/POW/LN/SQRT/ACOS/ASIN` 静态常量域诊断，动态引数和嵌套表达式保持不推断；三方差分覆盖扩展到 36 类。 |
 | 2026-09-20 | M3 / Wasm I/O 函数范围 parity | Rust 试点补齐 I/O 点位、写入值、R 寄存器和 bit 范围诊断，动态引数保持不推断；三方差分覆盖扩展到 38 类。 |
+| 2026-09-20 | M3 / Wasm 基础函数引数 parity | Rust 试点补齐 `ALARM/MSG` ID、`PARAM` 整数引数和 `CHKINF` 类别范围诊断，动态引数保持不推断；三方差分覆盖扩展到 40 类。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

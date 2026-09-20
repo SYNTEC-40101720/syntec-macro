@@ -158,6 +158,14 @@ const CASES = [
     text: 'READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);'
   },
   {
+    name: 'basic-function-ranges',
+    text: 'ALARM(65536);\nMSG(-1);\nPARAM(1.5, 2);\nCHKINF(6);'
+  },
+  {
+    name: 'dynamic-basic-function-ranges',
+    text: 'ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

@@ -709,6 +709,59 @@ fn validate_static_io_functions(clean: &str, line: usize, diagnostics: &mut Vec<
     }
 }
 
+fn validate_static_basic_functions(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    for function_name in ["ALARM", "MSG"] {
+        for call in static_function_calls(clean, function_name) {
+            let value = call.args.first().and_then(|arg| parse_static_number(arg));
+            if value.is_some_and(|value| value.fract() != 0.0 || !(0.0..=65535.0).contains(&value))
+            {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_ID_RANGE",
+                    &format!("{function_name} ID 范围为 0~65535"),
+                );
+            }
+        }
+    }
+
+    for call in static_function_calls(clean, "PARAM") {
+        for argument in call.args.iter().take(2) {
+            let value = parse_static_number(argument);
+            if value.is_some_and(|value| value.fract() != 0.0) {
+                push_diagnostic(
+                    diagnostics,
+                    line,
+                    utf16_prefix_len(&chars, call.start),
+                    utf16_prefix_len(&chars, call.end),
+                    Severity::Error,
+                    "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                    "PARAM 引数需为整数",
+                );
+            }
+        }
+    }
+
+    for call in static_function_calls(clean, "CHKINF") {
+        let value = call.args.first().and_then(|arg| parse_static_number(arg));
+        if value.is_some_and(|value| value.fract() != 0.0 || !(1.0..=5.0).contains(&value)) {
+            push_diagnostic(
+                diagnostics,
+                line,
+                utf16_prefix_len(&chars, call.start),
+                utf16_prefix_len(&chars, call.end),
+                Severity::Error,
+                "SYNTEC_FUNCTION_CHKINF_CATEGORY_RANGE",
+                "CHKINF 类别范围为 1~5",
+            );
+        }
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1397,6 +1450,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
         validate_static_math_functions(&clean, line_number, &mut diagnostics);
         validate_static_io_functions(&clean, line_number, &mut diagnostics);
+        validate_static_basic_functions(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -1857,6 +1911,28 @@ mod tests {
         let dynamic = analyze_document(
             "READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);",
         );
+        assert!(dynamic.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_basic_function_argument_ranges_only() {
+        let result = analyze_document("ALARM(65536);\nMSG(-1);\nPARAM(1.5, 2);\nCHKINF(6);");
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_FUNCTION_ID_RANGE",
+                "SYNTEC_FUNCTION_ID_RANGE",
+                "SYNTEC_FUNCTION_INTEGER_ARGUMENT",
+                "SYNTEC_FUNCTION_CHKINF_CATEGORY_RANGE",
+            ]
+        );
+
+        let dynamic = analyze_document("ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);");
         assert!(dynamic.diagnostics.is_empty());
     }
 }

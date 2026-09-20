@@ -101,6 +101,8 @@ async function main() {
     '#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);',
     'READDI(512);\nSETDO(1, 2);\nREADRREGBIT(65536, 0);\nREADRREGBIT(1, 32);',
     'READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);',
+    'ALARM(65536);\nMSG(-1);\nPARAM(1.5, 2);\nCHKINF(6);',
+    'ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [
