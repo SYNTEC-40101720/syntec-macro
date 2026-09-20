@@ -527,4 +527,5 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm 基础函数引数 parity | Rust 试点补齐 `ALARM/MSG` ID、`PARAM` 整数引数和 `CHKINF` 类别范围诊断，动态引数保持不推断；三方差分覆盖扩展到 40 类。 |
 | 2026-09-20 | M3 / Wasm 变量访问 parity | Rust 试点补齐命名局部/公用变量、`#0/@0` VACANT 赋值和 AR/MAR 静态非法编号诊断，动态索引保持不推断；三方差分覆盖扩展到 42 类。 |
 | 2026-09-20 | M3 / Wasm R 保留区写入 parity | Rust 试点补齐公用变量 `@` 映射到 R 保留区的写入 warning 与区段原因文案，可写区段保持不诊断；三方差分覆盖扩展到 43 类。 |
+| 2026-09-20 | M3 / Wasm 字符串函数 warning parity | Rust 试点补齐 `OPEN("COM1")` 与 `AXID("Y")` warning，复用字符串/注释边界，普通文件名和裸轴名保持不诊断；三方差分覆盖扩展到 44 类。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

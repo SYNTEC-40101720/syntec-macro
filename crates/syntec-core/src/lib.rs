@@ -1010,6 +1010,98 @@ fn validate_variable_access(clean: &str, line: usize, diagnostics: &mut Vec<Diag
     }
 }
 
+fn validate_string_function_warnings(
+    raw: &str,
+    line: usize,
+    line_start_in_block: bool,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let (kept, string_mask, _, _) = strip_comments_keep_strings(raw, line_start_in_block);
+    let chars: Vec<char> = kept.chars().collect();
+    for (function_name, start, end) in word_positions(&kept) {
+        if function_name != "OPEN" && function_name != "AXID"
+            || string_mask.get(start).copied().unwrap_or(false)
+        {
+            continue;
+        }
+        let mut cursor = end;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if chars.get(cursor) != Some(&'(') {
+            continue;
+        }
+        let open_index = cursor;
+        cursor += 1;
+        let mut depth = 1;
+        while cursor < chars.len() && depth > 0 {
+            if !string_mask[cursor] {
+                if chars[cursor] == '(' {
+                    depth += 1;
+                } else if chars[cursor] == ')' {
+                    depth -= 1;
+                }
+            }
+            cursor += 1;
+        }
+        if depth != 0 {
+            continue;
+        }
+        let close_index = cursor - 1;
+        let mut argument_start = open_index + 1;
+        while argument_start < close_index && chars[argument_start].is_ascii_whitespace() {
+            argument_start += 1;
+        }
+        if chars.get(argument_start) != Some(&'"') {
+            continue;
+        }
+        let content_start = argument_start + 1;
+        let mut quote_index = content_start;
+        while quote_index < close_index {
+            if chars[quote_index] == '"' && !is_escaped_quote(&chars, quote_index) {
+                break;
+            }
+            quote_index += 1;
+        }
+        if quote_index >= close_index {
+            continue;
+        }
+        let content = chars[content_start..quote_index].iter().collect::<String>();
+        let upper_content = content.to_ascii_uppercase();
+        let message_and_code = if function_name == "OPEN"
+            && upper_content.len() > 3
+            && upper_content.starts_with("COM")
+            && upper_content
+                .chars()
+                .skip(3)
+                .all(|character| character.is_ascii_digit())
+        {
+            Some((
+                "串口传输埠仅支持 OPEN(\"COM\")；OPEN(\"COM1\") 会按普通文件名处理",
+                "SYNTEC_FUNCTION_OPEN_COM_PORT",
+            ))
+        } else if function_name == "AXID" {
+            Some((
+                "AXID 建议使用裸轴名，例如 AXID(Y)",
+                "SYNTEC_FUNCTION_AXID_QUOTED_AXIS",
+            ))
+        } else {
+            None
+        };
+        if let Some((message, code)) = message_and_code {
+            push_diagnostic(
+                diagnostics,
+                line,
+                utf16_prefix_len(&chars, start),
+                utf16_prefix_len(&chars, close_index + 1),
+                Severity::Warning,
+                code,
+                message,
+            );
+        }
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1689,9 +1781,16 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
 
     for (line_index, raw_line) in content.split('\n').enumerate() {
         let line_number = line_index + 1;
-        let (clean, next_block_comment) =
-            strip_comments_and_strings(raw_line.trim_end_matches('\r'), state.in_block_comment);
+        let raw_line = raw_line.trim_end_matches('\r');
+        let line_start_in_block = state.in_block_comment;
+        let (clean, next_block_comment) = strip_comments_and_strings(raw_line, line_start_in_block);
         state.in_block_comment = next_block_comment;
+        validate_string_function_warnings(
+            raw_line,
+            line_number,
+            line_start_in_block,
+            &mut diagnostics,
+        );
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_variable_access(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
@@ -2241,5 +2340,24 @@ mod tests {
             .message
             .contains("CNC 系统介面区（不支持位元存取）"));
         assert!(result.diagnostics[4].message.contains("未列出保留区段"));
+    }
+
+    #[test]
+    fn reports_string_function_warnings_only_at_code_boundaries() {
+        let result = analyze_document(
+            "OPEN(\"COM1\");\nAXID(\"Y\");\nOPEN(\"file.nc\");\nAXID(Y);\nMSG(\"OPEN(\\\"COM1\\\")\");",
+        );
+        let codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            [
+                "SYNTEC_FUNCTION_OPEN_COM_PORT",
+                "SYNTEC_FUNCTION_AXID_QUOTED_AXIS",
+            ]
+        );
     }
 }

@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wasm 基础函数引数 parity**: Rust 试点补齐 `ALARM/MSG` ID、`PARAM` 整数引数和 `CHKINF` 类别范围诊断，动态引数保持不推断。
 - **Wasm 变量访问 parity**: Rust 试点补齐命名局部/公用变量、`#0/@0` VACANT 赋值和 AR/MAR 静态非法编号诊断；动态索引保持不推断。
 - **Wasm R 保留区写入 parity**: Rust 试点补齐公用变量 `@` 映射到 R 寄存器保留区的写入 warning，区分 PLC/参数/FRAM/系统接口/未列保留段，并保留可写区段不诊断。
+- **Wasm 字符串函数 warning parity**: Rust 试点补齐 `OPEN("COM1")` 与 `AXID("Y")` 的说明型 warning，复用字符串/注释边界，普通文件名和裸轴名保持不诊断。
 - **M3 后端 Go/No-Go**: JavaScript 继续作为唯一生产后端；Rust/Wasm 保持开发态 CLI/ABI 试点，直到完成完整诊断 parity、TextEdit/导航结果、可复现 CI 构建和回滚验证。
 
 ## 2.15.0 - 2026-09-17
