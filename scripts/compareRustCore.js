@@ -17,7 +17,7 @@ const DEFAULT_RUST_CLI = path.join(
   'syntec-core',
   'target',
   'debug',
-  'syntec-core-cli.exe'
+  process.platform === 'win32' ? 'syntec-core-cli.exe' : 'syntec-core-cli'
 );
 
 const CASES = [

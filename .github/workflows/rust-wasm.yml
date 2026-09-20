@@ -46,6 +46,10 @@ jobs:
         working-directory: crates/syntec-core
         run: cargo build --release --lib --target wasm32-unknown-unknown
 
+      - name: Build Rust CLI for compare:rust
+        working-directory: crates/syntec-core
+        run: cargo build --bin syntec-core-cli
+
       - name: Refresh production wasm asset + manifest
         run: npm run build:rust:wasm:asset
 
