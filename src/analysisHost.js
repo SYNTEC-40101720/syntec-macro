@@ -1,7 +1,7 @@
 // @ts-check
 // 有界的纯分析快照缓存：为增量分析和未来 Rust 后端保留稳定的 Host 边界。
 
-const { analyzeDocument } = require('./analysisCore');
+const { createAnalysisBackend } = require('./analysisBackend');
 
 const DEFAULT_MAX_ENTRIES = 8;
 
@@ -28,7 +28,14 @@ function getAnalysisCacheKey(request) {
 
 class AnalysisHost {
   /**
-   * @param {{maxEntries?: number, analyzer?: AnalysisFunction}} [options]
+   * @param {{
+   *   maxEntries?: number,
+   *   analyzer?: AnalysisFunction,
+   *   backend?: 'javascript'|'rust-wasm',
+   *   javascriptAnalyzer?: AnalysisFunction,
+   *   rustAnalyzer?: AnalysisFunction,
+   *   onFallback?: (error: Error, request: AnalysisRequest) => void
+   * }} [options]
    */
   constructor(options = {}) {
     const maxEntries = options.maxEntries === undefined
@@ -38,7 +45,12 @@ class AnalysisHost {
       throw new TypeError('maxEntries must be a positive integer');
     }
     this.maxEntries = maxEntries;
-    this.analyzer = options.analyzer || analyzeDocument;
+    this.analyzer = options.analyzer || createAnalysisBackend({
+      backend: options.backend,
+      javascriptAnalyzer: options.javascriptAnalyzer,
+      rustAnalyzer: options.rustAnalyzer,
+      onFallback: options.onFallback
+    });
     this.cache = new Map();
     this.hits = 0;
     this.misses = 0;

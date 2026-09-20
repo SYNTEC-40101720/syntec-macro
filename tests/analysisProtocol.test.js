@@ -17,6 +17,11 @@ const {
 } = require('../src/analysisCore');
 const { DiagnosticCode } = require('../src/diagnosticCodes');
 const { AnalysisHost } = require('../src/analysisHost');
+const {
+  JAVASCRIPT_BACKEND,
+  RUST_WASM_BACKEND,
+  createAnalysisBackend
+} = require('../src/analysisBackend');
 
 test('DocumentSnapshot requires stable document identity and text', () => {
   assert.deepStrictEqual(
@@ -220,4 +225,58 @@ test('AnalysisHost invalidates one URI without affecting other documents', () =>
   assert.strictEqual(host.getStats().size, 1);
   host.analyze(second);
   assert.strictEqual(host.getStats().hits, 1);
+});
+
+test('analysis backend keeps JavaScript as the default', () => {
+  const request = createAnalysisRequest(createDocumentSnapshot({
+    uri: 'file:///backend.nc',
+    version: 1,
+    languageId: 'syntec-macro',
+    text: '#1 := 1;'
+  }));
+  const backend = createAnalysisBackend();
+  const result = backend(request);
+  assert.strictEqual(backend(request).backend, JAVASCRIPT_BACKEND);
+  assert.strictEqual(result.backend, JAVASCRIPT_BACKEND);
+});
+
+test('Rust backend falls back explicitly to JavaScript on failure', () => {
+  const request = createAnalysisRequest(createDocumentSnapshot({
+    uri: 'file:///backend.nc',
+    version: 1,
+    languageId: 'syntec-macro',
+    text: '#1 := 1;'
+  }));
+  const fallbackErrors = [];
+  const backend = createAnalysisBackend({
+    backend: RUST_WASM_BACKEND,
+    rustAnalyzer: () => {
+      throw new Error('Wasm unavailable');
+    },
+    onFallback: (error, receivedRequest) => {
+      fallbackErrors.push({ error, receivedRequest });
+    }
+  });
+  const result = backend(request);
+  assert.strictEqual(result.backend, JAVASCRIPT_BACKEND);
+  assert.strictEqual(fallbackErrors.length, 1);
+  assert.strictEqual(fallbackErrors[0].error.message, 'Wasm unavailable');
+  assert.strictEqual(fallbackErrors[0].receivedRequest, request);
+});
+
+test('Rust backend rejects invalid results through the same fallback boundary', () => {
+  const request = createAnalysisRequest(createDocumentSnapshot({
+    uri: 'file:///backend.nc',
+    version: 1,
+    languageId: 'syntec-macro',
+    text: '#1 := 1;'
+  }));
+  const errors = [];
+  const backend = createAnalysisBackend({
+    backend: RUST_WASM_BACKEND,
+    rustAnalyzer: () => ({ backend: 'javascript' }),
+    onFallback: error => errors.push(error)
+  });
+  assert.strictEqual(backend(request).backend, JAVASCRIPT_BACKEND);
+  assert.match(errors[0].message, /invalid result/);
 });
