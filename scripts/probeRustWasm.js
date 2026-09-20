@@ -97,6 +97,8 @@ async function main() {
     'IF #1 = 1 THEN',
     '1:',
     'G65 P1000',
+    '#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := ACOS(1.1);\n#6 := ASIN(-1.1);',
+    '#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

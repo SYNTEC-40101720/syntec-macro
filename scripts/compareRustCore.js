@@ -142,6 +142,14 @@ const CASES = [
     text: 'G65 P1000'
   },
   {
+    name: 'static-math-domain',
+    text: '#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := ACOS(1.1);\n#6 := ASIN(-1.1);'
+  },
+  {
+    name: 'dynamic-math-domain-boundary',
+    text: '#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },

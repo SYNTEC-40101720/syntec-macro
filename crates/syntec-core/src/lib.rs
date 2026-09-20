@@ -449,6 +449,195 @@ fn find_sequence_positions(chars: &[char], sequence: &str) -> Vec<usize> {
         .collect()
 }
 
+#[derive(Debug, Clone)]
+struct StaticFunctionCall {
+    start: usize,
+    end: usize,
+    args: Vec<String>,
+}
+
+fn split_function_args(chars: &[char]) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut start = 0;
+    let mut depth = 0;
+    for (index, character) in chars.iter().enumerate() {
+        match character {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                args.push(
+                    chars[start..index]
+                        .iter()
+                        .collect::<String>()
+                        .trim()
+                        .to_string(),
+                );
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    let tail = chars[start..].iter().collect::<String>().trim().to_string();
+    if !tail.is_empty() || !args.is_empty() {
+        args.push(tail);
+    }
+    args
+}
+
+fn static_function_calls(clean: &str, function_name: &str) -> Vec<StaticFunctionCall> {
+    let chars: Vec<char> = clean.chars().collect();
+    let mut calls = Vec::new();
+    for (word, start, end) in word_positions(clean) {
+        if word != function_name {
+            continue;
+        }
+        let mut cursor = end;
+        while cursor < chars.len() && chars[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if chars.get(cursor) != Some(&'(') {
+            continue;
+        }
+        let args_start = cursor + 1;
+        cursor = args_start;
+        let mut depth = 1;
+        while cursor < chars.len() && depth > 0 {
+            match chars[cursor] {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            cursor += 1;
+        }
+        if depth != 0 {
+            continue;
+        }
+        let close_index = cursor - 1;
+        calls.push(StaticFunctionCall {
+            start,
+            end: close_index + 1,
+            args: split_function_args(&chars[args_start..close_index]),
+        });
+    }
+    calls
+}
+
+fn parse_static_number(value: &str) -> Option<f64> {
+    let value = value.trim();
+    let chars: Vec<char> = value.chars().collect();
+    let mut index = 0;
+    if matches!(chars.first(), Some('+' | '-')) {
+        index += 1;
+    }
+    let digits_start = index;
+    while index < chars.len() && chars[index].is_ascii_digit() {
+        index += 1;
+    }
+    if index == digits_start {
+        return None;
+    }
+    if chars.get(index) == Some(&'.') {
+        index += 1;
+        while index < chars.len() && chars[index].is_ascii_digit() {
+            index += 1;
+        }
+    }
+    (index == chars.len()).then(|| value.parse().ok()).flatten()
+}
+
+fn push_math_domain_diagnostic(
+    clean_chars: &[char],
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    call: &StaticFunctionCall,
+    message: &str,
+) {
+    push_diagnostic(
+        diagnostics,
+        line,
+        utf16_prefix_len(clean_chars, call.start),
+        utf16_prefix_len(clean_chars, call.end),
+        Severity::Error,
+        "SYNTEC_FUNCTION_MATH_DOMAIN",
+        message,
+    );
+}
+
+fn validate_static_math_functions(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+
+    for call in static_function_calls(clean, "ATAN2") {
+        let y = call
+            .args
+            .first()
+            .and_then(|value| parse_static_number(value));
+        let x = call
+            .args
+            .get(1)
+            .and_then(|value| parse_static_number(value));
+        if y == Some(0.0) && x == Some(0.0) {
+            push_math_domain_diagnostic(
+                &chars,
+                diagnostics,
+                line,
+                &call,
+                "ATAN2(0,0) 会触发 COR-004 运算域错误",
+            );
+        }
+    }
+
+    for call in static_function_calls(clean, "POW") {
+        let base = call
+            .args
+            .first()
+            .and_then(|value| parse_static_number(value));
+        if base.is_some_and(|value| value < 0.0) {
+            push_math_domain_diagnostic(
+                &chars,
+                diagnostics,
+                line,
+                &call,
+                "POW 基底不可为负值，否则触发 COR-122",
+            );
+        }
+    }
+
+    for call in static_function_calls(clean, "LN") {
+        let value = call.args.first().and_then(|arg| parse_static_number(arg));
+        if value.is_some_and(|value| value <= 0.0) {
+            push_math_domain_diagnostic(&chars, diagnostics, line, &call, "LN 引数需为正数");
+        }
+    }
+
+    for call in static_function_calls(clean, "SQRT") {
+        let value = call.args.first().and_then(|arg| parse_static_number(arg));
+        if value.is_some_and(|value| value < 0.0) {
+            push_math_domain_diagnostic(
+                &chars,
+                diagnostics,
+                line,
+                &call,
+                "SQRT 引数需大于或等于 0",
+            );
+        }
+    }
+
+    for function_name in ["ACOS", "ASIN"] {
+        for call in static_function_calls(clean, function_name) {
+            let value = call.args.first().and_then(|arg| parse_static_number(arg));
+            if value.is_some_and(|value| !(-1.0..=1.0).contains(&value)) {
+                push_math_domain_diagnostic(
+                    &chars,
+                    diagnostics,
+                    line,
+                    &call,
+                    &format!("{function_name} 引数范围为 -1~1"),
+                );
+            }
+        }
+    }
+}
+
 fn parse_numeric_token(chars: &[char], start: usize) -> Option<(usize, bool)> {
     if start >= chars.len() {
         return None;
@@ -1135,6 +1324,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         validate_statement_terminator(&clean, line_number, &mut diagnostics);
+        validate_static_math_functions(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -1555,5 +1745,20 @@ mod tests {
             .diagnostics
             .is_empty());
         assert!(analyze_document("1:").diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_static_math_domain_diagnostics_only() {
+        let result = analyze_document(
+            "#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := ACOS(1.1);\n#6 := ASIN(-1.1);",
+        );
+        assert_eq!(result.diagnostics.len(), 6);
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code.as_deref() == Some("SYNTEC_FUNCTION_MATH_DOMAIN")));
+
+        let dynamic = analyze_document("#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);");
+        assert!(dynamic.diagnostics.is_empty());
     }
 }
