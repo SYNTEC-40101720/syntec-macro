@@ -1,0 +1,136 @@
+// M3 开发态 Wasm JSON bridge 基准：测量实例化、调用延迟和结果大小。
+
+const fs = require('fs');
+const path = require('path');
+const { performance } = require('perf_hooks');
+const {
+  calculatePercentile,
+  createLargeMacroText,
+  createRequest
+} = require('./benchmarkAnalysis');
+const { analyzeDocument } = require('../src/analysisCore');
+
+const DEFAULT_WASM_PATH = path.join(
+  __dirname,
+  '..',
+  'crates',
+  'syntec-core',
+  'target',
+  'wasm32-unknown-unknown',
+  'release',
+  'syntec_core.wasm'
+);
+
+function loadWasm(wasmPath) {
+  if (!fs.existsSync(wasmPath)) {
+    throw new Error(`Rust Wasm artifact not found: ${wasmPath}`);
+  }
+  const bytes = fs.readFileSync(wasmPath);
+  const module = new WebAssembly.Module(bytes);
+  const instance = new WebAssembly.Instance(module);
+  const exports = instance.exports;
+  for (const name of [
+    'memory',
+    'syntec_core_alloc',
+    'syntec_core_dealloc',
+    'syntec_core_analyze_json',
+    'syntec_core_free_output'
+  ]) {
+    if (!exports[name]) throw new Error(`Rust Wasm export is missing: ${name}`);
+  }
+  return { bytes, exports };
+}
+
+function callJson(exports, text) {
+  const input = new TextEncoder().encode(text);
+  const inputPointer = exports.syntec_core_alloc(input.length);
+  new Uint8Array(exports.memory.buffer, inputPointer, input.length).set(input);
+  const packed = BigInt(exports.syntec_core_analyze_json(inputPointer, input.length));
+  exports.syntec_core_dealloc(inputPointer, input.length);
+
+  const outputPointer = Number(packed >> 32n);
+  const outputLength = Number(packed & 0xffffffffn);
+  if (outputPointer === 0 || outputLength === 0) {
+    throw new Error('Rust Wasm returned an empty JSON result');
+  }
+  const output = new Uint8Array(exports.memory.buffer, outputPointer, outputLength).slice();
+  exports.syntec_core_free_output(outputPointer, outputLength);
+  return {
+    result: JSON.parse(new TextDecoder().decode(output)),
+    bytes: outputLength
+  };
+}
+
+function measure(exports, text, iterations) {
+  callJson(exports, text);
+  const durations = [];
+  let last;
+  for (let index = 0; index < iterations; index++) {
+    const start = performance.now();
+    last = callJson(exports, text);
+    durations.push(performance.now() - start);
+  }
+  return {
+    p50Ms: calculatePercentile(durations, 0.5),
+    p95Ms: calculatePercentile(durations, 0.95),
+    maxMs: Math.max(...durations),
+    resultBytes: last.bytes,
+    result: last.result
+  };
+}
+
+function stableJavaScriptDiagnostics(text, uri) {
+  return analyzeDocument(createRequest(text, uri)).diagnostics.map(diagnostic => ({
+    line: diagnostic.range.start.line + 1,
+    col: diagnostic.range.start.character,
+    endCol: diagnostic.range.end.character,
+    severity: diagnostic.severity,
+    code: diagnostic.code
+  }));
+}
+
+function main(args = process.argv.slice(2)) {
+  const iterationsIndex = args.indexOf('--iterations');
+  const iterations = Number(iterationsIndex >= 0 ? args[iterationsIndex + 1] : 10);
+  if (!Number.isInteger(iterations) || iterations <= 0) {
+    throw new Error('--iterations must be a positive integer');
+  }
+
+  const wasmPath = process.env.SYNTEC_RUST_WASM || DEFAULT_WASM_PATH;
+  const { bytes, exports } = loadWasm(wasmPath);
+  const cases = [
+    ['fixture', fs.readFileSync(path.join(__dirname, '..', 'tests', 'fixtures', 'test-demo.nc'), 'utf8'), 'file:///fixture.nc'],
+    ['large', createLargeMacroText(20000), 'file:///large.nc']
+  ];
+
+  console.info(`Rust Wasm JSON benchmark: ${iterations} measured runs, artifact ${bytes.length} bytes`);
+  for (const [name, text, uri] of cases) {
+    const measured = measure(exports, text, iterations);
+    const rustDiagnostics = measured.result.diagnostics.map(diagnostic => ({
+      line: diagnostic.line,
+      col: diagnostic.col,
+      endCol: diagnostic.endCol || diagnostic.col + 1,
+      severity: diagnostic.severity,
+      code: diagnostic.code
+    }));
+    const jsDiagnostics = stableJavaScriptDiagnostics(text, uri);
+    if (JSON.stringify(rustDiagnostics) !== JSON.stringify(jsDiagnostics)) {
+      throw new Error(`${name} Wasm/JavaScript diagnostics mismatch`);
+    }
+    console.info(
+      `${name}: ${text.split(/\r?\n/).length} lines; ` +
+      `p50 ${measured.p50Ms.toFixed(2)} ms, p95 ${measured.p95Ms.toFixed(2)} ms, ` +
+      `max ${measured.maxMs.toFixed(2)} ms, JSON ${measured.resultBytes} bytes`
+    );
+  }
+}
+
+if (require.main === module) main();
+
+module.exports = {
+  callJson,
+  loadWasm,
+  main,
+  measure,
+  stableJavaScriptDiagnostics
+};

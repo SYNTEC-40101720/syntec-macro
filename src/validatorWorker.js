@@ -1,14 +1,19 @@
 // validatorWorker.js
-// Worker 线程入口：在独立线程中执行 validateDocument，避免阻塞 Extension Host
+// Worker 线程入口：在独立线程中执行分析后端，避免阻塞 Extension Host
 
 const { parentPort } = require('worker_threads');
-const { validateDocument } = require('./validator');
+const { AnalysisHost } = require('./analysisHost');
 
-parentPort.on('message', ({ id, content }) => {
+const analysisHost = new AnalysisHost();
+
+parentPort.on('message', ({ id, request }) => {
   try {
-    const diagnostics = validateDocument(content);
-    parentPort.postMessage({ id, diagnostics });
+    const result = analysisHost.analyze(request);
+    parentPort.postMessage({ id, result });
   } catch (err) {
-    parentPort.postMessage({ id, error: err.message });
+    parentPort.postMessage({
+      id,
+      error: err instanceof Error ? err.message : String(err)
+    });
   }
 });

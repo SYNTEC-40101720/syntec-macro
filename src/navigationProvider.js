@@ -2,12 +2,17 @@
 // 文档/工作区符号导航与宏调用引用查找
 
 const vscode = require('vscode');
+const { analyzeNavigationDocument } = require('./analysisCore');
+const { LANG_ID } = require('./providerShared');
+const {
+  createAnalysisRequest,
+  createDocumentSnapshot
+} = require('./analysisProtocol');
 const {
   collectNavigationIndexEntries,
   isPotentialNavigationFile
 } = require('./navigationIndex');
 const {
-  buildNavigationIndexEntry,
   extractNavigationSymbols,
   extractStaticMacroCalls,
   getMacroProgramName
@@ -91,7 +96,14 @@ async function getWorkspaceMacroFiles(token) {
       if (text === undefined) {
         text = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
       }
-      const index = buildNavigationIndexEntry(filePath, text);
+      const request = createAnalysisRequest(createDocumentSnapshot({
+        uri: uriKey,
+        version: openDocument ? openDocument.version : 0,
+        languageId: LANG_ID,
+        text
+      }));
+      const result = analyzeNavigationDocument(request, filePath);
+      const index = result.navigation;
       navigationIndexCache.set(uriKey, {
         signature,
         source: openDocument ? 'document' : 'file',

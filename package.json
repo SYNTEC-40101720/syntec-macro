@@ -96,11 +96,18 @@
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && node --test tests/validator.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
     "benchmark:navigation": "node scripts/benchmarkNavigation.js",
+    "benchmark:analysis": "node scripts/benchmarkAnalysis.js",
+    "benchmark:parser": "node scripts/benchmarkParser.js",
+    "compare:rust": "node scripts/compareRustCore.js",
+    "probe:rust:wasm": "node scripts/probeRustWasm.js",
+    "benchmark:rust:wasm": "node scripts/benchmarkRustWasm.js",
+    "test:parser:tree-sitter": "node scripts/testTreeSitterSpike.js",
+    "typecheck:analysis": "tsc --noEmit -p tsconfig.analysis.json",
     "docs:diagnostics": "node scripts/generateDiagnosticDocs.js",
     "docs:diagnostics:check": "node scripts/generateDiagnosticDocs.js --check",
     "check:release": "node scripts/checkReleaseConsistency.js",
@@ -114,6 +121,8 @@
     "@types/node": "^22.0.0",
     "@vscode/test-electron": "3.0.0",
     "@vscode/vsce": "3.9.2",
-    "eslint": "^10.4.0"
+    "eslint": "^10.4.0",
+    "tree-sitter-cli": "^0.27.0",
+    "typescript": "^7.0.2"
   }
 }

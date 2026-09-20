@@ -13,6 +13,7 @@ tests/fixtures/test-demo.nc
 tests/
 eslint.config.js
 jsconfig.json
+tsconfig.analysis.json
 .markdownlint.json
 .workbuddy/
 
@@ -21,6 +22,7 @@ scripts/
 *.py
 *.ps1
 build/
+crates/
 
 # Dependencies
 node_modules/

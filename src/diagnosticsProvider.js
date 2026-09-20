@@ -3,8 +3,12 @@
 
 const vscode = require('vscode');
 const { Worker } = require('worker_threads');
-const { validateDocument } = require('./validator');
-const { getDiagnosticDedupeKey } = require('./diagnosticFactory');
+const { AnalysisHost } = require('./analysisHost');
+const {
+  createAnalysisRequest,
+  createDocumentSnapshot,
+  getAnalysisDiagnosticKey
+} = require('./analysisProtocol');
 const { DiagnosticCode } = require('./diagnosticCodes');
 const {
   BLOCK_CLOSERS,
@@ -27,6 +31,7 @@ const pendingRequests = new Map();
 // 每个文档的最新验证请求 ID，用于竞态取消
 let docRequestId = 0;
 const docRequestIds = new Map();
+const fallbackAnalysisHost = new AnalysisHost();
 
 function setDiagnosticCollection(collection) {
   diagnosticCollection = collection;
@@ -36,11 +41,11 @@ function getValidatorWorker() {
   if (validatorWorker) return validatorWorker;
   try {
     validatorWorker = new Worker(require.resolve('./validatorWorker.js'));
-    validatorWorker.on('message', ({ id, diagnostics, error }) => {
+    validatorWorker.on('message', ({ id, result, error }) => {
       const resolve = pendingRequests.get(id);
       if (!resolve) return;
       pendingRequests.delete(id);
-      resolve(error ? null : diagnostics);
+      resolve(error ? null : result);
     });
     validatorWorker.on('error', (err) => {
       console.error('[syntec-macro] Validator worker error:', err.message);
@@ -66,11 +71,11 @@ function getValidatorWorker() {
   return validatorWorker;
 }
 
-function validateDocumentAsync(text) {
+function validateDocumentAsync(request) {
   const worker = getValidatorWorker();
   if (!worker) {
-    // Worker 不可用时回退到同步调用
-    return Promise.resolve(validateDocument(text));
+    // Worker 不可用时回退到同步 JavaScript 分析后端
+    return Promise.resolve(fallbackAnalysisHost.analyze(request));
   }
   const id = ++workerMsgId;
   return new Promise((resolve) => {
@@ -85,7 +90,7 @@ function validateDocumentAsync(text) {
       clearTimeout(timer);
       resolve(value);
     });
-    worker.postMessage({ id, content: text });
+    worker.postMessage({ id, request });
   });
 }
 
@@ -112,31 +117,49 @@ async function refreshDiagnostics(document) {
   const myRequestId = ++docRequestId;
   docRequestIds.set(docKey, myRequestId);
 
-  const text = document.getText();
-  const problems = await validateDocumentAsync(text);
+  const request = createAnalysisRequest(createDocumentSnapshot({
+    uri: docKey,
+    version: document.version,
+    languageId: document.languageId,
+    text: document.getText()
+  }));
+  const result = await validateDocumentAsync(request);
 
   // 竞态取消：如果等待期间又有新请求，放弃这次结果
   if (docRequestIds.get(docKey) !== myRequestId) return;
   docRequestIds.delete(docKey);
 
-  if (!problems) return;
+  if (!result) return;
 
-  const seenProblems = new Set();
-  const filtered = problems.filter(p => {
-    const key = getDiagnosticDedupeKey(p);
-    if (seenProblems.has(key)) return false;
-    seenProblems.add(key);
+  const seenDiagnostics = new Set();
+  const filtered = result.diagnostics.filter(diagnostic => {
+    const key = getAnalysisDiagnosticKey(diagnostic);
+    if (seenDiagnostics.has(key)) return false;
+    seenDiagnostics.add(key);
     return true;
   });
 
-  const diagnostics = filtered.map(p => {
+  const diagnostics = filtered.map(analysisDiagnostic => {
+    const severity = analysisDiagnostic.severity === 'error'
+      ? vscode.DiagnosticSeverity.Error
+      : analysisDiagnostic.severity === 'warning'
+        ? vscode.DiagnosticSeverity.Warning
+        : analysisDiagnostic.severity === 'info'
+          ? vscode.DiagnosticSeverity.Information
+          : vscode.DiagnosticSeverity.Hint;
     const d = new vscode.Diagnostic(
-      new vscode.Range(p.line - 1, p.col, p.line - 1, p.endCol || p.col + 1),
-      p.msg,
-      p.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning
+      new vscode.Range(
+        analysisDiagnostic.range.start.line,
+        analysisDiagnostic.range.start.character,
+        analysisDiagnostic.range.end.line,
+        analysisDiagnostic.range.end.character
+      ),
+      analysisDiagnostic.message,
+      severity
     );
-    d.source = 'syntec-macro';
-    if (p.code) d.code = p.code;
+    d.source = analysisDiagnostic.source;
+    if (analysisDiagnostic.code) d.code = analysisDiagnostic.code;
+    if (analysisDiagnostic.keyword) d.syntecKeyword = analysisDiagnostic.keyword;
     return d;
   });
 
@@ -282,6 +305,7 @@ function dispose() {
   for (const timer of diagnosticTimers.values()) clearTimeout(timer);
   diagnosticTimers.clear();
   docRequestIds.clear();
+  fallbackAnalysisHost.clear();
   if (validatorWorker) {
     // 先 resolve 所有 pending，避免 promise 永挂
     for (const resolve of pendingRequests.values()) resolve(null);

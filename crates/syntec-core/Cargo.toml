@@ -1,0 +1,14 @@
+[package]
+name = "syntec-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "syntec_core"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "syntec-core-cli"
+path = "src/bin/syntec-core-cli.rs"

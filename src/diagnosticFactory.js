@@ -119,7 +119,7 @@ function compareDiagnostics(left, right) {
   return (left.line - right.line) ||
     (left.col - right.col) ||
     ((left.endCol || left.col + 1) - (right.endCol || right.col + 1)) ||
-    (getSeverityRank(left.severity) - getSeverityRank(right.severity)) ||
+    (getSeverityRank(left.severity || 'error') - getSeverityRank(right.severity || 'error')) ||
     String(left.code || left.msg).localeCompare(String(right.code || right.msg));
 }
 

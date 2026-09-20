@@ -4,6 +4,7 @@ node_modules/
 # ==================== Build Output ====================
 *.vsix
 dist/
+crates/*/target/
 
 # ==================== Python Build ====================
 __pycache__/

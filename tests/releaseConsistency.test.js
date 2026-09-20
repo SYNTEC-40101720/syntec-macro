@@ -69,3 +69,24 @@ test('Package consistency catches README badge drift without a release tag', () 
 test('Package consistency accepts a matching README badge without a release tag', () => {
   assert.deepStrictEqual(checkReleaseConsistency(createInput()), []);
 });
+
+test('Unreleased changelog entries do not block the published release tag', () => {
+  const changelog = [
+    '## [Unreleased]',
+    '',
+    '### Changed',
+    '- Pending core work',
+    '',
+    '## 2.10.0 - 2026-07-11',
+    '',
+    '### Added',
+    '- Feature'
+  ].join('\n');
+  assert.deepStrictEqual(
+    checkReleaseConsistency(createInput({
+      releaseTag: 'v2.10.0',
+      changelog
+    })),
+    []
+  );
+});

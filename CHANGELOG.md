@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **分析核心 M0/M1**: 新增版本化 `DocumentSnapshot`/`AnalysisRequest`/`AnalysisResult` 协议；诊断 Worker、格式化 Provider 和导航索引通过纯 JavaScript 分析核心运行，导航结果统一为 `AnalysisResult.navigation`，保留 `2.15.0` 的诊断 code、位置、严重度和发布元数据不变。
+- **分析性能基线**: 新增 `npm.cmd run benchmark:analysis`，测量真实 fixture 与 20,000 行 MACRO 档案的 JavaScript 核心 p50/p95 延迟，不将未经基准证明的 Rust 性能假设写入发布门禁。
+- **分析核心类型门禁**: 新增 `typescript` 开发依赖和 `npm.cmd run typecheck:analysis`，对协议、核心后端和分析基准启用严格 JSDoc/checkJs 检查；类型配置排除在 VSIX 之外。
+- **分析快照缓存**: Worker 与同步回退共用有界 `AnalysisHost`，按协议版本、profile、URI、文档版本和文本精确缓存，支持 URI 失效与最旧条目淘汰。
+- **M2 Parser 原型**: 新增开发态容错 Parser 和 `npm.cmd run benchmark:parser`，输出行 IR、Token、结构块、符号、静态调用和错误恢复结果；原型不进入生产 Provider，Tree-sitter 仍待独立方案比较。
+- **Tree-sitter 工具链**: 已重新下载并保留 `tree-sitter-cli@0.27.0` 开发依赖，CLI 可用；尚未新增 Syntec grammar 或接入生产链路，后续继续做独立语法比较。
+- **Tree-sitter grammar spike**: 新增开发态最小 grammar/corpus，覆盖行结构、字符串、变量、运算子、注释和错误恢复；2/2 corpus cases 通过，未接入生产。
+- **Rust 试点环境门禁**: 初始共享环境缺少可用 `rustc`/`cargo`，已改用隔离 GNU toolchain 完成 CLI 试点；仍不把 Rust 二进制或 Wasm 带入 VSIX。
+- **M3 Rust CLI 试点**: 在隔离 GNU toolchain 下新增 `crates/syntec-core`，实现协议版本 1 的词法预处理和控制流诊断；通过 CLI、Rust 单测和 JS/Rust 差分检查验证，未接入 VSIX。
+- **M3 Wasm 边界探针**: `syntec-core` 可编译到 `wasm32-unknown-unknown`，Node 通过最小 ABI 分配/写入 UTF-8、调用控制流诊断 JSON/导航子集并释放内存；release artifact 约 50.3KB，已完成 JS/Rust 稳定字段差分，暂不接入生产桥接。
+- **Wasm bridge 基准**: 10 次测量下 20,000 行档案 JSON bridge p50 约 58ms/p95 约 60ms、结果约 33.8KB；该 Rust 实现仍缺少完整诊断规则和 TextEdit，不作为完整 JavaScript 分析性能结论。
+- **Rust Wasm 协议适配器**: 新增开发态 `RustWasmAdapter`，将 Rust JSON 规范化为共享 `AnalysisResult` 形状并拒绝 protocol/字段漂移；不注册到生产 Provider。
+- **M3 后端 Go/No-Go**: JavaScript 继续作为唯一生产后端；Rust/Wasm 保持开发态 CLI/ABI 试点，直到完成完整诊断 parity、TextEdit/导航结果、可复现 CI 构建和回滚验证。
+
 ## 2.15.0 - 2026-09-17
 
 ### Added

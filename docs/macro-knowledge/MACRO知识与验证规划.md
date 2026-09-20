@@ -24,9 +24,9 @@
 | G2：能力实施 | 每项能力具备版本、来源、最小样例和验收标准 | 修改 validator、hover、补全或导航 |
 | G3：发布候选 | 单元、集成、文档同步、人工验证完成 | 版本升级与发布准备 |
 
-当前状态：G0/G1/G3 已完成，`v2.10.0` 至 `v2.14.0` 已推送并发布；CALL-01 至 CALL-13 的资料、静态导航边界和首轮自动化验证已完成，CF TechManual 的 C-Type 与当前 `G66.1` 页面已确认 CNC 侧基础语义，但 81RA 差异仍待 CNC 模拟器/控制器复核；ROB-001 已完成 Rovo 官方页面支持的静态范围/Q 联动批次，完整参数/警报/机型/运行时条件仍待逐项验证；能力矩阵已建立，详见 [MACRO 能力矩阵](MACRO能力矩阵.md)；FUN-A 至 FUN-F 已完成首轮审计与保守实现；`v2.14.0` 的 LTP/FUN-A、导航缓存和发布门禁已完成代码、文档与回归同步，后续按证据成熟度推进 G2。
+当前状态：G0/G1/G3 已完成，`v2.10.0` 至 `v2.15.0` 已推送并发布；CALL-01 至 CALL-13 的资料、静态导航边界和首轮自动化验证已完成，CF TechManual 的 C-Type 与当前 `G66.1` 页面已确认 CNC 侧基础语义，但 81RA 差异仍待 CNC 模拟器/控制器复核；ROB-001 已完成 Rovo 官方页面支持的静态范围/Q 联动批次，完整参数/警报/机型/运行时条件仍待逐项验证；能力矩阵已建立，详见 [MACRO 能力矩阵](MACRO能力矩阵.md)；FUN-A 至 FUN-F 已完成首轮审计与保守实现；`v2.15.0` 已完成 Modbus-TCP 静态诊断、语言数据门禁和发布收口，后续按证据成熟度推进 G2，并开始架构演进基线。
 
-`v2.14.0` 已通过 Atlassian Rovo MCP Server 复核 LTP/FUN-A 官方页面并发布：新增 LTP 信号源/Q 联动和坐标、工具、追踪、同步指令的静态范围检查，新增坐标系禁用语法诊断，补齐 `SYSVAR`/`GETPR`/`SETPR` Hover 的证据边界，并加入语言数据一致性门禁。CNC 模拟器/控制器运行时验证仍未纳入本轮，`GETPR/SETPR` 强诊断继续阻塞。
+`v2.15.0` 已通过发布门禁并发布：新增 Modbus-TCP `G10 L1900/L1901` 静态诊断、同步 Hover/语法手册/正反例回归；CNC 模拟器/控制器运行时验证仍未纳入本轮，`GETPR/SETPR` 强诊断继续阻塞。下一阶段不以“继续堆规则数量”为主，而是先建立可增量、可替换、可验证的分析核心。
 
 ## 0.1 v2.13.0 发布内容
 
@@ -364,7 +364,93 @@ node -e "const fs=require('fs'); const {validateDocument}=require('./src/validat
 
 涉及发布时，追加 `npm.cmd run package` 和 `npm.cmd run smoke:installed`。文档或资料收集阶段只需执行 Markdown/链接检查和 `git diff --check`，不制造无关测试噪音。
 
-## 7. 迭代记录
+## 7. 架构演进与 Rust 路线（2026-09-19）
+
+本节承接 `v2.15.0`，是后续架构工作的计划真源。目标是保持现有 VS Code 用户体验和诊断语义不变，逐步把分析能力从 Provider 实现中抽离；Rust 是可替换的核心后端候选，不是下一版的全量重写目标。
+
+### 7.1 GitHub 范例与可采纳结论
+
+| 范例 | 已观察到的模式 | 本项目的采用结论 |
+| --- | --- | --- |
+| [rust-analyzer](https://github.com/rust-lang/rust-analyzer) 的 [Architecture](https://rust-analyzer.github.io/book/contributing/architecture.html) | LSP 入口、分析库和客户端适配分层；输入源代码作为内存状态，分析结果为惰性派生状态；小范围输入变化可重新计算受影响的结果；核心不直接做 I/O。 | 采用 `DocumentSnapshot`/`AnalysisHost` 思路，让诊断、导航、格式化共享一个纯分析入口。 |
+| [tree-sitter](https://github.com/tree-sitter/tree-sitter) | 面向编辑器逐键解析，语法树可在编辑后增量更新，并能在语法错误时保留有用结构；同时提供 Rust 和 Wasm 绑定。 | 作为增量解析候选进行 spike；不预先承诺采用，控制流状态、LTP 规则和控制器版本仍需独立语义分析。 |
+| [VS Code LSP sample](https://github.com/microsoft/vscode-extension-samples/tree/main/lsp-sample) / [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node) | Client 负责 VS Code 生命周期，Server 负责文档同步、诊断、补全和配置；协议使用增量文本同步和能力协商。 | 先保留现有直接 Provider；只有确认需要多编辑器支持时，才引入 LSP Client/Server 边界。 |
+| [tower-lsp](https://github.com/ebkalderon/tower-lsp) | Rust 侧以 `LanguageServer`、`LspService` 和 stdio/TCP Server 组织 LSP 实现。 | 作为未来 Rust LSP 的实现参考，不作为当前 VSIX 的直接依赖。 |
+| [napi-rs](https://github.com/napi-rs/napi-rs) | Rust Node-API 原生模块可由 JavaScript 调用，但发布通常需要按平台/架构拆分可选包，并由 CI 构建目标矩阵。 | N-API 只在 Wasm 试点证明收益后评估；Windows 之外的平台和 VSIX 内置二进制分发是必须先解决的发布问题。 |
+
+### 7.2 目标架构
+
+```text
+VS Code Adapter（当前 JavaScript，后续可逐步 TypeScript 化）
+  ├─ Provider 注册、配置、文件系统、Quick Fix、状态栏
+  └─ 将文本快照/增量编辑转换为核心请求
+             │
+             ▼
+Syntec Analysis Core（稳定协议，禁止直接 I/O）
+  ├─ Lexer / Token
+  ├─ 容错 Parser / Syntax Tree 或 IR
+  ├─ Profile-aware semantic analysis
+  ├─ Diagnostics / Symbols / References / Formatting
+  └─ AnalysisResult：稳定 code、位置、severity、符号和编辑
+             │
+             ├─ 当前后端：JavaScript
+             ├─ 试点后端：Rust + Wasm
+             └─ 性能证明后：Rust + N-API 或独立 LSP
+```
+
+核心协议必须满足：
+
+1. 不读取工作区、不写文件、不调用 VS Code API；文件解析和 `includePath` 由适配层提供输入。
+2. 诊断 code、位置、severity 和动态值“不推断”边界保持稳定，不能因更换后端而改变用户语义。
+3. 所有 Provider 从同一份 Token/IR/Index 获取信息，禁止再次编写注释、字符串和关键字剥离逻辑。
+4. 核心错误必须结构化返回；适配层只能记录上下文并向用户显示，不能静默降级成成功结果。
+
+### 7.3 分阶段里程碑
+
+| 里程碑 | 范围 | 完成条件 |
+| --- | --- | --- |
+| M0：基线与协议 | 保持 JavaScript 默认后端；定义 `DocumentSnapshot`、`AnalysisResult`、`Diagnostic`、`Symbol` 和 `TextEdit` 的内部协议；建立代表性黄金样例。 | 现有诊断 code/位置/严重度无回退；`test-demo.nc` 保持零诊断；Provider 行为继续由现有集成测试保护。 |
+| M1：核心收敛 | 将 lexer、statement classifier、导航符号和验证器逐步收敛到一个纯分析入口；开启核心模块严格 JSDoc 或 TypeScript 检查。 | 不再由不同 Provider 重复解析同一语法；全量测试与大文件基准都有可比较的基线。 |
+| M2：增量解析试验 | 对自定义 Parser 与 Tree-sitter 各做最小可运行原型，覆盖注释、字符串、控制流、N 标签、G/M 调用和错误恢复。 | 以真实 MACRO 样例比较正确性、编辑延迟、内存和维护成本；没有测量收益时不替换现有实现。 |
+| M3：Rust 核心试点 | 新增独立 `crates/syntec-core`，先实现 lexer + 控制流诊断；通过 Wasm 或 CLI 接入，JavaScript 保留为对照后端。 | 差分测试覆盖现有黄金样例；Rust 后端失败时明确回退 JavaScript；VSIX 不增加不可验证的平台二进制。 |
+| M4：后端选择 | 若 Rust 在大文件分析或增量编辑上有明确收益，再评估 N-API；若目标扩大到多个编辑器，再评估 `tower-lsp` 独立 Server。 | 有性能数据、目标平台构建矩阵、VSIX 安装冒烟、回滚路径和发布产物校验；否则停留在 TypeScript/JavaScript 核心。 |
+
+### 7.4 下一版优先级
+
+1. **P0：证据和产品边界**——继续区分 CNC、81RA、LTP、Script、APP Macro；补齐调用/预解运行时验证，不把单一机型行为提升为通用 error。
+2. **P0：核心协议和黄金样例**——先固定当前行为，再做解析器或语言后端替换；所有新规则必须进入能力矩阵、手册、正反例和稳定诊断 code。
+3. **P1：类型与单一数据源**——收紧核心类型，统一函数/关键字/诊断元数据，继续生成 Hover、补全、Snippet 和诊断文档。
+4. **P1：增量与性能**——测量诊断和 500 文件导航基线，优先做取消、增量索引和缓存失效；只有实测瓶颈才引入 Rust。
+5. **P2：跨编辑器**——仅在确认 VS Code 之外的需求后，将核心包成 LSP Server；LSP 不是为了替换现有 Provider 而引入。
+
+### 7.5 发布与回滚门禁
+
+- Rust 后端不得改变已发布的诊断 code、范围、严重度和动态值保守策略。
+- 必须保留 JavaScript 后端作为至少一个完整版本的回滚路径；不允许只在本地可运行、无法生成 VSIX 的实现进入发布候选。
+- Wasm 试点优先于 N-API；N-API 需要明确 Windows/Linux/macOS 目标、Node-API 兼容性、二进制校验和 CI 构建矩阵。
+- 性能结论必须来自真实基准和回归样例，不能以“Rust 理论上更快”作为迁移理由。
+- 架构迁移不得绕过现有 `docs:diagnostics:check`、`check:data`、VSIX 内容检查、集成测试和安装冒烟。
+
+### 7.6 M3 后端决策（2026-09-20）
+
+当前 Rust/Wasm 试点通过了以下门槛：
+
+- `crates/syntec-core` 可在隔离 GNU Rust 1.98.1 toolchain 下编译和测试。
+- Native CLI 与 JavaScript 核心在控制流诊断的 5 个差分样例上保持稳定 code、位置和 severity 一致。
+- Wasm protocol v1、UTF-8 输入、内存释放、诊断 JSON，以及 `%@MACRO`/`N`/静态调用导航子集均已由 Node probe 验证。
+- 20,000 行档案的 Wasm JSON bridge p50 约 58~105ms（受运行环境波动影响），但当前 Rust 只覆盖控制流诊断和导航子集。
+
+**决策：暂不切换生产后端。** 当前 Rust/Wasm 与完整 JavaScript 分析能力仍存在明确缺口：函数参数和 LTP/Modbus 静态规则、变量/机器人状态、格式化 `TextEdit`、完整导航/引用、产品 profile 和所有已发布诊断 code 尚未 parity。Rust/Wasm 继续保持开发态，不进入 VSIX，不改变 `2.15.0` 用户行为。
+
+完整 bridge 的下一阶段验收条件：
+
+1. 全部黄金样例和现有诊断 code/位置/severity parity；
+2. `AnalysisResult` 的 diagnostics、symbols、navigation、TextEdit 和 profile 全量覆盖；
+3. Windows GNU/MSVC、Wasm 与 CI 的可复现构建矩阵；
+4. 启动、内存、JSON 传输和大档案延迟相对于 JavaScript 的真实对比；
+5. JavaScript 默认回退、VSIX 安装冒烟和至少一个完整版本的回滚路径。
+
+## 8. 迭代记录
 
 | 日期 | 阶段 | 结论 |
 | --- | --- | --- |
@@ -412,3 +498,19 @@ node -e "const fs=require('fs'); const {validateDocument}=require('./src/validat
 | 2026-09-16 | v2.14.0 / LTP 静态规则 | 扩展 `robotValidator.js` 的单行范围与 Q 联动检查，新增坐标系指令禁用语法诊断、Hover 和正反例回归；`test-demo.nc` 保持零诊断。 |
 | 2026-09-16 | v2.14.0 / 数据门禁 | 新增 `scripts/checkLanguageDataConsistency.js` 和 `npm.cmd run check:data`，检查函数定义、机器人关键字 Hover 与诊断元数据一致性，并接入 `npm.cmd test`。 |
 | 2026-09-17 | G3 / v2.14.0 发布 | 版本元数据、README、CHANGELOG、能力矩阵、交接说明、VSIX 和 GitHub Release 收口；`npm.cmd test` 257/257、lint、VS Code 集成、导航基准、VSIX 打包和安装冒烟通过。 |
+| 2026-09-17 | G3 / v2.15.0 发布 | 新增 Modbus-TCP `G10 L1900/L1901` 静态诊断，完成 Hover、语法手册、正反例与发布门禁同步。 |
+| 2026-09-19 | 架构演进规划 | 参考 rust-analyzer、Tree-sitter、VS Code LSP sample、tower-lsp 和 napi-rs，确定“核心协议 → 增量解析试验 → Rust Wasm 试点 → 按收益选择 N-API/LSP”的路线；不进行下一版全量 Rust 重写。 |
+| 2026-09-19 | M0 / 分析协议 | 新增 `DocumentSnapshot`、版本化 `AnalysisRequest/AnalysisResult` 和 JavaScript 分析后端；诊断 Worker 改用协议传输，保留 JavaScript 回退、稳定诊断 code/位置/严重度和关键字透传；新增协议黄金样例与全量回归。 |
+| 2026-09-19 | M1 / 纯分析门面首批 | 格式化 Provider 与工作区导航索引入口收敛到 `analysisCore`，导航结果统一为 `AnalysisResult.navigation`；新增 `TextEdit`、`AnalysisSymbol`、导航黄金样例，保留 500 文件导航基准。 |
+| 2026-09-19 | M1 / 分析性能基线 | 新增 `scripts/benchmarkAnalysis.js` 与 `npm.cmd run benchmark:analysis`；当前 JavaScript 后端 10 次测量在 20,000 行无诊断档案上记录 p50 约 386ms、p95 约 437ms，真实 fixture p50 约 9ms；后续增量解析/Rust 试点必须与该基线比较。 |
+| 2026-09-19 | M1 / 分析核心类型门禁 | 新增 `tsconfig.analysis.json` 与 `npm.cmd run typecheck:analysis`，只对协议、核心后端和分析基准启用严格 checkJs；全仓库旧 JavaScript 暂不扩大检查范围。 |
+| 2026-09-19 | M1 / 分析快照缓存 | 新增有界 `AnalysisHost`，Worker 与同步回退复用精确快照结果，支持 URI 失效和 FIFO 淘汰；不改变诊断结果，作为后续增量 Parser/Rust 后端的缓存边界。 |
+| 2026-09-19 | M2 / 容错 Parser 原型 | 新增开发态 Parser 与 `benchmark:parser`，20,000 行样本 10 次测量约为 Parser p50 75ms / p95 84ms、完整分析 p50 370ms / p95 398ms；两者功能不等价，原型不接入生产，Tree-sitter 仍待独立比较。 |
+| 2026-09-20 | M2 / Tree-sitter 工具链恢复 | 已重新下载并验证 `tree-sitter-cli@0.27.0`，CLI 可用但尚未新增 Syntec grammar 或生产依赖；下一步再做最小 grammar/corpus 比较。 |
+| 2026-09-20 | M2 / Tree-sitter grammar spike | 新增开发态 `scripts/treeSitterSpike` grammar/corpus，覆盖行结构、字符串、变量、运算子和不完整文本；Tree-sitter corpus 2/2 通过，不接入生产 Provider。 |
+| 2026-09-20 | M3 / Rust 工具链恢复 | 初始共享 Rust 缓存损坏，已改用隔离 GNU Rust 1.98.1 toolchain；MSVC `link.exe` 仍不可用，GNU/Wasm 试点可复现。 |
+| 2026-09-20 | M3 / Rust CLI 核心首批 | 在隔离 GNU Rust 1.98.1 toolchain 下新增 `crates/syntec-core`，完成词法预处理、控制流诊断、CLI、Rust 单测和 JS/Rust 差分；不接入 VSIX，MSVC `link.exe`、Wasm/N-API 仍待后续评估。 |
+| 2026-09-20 | M3 / Wasm 边界探针 | `syntec-core` 编译到 `wasm32-unknown-unknown`，release artifact 约 50.3KB；Node 原生 WebAssembly 通过最小 ABI 完成 UTF-8 内存写入、控制流诊断 JSON、符号/静态调用导航子集和释放，protocol v1 与 JS 稳定字段差分通过。尚未接入完整 `AnalysisResult` 或 VSIX 资产。 |
+| 2026-09-20 | M3 / Wasm bridge 基准 | 10 次测量下 20,000 行档案 JSON bridge p50 约 105ms/p95 约 120ms、JSON 结果约 33.8KB；仍缺少完整诊断规则和 TextEdit，不把该数据当作完整分析性能结论，完整 `AnalysisResult` bridge 仍待评估。 |
+| 2026-09-20 | M3 / Wasm 协议适配器 | 新增开发态 `RustWasmAdapter`，将 Rust JSON 映射为共享 `AnalysisResult`，校验 protocol version、diagnostics、symbols、edits 和 navigation；不接入生产 Provider，完整 feature parity 仍待评估。 |
+| 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

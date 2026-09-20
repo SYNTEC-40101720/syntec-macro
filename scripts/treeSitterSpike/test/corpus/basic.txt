@@ -1,0 +1,77 @@
+==================
+basic macro syntax
+==================
+%@MACRO
+N10;
+IF #1 = 1 THEN
+#2 := 2;
+END_IF;
+G65 P1000;
+MSG("IF END_IF"); // comment
+---
+
+(source_file
+  (content
+    (macro_header))
+  (content
+    (word)
+    (punctuation))
+  (content
+    (word)
+    (whitespace)
+    (variable)
+    (whitespace)
+    (operator)
+    (whitespace)
+    (number)
+    (whitespace)
+    (word))
+  (content
+    (variable)
+    (whitespace)
+    (operator)
+    (whitespace)
+    (number)
+    (punctuation))
+  (content
+    (word)
+    (punctuation))
+  (content
+    (word)
+    (whitespace)
+    (word)
+    (punctuation))
+  (content
+    (word)
+    (punctuation)
+    (string)
+    (punctuation)
+    (punctuation)
+    (whitespace)
+    (line_comment)))
+
+==================
+incomplete control text
+==================
+IF #1 = 1 THEN
+#2 := #[10 + #3];
+---
+
+(source_file
+  (content
+    (word)
+    (whitespace)
+    (variable)
+    (whitespace)
+    (operator)
+    (whitespace)
+    (number)
+    (whitespace)
+    (word))
+  (content
+    (variable)
+    (whitespace)
+    (operator)
+    (whitespace)
+    (variable)
+    (punctuation)))
