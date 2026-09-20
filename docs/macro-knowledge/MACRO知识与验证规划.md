@@ -455,7 +455,7 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 - **导入前生产后端**：JavaScript `analysisProtocol`、`analysisCore`、`AnalysisHost`、Worker/Provider 门面，继续服务当前 2.x 版本。
 - **导入条件**：Rust/Wasm 完成全部目标 parity、request/profile/TextEdit/导航结果、跨平台构建矩阵、回滚验证和性能门禁。
 - **用户可见承诺**：保持 v2.15.0 的诊断 code、位置、严重度、导航、格式化和配置行为；3.x 是架构收口，不是规则语义重写。
-- **开发态资产**：在导入条件满足前，Rust CLI/Wasm、差分脚本、Parser/Tree-sitter spike 只作为仓库开发验证工具，不进入 VSIX 或默认后端。
+- **开发态资产**：在导入条件满足前，Rust CLI/Wasm、差分脚本、Parser/Tree-sitter spike 只作为仓库开发验证工具；`src/rustWasmAdapter.js` 已进入可发布代码边界但不注册、不默认启用、不携带 Wasm 资产。
 - **发布门禁**：导入条件满足后，版本元数据、全量 npm 回归、lint/typecheck、VS Code 集成、导航基准、VSIX 内容检查、隔离安装冒烟、tag/Release/资产核验全部通过后才创建 3.x Release。
 
 ## 8. 迭代记录

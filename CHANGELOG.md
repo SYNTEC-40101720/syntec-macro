@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **后端切换边界**: `AnalysisHost` 新增可注入的 `javascript`/`rust-wasm` backend selector；Rust 结果失败或结构非法时必须经 `onFallback` 显式记录后回退 JavaScript，默认生产后端仍为 JavaScript。
+- **RustWasmAdapter 生产边界**: 将协议适配器移入 `src/` 并纳入 VSIX 代码清单，开发脚本保留兼容转发；适配器不注册、不默认启用且不携带 Wasm 资产。
 - **分析核心 M0/M1**: 新增版本化 `DocumentSnapshot`/`AnalysisRequest`/`AnalysisResult` 协议；诊断 Worker、格式化 Provider 和导航索引通过纯 JavaScript 分析核心运行，导航结果统一为 `AnalysisResult.navigation`，保留 `2.15.0` 的诊断 code、位置、严重度和发布元数据不变。
 - **分析性能基线**: 新增 `npm.cmd run benchmark:analysis`，测量真实 fixture 与 20,000 行 MACRO 档案的 JavaScript 核心 p50/p95 延迟，不将未经基准证明的 Rust 性能假设写入发布门禁。
 - **分析核心类型门禁**: 新增 `typescript` 开发依赖和 `npm.cmd run typecheck:analysis`，对协议、核心后端和分析基准启用严格 JSDoc/checkJs 检查；类型配置排除在 VSIX 之外。
