@@ -519,4 +519,5 @@ Syntec Analysis Core（稳定协议，禁止直接 I/O）
 | 2026-09-20 | M3 / Wasm 基础语法诊断 parity | Rust 试点补齐 `ELSIF` 与 `DIV` 的稳定错误 code/位置/提示；CLI/Wasm 差分覆盖扩展到 12 类，运算子、分号、括号和函数诊断仍保持未迁移边界。 |
 | 2026-09-20 | M3 / Wasm 基础运算子与结构边界 parity | Rust 试点补齐控制结构尾部分号、`==/!=/&&/||/+=/++/%/!` 和 FANUC 比较关键字诊断；三方差分覆盖扩展到 23 类，括号、静态 MOD 小数和函数诊断仍未迁移。 |
 | 2026-09-20 | M3 / Wasm 导航文件元数据边界 | `RustWasmAdapter` 增加可选 `navigationFilePath`，在适配层补齐 `programEntryName`/`macroProgramName` 与非宏文件过滤；不改旧文本 ABI，完整引用能力仍待后续。 |
+| 2026-09-20 | M3 / Wasm 可选诊断 code 与括号 parity | Rust JSON bridge 支持无 `code` 字段的共享诊断，补齐括号/方括号多余与缺失 warning；CLI/Wasm/JavaScript 差分覆盖扩展到 27 类，静态 MOD 小数和函数诊断仍未迁移。 |
 | 2026-09-20 | M3 / Go-No-Go | Rust/Wasm 子集通过 CLI、Wasm、差分和基准门槛，但因完整诊断/TextEdit/profile parity 缺口，决定继续保持 JavaScript 为唯一生产后端；完整 bridge 验收条件登记到 §7.6。 |

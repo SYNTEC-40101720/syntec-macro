@@ -98,7 +98,7 @@ pub struct Diagnostic {
     pub col: usize,
     pub end_col: usize,
     pub severity: Severity,
-    pub code: String,
+    pub code: Option<String>,
     pub message: String,
 }
 
@@ -163,8 +163,13 @@ fn result_to_json(result: &AnalysisResult) -> String {
         } else {
             diagnostic.end_col
         };
+        let code_field = diagnostic
+            .code
+            .as_ref()
+            .map(|code| format!(",\"code\":\"{}\"", json_escape(code)))
+            .unwrap_or_default();
         json.push_str(&format!(
-            "{{\"range\":{{\"start\":{{\"line\":{},\"character\":{}}},\"end\":{{\"line\":{},\"character\":{}}}}},\"message\":\"{}\",\"severity\":\"{}\",\"source\":\"{}\",\"code\":\"{}\"}}",
+            "{{\"range\":{{\"start\":{{\"line\":{},\"character\":{}}},\"end\":{{\"line\":{},\"character\":{}}}}},\"message\":\"{}\",\"severity\":\"{}\",\"source\":\"{}\"{}}}",
             diagnostic.line.saturating_sub(1),
             diagnostic.col,
             diagnostic.line.saturating_sub(1),
@@ -172,7 +177,7 @@ fn result_to_json(result: &AnalysisResult) -> String {
             json_escape(&diagnostic.message),
             diagnostic.severity.as_str(),
             ANALYSIS_SOURCE,
-            json_escape(&diagnostic.code),
+            code_field,
         ));
     }
     json.push_str("],\"symbols\":[");
@@ -843,9 +848,90 @@ fn push_diagnostic(
         col,
         end_col,
         severity,
-        code: code.to_string(),
+        code: Some(code.to_string()),
         message: message.into(),
     });
+}
+
+fn push_diagnostic_without_code(
+    diagnostics: &mut Vec<Diagnostic>,
+    line: usize,
+    col: usize,
+    end_col: usize,
+    severity: Severity,
+    message: impl Into<String>,
+) {
+    diagnostics.push(Diagnostic {
+        line,
+        col,
+        end_col,
+        severity,
+        code: None,
+        message: message.into(),
+    });
+}
+
+fn validate_parentheses(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let mut parentheses = Vec::new();
+    let mut brackets = Vec::new();
+
+    for (index, character) in chars.iter().enumerate() {
+        match character {
+            '(' => parentheses.push(index),
+            ')' => {
+                if parentheses.pop().is_none() {
+                    let col = utf16_prefix_len(&chars, index);
+                    push_diagnostic_without_code(
+                        diagnostics,
+                        line,
+                        col,
+                        col + 1,
+                        Severity::Warning,
+                        "括号不匹配：多余的右括号",
+                    );
+                }
+            }
+            '[' => brackets.push(index),
+            ']' => {
+                if brackets.pop().is_none() {
+                    let col = utf16_prefix_len(&chars, index);
+                    push_diagnostic_without_code(
+                        diagnostics,
+                        line,
+                        col,
+                        col + 1,
+                        Severity::Warning,
+                        "括号不匹配：多余的右方括号",
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(&index) = parentheses.first() {
+        let col = utf16_prefix_len(&chars, index);
+        push_diagnostic_without_code(
+            diagnostics,
+            line,
+            col,
+            col + 1,
+            Severity::Warning,
+            format!("括号不匹配：缺少 {} 个右括号", parentheses.len()),
+        );
+    }
+    if let Some(&index) = brackets.first() {
+        let col = utf16_prefix_len(&chars, index);
+        push_diagnostic_without_code(
+            diagnostics,
+            line,
+            col,
+            col + 1,
+            Severity::Warning,
+            format!("括号不匹配：缺少 {} 个右方括号", brackets.len()),
+        );
+    }
 }
 
 fn close_block(
@@ -900,6 +986,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         let (clean, next_block_comment) =
             strip_comments_and_strings(raw_line.trim_end_matches('\r'), state.in_block_comment);
         state.in_block_comment = next_block_comment;
+        validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
@@ -1113,7 +1200,10 @@ mod tests {
     fn ignores_comments_and_strings() {
         let result = analyze_document("MSG(\"IF END_IF // text\"); // IF\nEND_IF;");
         assert_eq!(result.diagnostics.len(), 1);
-        assert_eq!(result.diagnostics[0].code, "SYNTEC_CONTROL_UNMATCHED_END");
+        assert_eq!(
+            result.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CONTROL_UNMATCHED_END")
+        );
     }
 
     #[test]
@@ -1121,7 +1211,10 @@ mod tests {
         let result = analyze_document("IF #1 = 1 THEN");
         assert_eq!(result.diagnostics.len(), 1);
         assert_eq!(result.diagnostics[0].severity, Severity::Warning);
-        assert_eq!(result.diagnostics[0].code, "SYNTEC_CONTROL_UNCLOSED_BLOCK");
+        assert_eq!(
+            result.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CONTROL_UNCLOSED_BLOCK")
+        );
         assert_eq!(
             result.diagnostics[0].message,
             "IF 块缺少对应的 END_IF（文件结束）"
@@ -1179,20 +1272,20 @@ mod tests {
     fn validates_else_and_else_if_boundaries() {
         let unmatched_else = analyze_document("ELSE");
         assert_eq!(
-            unmatched_else.diagnostics[0].code,
-            "SYNTEC_CONTROL_UNMATCHED_ELSE"
+            unmatched_else.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CONTROL_UNMATCHED_ELSE")
         );
 
         let unmatched_else_if = analyze_document("ELSEIF #1 = 1 THEN");
         assert_eq!(
-            unmatched_else_if.diagnostics[0].code,
-            "SYNTEC_CONTROL_UNMATCHED_ELSEIF"
+            unmatched_else_if.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CONTROL_UNMATCHED_ELSEIF")
         );
 
         let after_else = analyze_document("IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;");
         assert_eq!(
-            after_else.diagnostics[0].code,
-            "SYNTEC_CONTROL_ELSEIF_AFTER_ELSE"
+            after_else.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_CONTROL_ELSEIF_AFTER_ELSE")
         );
     }
 
@@ -1204,10 +1297,9 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         let result = analyze_document(&source);
-        assert!(result
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED"));
+        assert!(result.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code.as_deref() == Some("SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED")
+        }));
     }
 
     #[test]
@@ -1220,11 +1312,17 @@ mod tests {
     fn reports_unsupported_control_keywords() {
         let elsif = analyze_document("ELSIF #1 = 1 THEN");
         assert_eq!(elsif.diagnostics.len(), 1);
-        assert_eq!(elsif.diagnostics[0].code, "SYNTEC_UNSUPPORTED_ELSIF");
+        assert_eq!(
+            elsif.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_UNSUPPORTED_ELSIF")
+        );
 
         let div = analyze_document("#1 = #2 DIV #3;");
         assert_eq!(div.diagnostics.len(), 1);
-        assert_eq!(div.diagnostics[0].code, "SYNTEC_UNSUPPORTED_DIV");
+        assert_eq!(
+            div.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_UNSUPPORTED_DIV")
+        );
         assert_eq!(div.diagnostics[0].col, 8);
     }
 
@@ -1232,7 +1330,8 @@ mod tests {
     fn reports_control_header_trailing_semicolon() {
         let result = analyze_document("IF #1 = 1 THEN;");
         assert!(result.diagnostics.iter().any(|diagnostic| {
-            diagnostic.code == "SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON" && diagnostic.col == 14
+            diagnostic.code.as_deref() == Some("SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON")
+                && diagnostic.col == 14
         }));
     }
 
@@ -1244,7 +1343,7 @@ mod tests {
         let codes = result
             .diagnostics
             .iter()
-            .map(|diagnostic| diagnostic.code.as_str())
+            .map(|diagnostic| diagnostic.code.as_deref().unwrap_or(""))
             .collect::<Vec<_>>();
         assert_eq!(
             codes,
@@ -1260,5 +1359,21 @@ mod tests {
                 "SYNTEC_UNSUPPORTED_FANUC_COMPARISON",
             ]
         );
+    }
+
+    #[test]
+    fn reports_parenthesis_warnings_without_diagnostic_codes() {
+        let result = analyze_document("(#1 + 1;\n#1 := [1 + 2;\n);\nMSG(\"(\");");
+        assert_eq!(result.diagnostics.len(), 3);
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code.is_none()));
+        assert_eq!(result.diagnostics[0].message, "括号不匹配：缺少 1 个右括号");
+        assert_eq!(
+            result.diagnostics[1].message,
+            "括号不匹配：缺少 1 个右方括号"
+        );
+        assert_eq!(result.diagnostics[2].message, "括号不匹配：多余的右括号");
     }
 }

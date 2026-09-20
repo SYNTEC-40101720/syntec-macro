@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
             diagnostic.col,
             diagnostic.end_col,
             diagnostic.severity.as_str(),
-            diagnostic.code,
+            diagnostic.code.as_deref().unwrap_or(""),
             escape_field(&diagnostic.message)
         );
     }

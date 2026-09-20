@@ -86,6 +86,10 @@ async function main() {
     '#1 % #2;',
     '!#1;',
     '#1 EQ #2;',
+    '(#1 + 1;',
+    '#1 := [1 + 2;',
+    ');',
+    'MSG(\"(\");',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

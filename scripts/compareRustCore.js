@@ -98,6 +98,22 @@ const CASES = [
     text: '#1 EQ #2;'
   },
   {
+    name: 'missing-right-parenthesis',
+    text: '(#1 + 1;'
+  },
+  {
+    name: 'missing-right-bracket',
+    text: '#1 := [1 + 2;'
+  },
+  {
+    name: 'extra-right-parenthesis',
+    text: ');'
+  },
+  {
+    name: 'parenthesis-string-boundary',
+    text: 'MSG(\"(\");'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },
@@ -145,7 +161,7 @@ function parseRustOutput(stdout) {
       col: Number(col),
       endCol: Number(endCol),
       severity,
-      code
+      code: code || undefined
     }));
   }
   return diagnostics;

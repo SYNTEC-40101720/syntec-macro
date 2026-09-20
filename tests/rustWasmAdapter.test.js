@@ -133,3 +133,10 @@ test('navigation metadata follows the supplied file boundary', () => {
   assert.strictEqual(nonMacroResult.navigation, null);
   assert.deepStrictEqual(nonMacroResult.symbols, []);
 });
+
+test('Rust diagnostics may omit the optional code field', () => {
+  const rawResult = createRawResult();
+  delete rawResult.diagnostics[0].code;
+  const result = normalizeRustAnalysisResult(createRequest(), rawResult);
+  assert.strictEqual(result.diagnostics[0].code, undefined);
+});
