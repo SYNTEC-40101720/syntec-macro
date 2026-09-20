@@ -36,13 +36,16 @@ function loadPerfFile(filePath) {
   if (!Array.isArray(parsed.results)) {
     throw new Error(`perf-data file missing 'results' array: ${filePath}`);
   }
-  const platform = filePath.replace(/^.*benchmark-/, '').replace(/\.json$/, '');
+  const platform = typeof parsed.platform === 'string' && parsed.platform.length > 0
+    ? parsed.platform
+    : filePath.replace(/^.*benchmark-/, '').replace(/\.json$/, '');
   return {
     platform,
     results: parsed.results,
     nav: parsed.nav || null,
     regressions: parsed.regressions || [],
-    fallback: parsed.fallback || { total: 0, ratio: 0 }
+    fallback: parsed.fallback || { total: 0, ratio: 0 },
+    tag: typeof parsed.tag === 'string' ? parsed.tag : undefined
   };
 }
 
@@ -84,10 +87,112 @@ function formatRow(scenario, metric, platform, value) {
 }
 
 /**
+ * 把当前采集与 baseline 按场景比对，输出 Rust p50 回归 + parity/fallback 警告。
+ * 已发布版本节点的 baseline 不可改写；任一场景 Rust p50 回归 > 10% 写 ::warning::
+ * 但不设 process.exitCode （reviewer 看 CI log）。
+ *
+ * @param {ReturnType<typeof loadPerfFile>} baseline
+ * @param {ReturnType<typeof loadPerfFile>} current
+ * @returns {{regressions: object[], parityMismatches: number, fallback: number}}
+ */
+function compareWithBaseline(baseline, current) {
+  const REGRESSION_THRESHOLD_PCT = 0.10;
+  const regressions = [];
+  let parityMismatches = 0;
+  let fallback = 0;
+
+  for (const baselineResult of baseline.results || []) {
+    const scenario = baselineResult.scenario;
+    const currentResult = (current.results || []).find(r => r.scenario === scenario);
+    if (!currentResult) continue;
+    const baseRust = baselineResult.rust || {};
+    const curRust = currentResult.rust || {};
+    if (typeof baseRust.p50Ms === 'number' && typeof curRust.p50Ms === 'number') {
+      const deltaPct = (curRust.p50Ms - baseRust.p50Ms) / Math.max(baseRust.p50Ms, 1);
+      if (deltaPct > REGRESSION_THRESHOLD_PCT) {
+        regressions.push({
+          scenario,
+          metric: 'rust.p50',
+          baselineMs: baseRust.p50Ms,
+          currentMs: curRust.p50Ms,
+          deltaPct
+        });
+      }
+    }
+    if (currentResult.parity && !String(currentResult.parity).startsWith('equal')) {
+      parityMismatches++;
+    }
+  }
+  // nav batch comparison
+  if (baseline.nav && current.nav) {
+    const baseBatch = baseline.nav.rustBatchMs;
+    const curBatch = current.nav.rustBatchMs;
+    if (typeof baseBatch === 'number' && typeof curBatch === 'number') {
+      const deltaPct = (curBatch - baseBatch) / Math.max(baseBatch, 1);
+      if (deltaPct > REGRESSION_THRESHOLD_PCT) {
+        regressions.push({
+          scenario: 'nav-500-files',
+          metric: 'rust.batch',
+          baselineMs: baseBatch,
+          currentMs: curBatch,
+          deltaPct
+        });
+      }
+    }
+    if (current.nav.parity && !String(current.nav.parity).startsWith('equal')) {
+      parityMismatches++;
+    }
+  }
+  fallback = Number(current.fallback && current.fallback.total) || 0;
+  return { regressions, parityMismatches, fallback };
+}
+
+/**
  * @param {string[]} [args]
  * @returns {void}
  */
 function main(args = process.argv.slice(2)) {
+  // Phase 1.1 / Phase 2.4: --baseline <path> <current-perf.json> 比对模式
+  const baselineIdx = args.indexOf('--baseline');
+  if (baselineIdx >= 0) {
+    const baselinePath = args[baselineIdx + 1];
+    if (!baselinePath) {
+      console.info('comparePerfData: --baseline requires a path argument');
+      return;
+    }
+    const currentArgs = args.filter((_, i) => i !== baselineIdx && i !== baselineIdx + 1);
+    if (currentArgs.length === 0) {
+      console.info('comparePerfData: --baseline mode requires a current perf-data file');
+      return;
+    }
+    const baseline = loadPerfFile(baselinePath);
+    const current = loadPerfFile(currentArgs[0]);
+    const platform = current.platform || 'unknown';
+    const baselineTag = baseline.tag || baselinePath;
+    console.info(`baseline comparison: ${baselineTag} → current (${platform})`);
+    const result = compareWithBaseline(baseline, current);
+    if (result.regressions.length === 0 && result.parityMismatches === 0 && result.fallback === 0) {
+      console.info('  no regressions / parity mismatches / fallback detected.');
+    } else {
+      if (result.regressions.length > 0) {
+        console.info(`  [regression] ${result.regressions.length} metric(s) regressed > 10%:`);
+        for (const r of result.regressions) {
+          const pctStr = (r.deltaPct * 100).toFixed(1);
+          const baseStr = r.baselineMs.toFixed(2);
+          const curStr = r.currentMs.toFixed(2);
+          console.info(`    ::warning::${r.scenario} ${r.metric} ${baseStr}ms → ${curStr}ms (+${pctStr}%)`);
+        }
+      }
+      if (result.parityMismatches > 0) {
+        console.info(`  [anomaly] ${result.parityMismatches} scenario(s) with parity mismatch against baseline`);
+      }
+      if (result.fallback > 0) {
+        console.info(`  [anomaly] current run had ${result.fallback} fallback events`);
+      }
+    }
+    return;
+  }
+
   if (args.length === 0) {
     console.info('comparePerfData: no perf-data files provided; nothing to compare.');
     return;
@@ -147,4 +252,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { loadPerfFile, flagAnomalies, formatRow, main };
+module.exports = { loadPerfFile, flagAnomalies, formatRow, compareWithBaseline, main };

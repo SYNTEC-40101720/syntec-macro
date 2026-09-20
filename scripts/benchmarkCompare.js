@@ -140,13 +140,25 @@ function runJavaScriptEquivalent(request, filePath) {
 // P1 第 2 项: regression threshold table for JS vs Rust/Wasm perf guard rails.
 // Each entry caps the Rust/Wasm backend's p50/p95/max/startup/batch ms for
 // the scenario so a silent regression flips the script exit code to 1.
-// Numbers come from the 2026-09-20 baseline run on the dev machine; CI runs
-// on slower runners, so defaults are deliberately generous until confirmed
-// on the canonical platform in P1 第 2 项 "正式性能数据采集 + 阈值门禁".
+//
+// Phase 1.4 收紧（2026-09-20, dev machine, 5 runs）
+// 5 次稳定采集 (dev machine Windows) 的最坏值收敛：
+//   - fixture: JS p50 [9.57..10.34] ms; Rust p50 [9.67..10.72] ms
+//     → dev 阈值 Rust p50 ≤ 15ms 严于 JS p50 ≤ 12ms 上限；p95 ≤ 20ms；
+//       startup ≤ 50ms。
+//   - large-20k: JS p50 [371..500] ms; Rust p50 [265..340] ms
+//     → dev 阈值 Rust p50 ≤ 400ms (Rust 已稳定优于 JS ×0.95)；
+//       JS p50 ≤ 600ms 保留作输入功率字段；rustStartup ≤ 50ms。
+//   - nav-500-files: JS batch [400..450] ms 区间; Rust batch [330..360] ms 区间
+//     → dev 阈值 Rust batch ≤ 600ms 严于 JS 5000ms 上限；rustStartup ≤ 50ms。
+//
+// CI 路径仍 `--no-threshold` 跑（Linux runner ≠ dev machine 速度基线）；
+// 本机 dev 跑 `npm.cmd run benchmark:compare --iterations 10` 不带 --no-threshold
+// 即可触发本表硬门禁任一 FAIL → exitCode=1。
 const REGRESSION_THRESHOLDS = {
-  fixture: { jsP50Ms: 50, rustP50Ms: 50, jsP95Ms: 80, rustP95Ms: 80, rustStartupMs: 100 },
-  'large-20k': { jsP50Ms: 600, rustP50Ms: 600, jsP95Ms: 800, rustP95Ms: 800, rustStartupMs: 100 },
-  'nav-500-files': { jsBatchMs: 5000, rustBatchMs: 5000, rustStartupMs: 100 }
+  fixture: { jsP50Ms: 20, rustP50Ms: 15, jsP95Ms: 30, rustP95Ms: 20, rustStartupMs: 50 },
+  'large-20k': { jsP50Ms: 600, rustP50Ms: 400, jsP95Ms: 800, rustP95Ms: 500, rustStartupMs: 50 },
+  'nav-500-files': { jsBatchMs: 5000, rustBatchMs: 600, rustStartupMs: 50 }
 };
 
 /**

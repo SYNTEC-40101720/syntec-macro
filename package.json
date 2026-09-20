@@ -111,7 +111,7 @@
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/navigationIndex.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
@@ -133,7 +133,7 @@
     "check:release:readiness": "node scripts/checkReleaseReadiness.js",
     "check:vsix": "node scripts/checkVsixContents.js",
     "check:data": "node scripts/checkLanguageDataConsistency.js",
-    "package": "npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",
+    "package": "npm run check:rust:wasm:asset && npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",
     "release:create": "node scripts/createGitHubRelease.js",
     "lint": "npx eslint eslint.config.js src/ scripts/ tests/"
   },

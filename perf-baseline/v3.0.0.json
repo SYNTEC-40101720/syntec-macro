@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "tag": "v3.0.0",
+  "collectedAt": "2026-09-20T00:00:00Z",
+  "platform": "windows-dev-machine",
+  "nodeVersion": "v24.15.0",
+  "gitCommit": "dea6439",
+  "wasmArtifact": {
+    "path": "assets/rust-wasm/syntec_core.wasm",
+    "byteLength": 311963,
+    "sha256": "7b69e5dcac2adc78aae592b51bbddd4f9c79bf41e1a2dda1effd0156c38ba669"
+  },
+  "iterations": 10,
+  "results": [
+    {
+      "scenario": "fixture",
+      "lineCount": 394,
+      "iterations": 10,
+      "rustWasmBytes": 311963,
+      "jsStartupMs": 0,
+      "rustStartupMs": 6.5184,
+      "js": {
+        "firstMs": null,
+        "p50Ms": 9.839799999999997,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": null
+      },
+      "rust": {
+        "firstMs": null,
+        "p50Ms": 10.768399999999986,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": null
+      },
+      "parity": "equal"
+    },
+    {
+      "scenario": "large-20k",
+      "lineCount": 20000,
+      "iterations": 10,
+      "rustWasmBytes": 311963,
+      "jsStartupMs": 0,
+      "rustStartupMs": 6.5184,
+      "js": {
+        "firstMs": null,
+        "p50Ms": 383.63419999999996,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": null
+      },
+      "rust": {
+        "firstMs": null,
+        "p50Ms": 277.97609999999986,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": null
+      },
+      "parity": "equal"
+    }
+  ],
+  "nav": {
+    "scenario": "nav-500-files",
+    "fileCount": 500,
+    "iterations": 10,
+    "jsBatchMs": 396.04529999999977,
+    "rustBatchMs": 379.1209000000008,
+    "parity": "equal"
+  },
+  "fallback": {
+    "total": 0,
+    "ratio": 0
+  },
+  "regressions": [],
+  "summary": {
+    "jsFasterIn": "none",
+    "rustFasterIn": "fixture?large-20k?nav-500-files",
+    "allParityEqual": true,
+    "canSwitchDefaultBackend": false,
+    "switchBlockers": [
+      "样本量不足（仅 1 次 dev machine 采集），需 ≥5 次稳定采集 + CI Linux + CI Windows 双平台对照"
+    ]
+  }
+}

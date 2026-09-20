@@ -17,6 +17,7 @@ const {
   loadPerfFile,
   flagAnomalies,
   formatRow,
+  compareWithBaseline,
   main
 } = require('../scripts/comparePerfData');
 
@@ -232,4 +233,197 @@ test('main with anomaly does not throw (CI alert step only logs)', () => {
   const out = lines.join('\n');
   assert.ok(out.includes('anomaly'), 'report must flag the anomaly');
   assert.ok(out.includes('windows-latest'), 'report must mention platform');
+});
+
+test('loadPerfFile prefers parsed.platform over fileName when present', () => {
+  const data = {
+    platform: 'windows-dev-machine',
+    results: [{ scenario: 'fixture', parity: 'equal' }],
+    nav: null,
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const filePath = makeTempFile('benchmark-foo-bar.json', data);
+  const perf = loadPerfFile(filePath);
+  assert.strictEqual(perf.platform, 'windows-dev-machine');
+});
+
+test('loadPerfFile returns tag field when present in JSON', () => {
+  const data = {
+    platform: 'windows-dev',
+    tag: 'v3.0.0',
+    results: [{ scenario: 'fixture', parity: 'equal' }],
+    nav: null,
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const filePath = makeTempFile('v3.0.0.json', data);
+  const perf = loadPerfFile(filePath);
+  assert.strictEqual(perf.tag, 'v3.0.0');
+});
+
+test('compareWithBaseline returns no regressions when current matches baseline', () => {
+  const baseline = {
+    platform: 'baseline',
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'equal' },
+      { scenario: 'large-20k', rust: { p50Ms: 280 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 380, parity: 'equal' },
+    fallback: { total: 0, ratio: 0 }
+  };
+  const current = {
+    platform: 'current',
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 11 }, parity: 'equal' },
+      { scenario: 'large-20k', rust: { p50Ms: 290 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 390, parity: 'equal' },
+    fallback: { total: 0, ratio: 0 }
+  };
+  const result = compareWithBaseline(baseline, current);
+  assert.deepStrictEqual(result.regressions, []);
+  assert.strictEqual(result.parityMismatches, 0);
+  assert.strictEqual(result.fallback, 0);
+});
+
+test('compareWithBaseline flags Rust p50 regression > 10%', () => {
+  const baseline = {
+    results: [
+      { scenario: 'large-20k', rust: { p50Ms: 200 }, parity: 'equal' }
+    ],
+    nav: null,
+    fallback: { total: 0, ratio: 0 }
+  };
+  const current = {
+    results: [
+      { scenario: 'large-20k', rust: { p50Ms: 260 }, parity: 'equal' } // +30%
+    ],
+    nav: null,
+    fallback: { total: 0, ratio: 0 }
+  };
+  const result = compareWithBaseline(baseline, current);
+  assert.strictEqual(result.regressions.length, 1);
+  assert.strictEqual(result.regressions[0].scenario, 'large-20k');
+  assert.ok(result.regressions[0].deltaPct > 0.1);
+});
+
+test('compareWithBaseline flags nav batch regression > 10%', () => {
+  const baseline = {
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 380, parity: 'equal' },
+    fallback: { total: 0, ratio: 0 }
+  };
+  const current = {
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 11 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 460, parity: 'equal' }, // +21%
+    fallback: { total: 0, ratio: 0 }
+  };
+  const result = compareWithBaseline(baseline, current);
+  assert.strictEqual(result.regressions.length, 1);
+  assert.strictEqual(result.regressions[0].scenario, 'nav-500-files');
+  assert.strictEqual(result.regressions[0].metric, 'rust.batch');
+});
+
+test('compareWithBaseline counts parity mismatches and fallback', () => {
+  const baseline = {
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 380, parity: 'equal' },
+    fallback: { total: 0, ratio: 0 }
+  };
+  const current = {
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'mismatch' }
+    ],
+    nav: { rustBatchMs: 380, parity: 'mismatch' },
+    fallback: { total: 2, ratio: 0.01 }
+  };
+  const result = compareWithBaseline(baseline, current);
+  // 2 parity mismatches: results + nav
+  assert.strictEqual(result.parityMismatches, 2);
+  assert.strictEqual(result.fallback, 2);
+});
+
+test('main --baseline mode prints no-regressions message when current matches baseline', () => {
+  const baselineData = {
+    platform: 'baseline',
+    tag: 'v3.0.0',
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 380, parity: 'equal' },
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'windows-dev',
+    results: [
+      { scenario: 'fixture', rust: { p50Ms: 11 }, parity: 'equal' }
+    ],
+    nav: { rustBatchMs: 390, parity: 'equal' },
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const baselinePath = makeTempFile('v3.0.0.json', baselineData);
+  const currentPath = makeTempFile('current-perf.json', currentData);
+  const argv = process.argv;
+  process.argv = ['node', 'comparePerfData', '--baseline', baselinePath, currentPath];
+  const origInfo = console.info;
+  const lines = [];
+  console.info = (msg) => { lines.push(String(msg)); };
+  try {
+    main();
+  } finally {
+    console.info = origInfo;
+    process.argv = argv;
+  }
+  const out = lines.join('\n');
+  assert.ok(out.includes('baseline comparison'), `must show baseline header, got: ${out}`);
+  assert.ok(out.includes('v3.0.0'), `must mention baseline tag, got: ${out}`);
+  assert.ok(out.includes('no regressions'), `must mention no regressions, got: ${out}`);
+});
+
+test('main --baseline mode prints ::warning:: when regression detected', () => {
+  const baselineData = {
+    platform: 'baseline',
+    tag: 'v3.0.0',
+    results: [
+      { scenario: 'large-20k', rust: { p50Ms: 200 }, parity: 'equal' }
+    ],
+    nav: null,
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'windows-dev',
+    results: [
+      { scenario: 'large-20k', rust: { p50Ms: 300 }, parity: 'equal' } // +50%
+    ],
+    nav: null,
+    regressions: [],
+    fallback: { total: 0, ratio: 0 }
+  };
+  const baselinePath = makeTempFile('v3.0.0.json', baselineData);
+  const currentPath = makeTempFile('current-perf.json', currentData);
+  const argv = process.argv;
+  process.argv = ['node', 'comparePerfData', '--baseline', baselinePath, currentPath];
+  const origInfo = console.info;
+  const lines = [];
+  console.info = (msg) => { lines.push(String(msg)); };
+  try {
+    main();
+  } finally {
+    console.info = origInfo;
+    process.argv = argv;
+  }
+  const out = lines.join('\n');
+  assert.ok(out.includes('[regression]'), `must show regression, got: ${out}`);
+  assert.ok(out.includes('::warning::'), `must emit GitHub ::warning:: annotation for CI log, got: ${out}`);
+  assert.ok(out.includes('large-20k'));
 });

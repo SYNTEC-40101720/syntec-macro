@@ -27,6 +27,10 @@ scripts/
 build/
 crates/
 
+# Perf baseline 归档（研究员对照，不进 VSIX）
+perf-baseline/
+perf-data/
+
 # Dependencies
 node_modules/
 

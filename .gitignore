@@ -45,3 +45,6 @@ Macro/
 
 # ==================== VSIX Packages ====================
 syntec-macro-*.vsix
+
+# ==================== Split Script Backup ====================
+scripts/.split-backup-handbook.md

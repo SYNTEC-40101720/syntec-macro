@@ -68,10 +68,33 @@ jobs:
       - name: Package VSIX
         run: npm run package
 
+      - name: Run installed VSIX smoke
+        # Phase 2.3: 在 Package VSIX 后、Publish GitHub Release 前跑
+        # 安装级 smoke：scripts/runInstalledSmoke.js 下载真实 VS Code、
+        # 在隔离 user-data/extensions profile 下 --force 安装刚打包的 VSIX、
+        # 跑 tests/integration/installedSmokeSuite 验证扩展激活 +
+        # rust-wasm backend 实例化成功 + 版本号匹配。CI runner 是 Ubuntu，
+        # runExtensionHost 起真实 VS Code 需 display，与 npm run test:integration
+        # 一致用 xvfb-run -a 包一层。失败即 fail release workflow、不 publish VSIX。
+        run: xvfb-run -a npm run smoke:installed
+
+      - name: Upload installed VSIX smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-release-smoke-logs
+          path: |
+            .vscode-test/user-data/logs/**
+            .vscode-test/**/*.log
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Generate release notes
         run: |
           node <<'NODE'
           const fs = require('fs');
+          const crypto = require('crypto');
+          const path = require('path');
 
           const inputTag = process.env.RELEASE_TAG;
           const version = inputTag.replace(/^v/, '');
@@ -96,7 +119,18 @@ jobs:
             throw new Error(`CHANGELOG section for ${inputTag} is empty.`);
           }
 
-          fs.writeFileSync('release-notes.md', body + '\n', 'utf8');
+          // Phase 2.6: 把 VSIX SHA-256 + 字节数 append 到 release body 末尾
+          // 作为「## VSIX 校验值」段，让用户安装后可用 Get-FileHash / sha256sum
+          // 比对。该段在 npm run package 之后、本 step 之前已生成 VSIX 文件。
+          const vsixPath = path.join(process.cwd(), `syntec-macro-${version}.vsix`);
+          let vsixSection = '';
+          if (fs.existsSync(vsixPath)) {
+            const vsixBytes = fs.readFileSync(vsixPath);
+            const sha256 = crypto.createHash('sha256').update(vsixBytes).digest('hex');
+            vsixSection = `\n\n---\n\n## VSIX 校验值\n\n- 文件名： \`${path.basename(vsixPath)}\`\n- 字节数： ${vsixBytes.length}\n- SHA-256： \`${sha256}\`\n\n安装后可用 PowerShell \`Get-FileHash <path> -Algorithm SHA256\` 或 Linux/macOS \`sha256sum <path>\` 比对。\n`;
+          }
+
+          fs.writeFileSync('release-notes.md', body + vsixSection + '\n', 'utf8');
           NODE
         env:
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
