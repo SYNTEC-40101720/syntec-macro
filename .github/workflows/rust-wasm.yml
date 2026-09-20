@@ -139,9 +139,15 @@ jobs:
           merge-multiple: false
 
       - name: Flatten perf-data files for compare:perf
+        # `actions/download-artifact@v4` with `merge-multiple: false` puts each
+        # artifact in its own subdirectory; flatten to a single dir so the
+        # compare:perf tool can take positional args. Use a shell loop instead
+        # of `-exec` to avoid YAML/block-scalar escape pitfalls.
         run: |
           mkdir -p perf-data
-          find perf-data-zipped -name '*.json' -exec cp {} perf-data/ \\;
+          while IFS= read -r -d '' f; do
+            cp "$f" "perf-data/$(basename "$f")"
+          done < <(find perf-data-zipped -name '*.json' -print0)
           ls -la perf-data/
 
       - name: Run cross-platform perf comparison
