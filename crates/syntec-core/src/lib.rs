@@ -687,6 +687,7 @@ fn is_control_header(statement: &str) -> bool {
     let markers = [
         ("IF", "THEN"),
         ("ELSEIF", "THEN"),
+        ("ELSIF", "THEN"),
         ("FOR", "DO"),
         ("WHILE", "DO"),
         ("CASE", "OF"),
@@ -957,6 +958,64 @@ fn push_diagnostic_without_code(
     });
 }
 
+fn is_case_label(statement: &str) -> bool {
+    let trimmed = statement.trim();
+    let Some(body) = trimmed.strip_suffix(':') else {
+        return false;
+    };
+    let body = body.trim();
+    !body.is_empty()
+        && body.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || character.is_ascii_whitespace()
+                || matches!(character, '#' | '@' | '[' | ']' | ',' | '+' | '-' | '.')
+        })
+}
+
+fn is_dangling_comparison(statement: &str) -> bool {
+    let trimmed = statement.trim();
+    let Some(first) = trimmed.chars().next() else {
+        return false;
+    };
+    matches!(first, '#' | '@' | '[' | '(' | '+' | '-' | '.' | '0'..='9')
+        && ["<>", "<=", ">=", "<", ">"]
+            .iter()
+            .any(|operator| trimmed.contains(operator))
+}
+
+fn validate_statement_terminator(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
+    let chars: Vec<char> = clean.chars().collect();
+    let Some(last_non_space) = chars
+        .iter()
+        .rposition(|character| !character.is_ascii_whitespace())
+    else {
+        return;
+    };
+    let statement: String = chars[..=last_non_space].iter().collect();
+    let trimmed = statement.trim();
+    if trimmed.eq_ignore_ascii_case("%@MACRO")
+        || trimmed == "%"
+        || chars[last_non_space] == ';'
+        || trimmed.eq_ignore_ascii_case("ELSE")
+        || is_control_header(trimmed)
+        || is_case_label(trimmed)
+        || is_dangling_comparison(trimmed)
+    {
+        return;
+    }
+
+    let end_col = utf16_prefix_len(&chars, last_non_space + 1);
+    push_diagnostic(
+        diagnostics,
+        line,
+        end_col,
+        end_col + 1,
+        Severity::Error,
+        "SYNTEC_MISSING_SEMICOLON",
+        "语句应以 ; 结尾",
+    );
+}
+
 fn validate_parentheses(clean: &str, line: usize, diagnostics: &mut Vec<Diagnostic>) {
     let chars: Vec<char> = clean.chars().collect();
     let mut parentheses = Vec::new();
@@ -1075,6 +1134,7 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
         validate_parentheses(&clean, line_number, &mut diagnostics);
         validate_unsupported_operators(&clean, line_number, &mut diagnostics);
         validate_control_header_terminator(&clean, line_number, &mut diagnostics);
+        validate_statement_terminator(&clean, line_number, &mut diagnostics);
         let positions = keyword_positions(&clean);
         let has_end_repeat = positions
             .iter()
@@ -1475,5 +1535,25 @@ mod tests {
 
         let integer = analyze_document("1 MOD 2;");
         assert!(integer.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn reports_missing_semicolons_without_flagging_headers() {
+        let missing = analyze_document("#1 := 1");
+        assert_eq!(missing.diagnostics.len(), 1);
+        assert_eq!(
+            missing.diagnostics[0].code.as_deref(),
+            Some("SYNTEC_MISSING_SEMICOLON")
+        );
+        assert_eq!(missing.diagnostics[0].col, 7);
+
+        assert!(!analyze_document("IF #1 = 1 THEN")
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code.as_deref() == Some("SYNTEC_MISSING_SEMICOLON")));
+        assert!(analyze_document("IF #1 = 1 THEN\nELSE\nEND_IF;")
+            .diagnostics
+            .is_empty());
+        assert!(analyze_document("1:").diagnostics.is_empty());
     }
 }

@@ -92,6 +92,11 @@ async function main() {
     'MSG(\"(\");',
     '1 MOD 2.5;',
     '1 MOD 2;',
+    '#1 := 1',
+    'END_IF',
+    'IF #1 = 1 THEN',
+    '1:',
+    'G65 P1000',
     'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;',
     'IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;',
     [

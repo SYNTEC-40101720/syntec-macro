@@ -122,6 +122,26 @@ const CASES = [
     text: '1 MOD 2;'
   },
   {
+    name: 'missing-assignment-semicolon',
+    text: '#1 := 1'
+  },
+  {
+    name: 'missing-end-semicolon',
+    text: 'END_IF'
+  },
+  {
+    name: 'header-without-semicolon',
+    text: 'IF #1 = 1 THEN'
+  },
+  {
+    name: 'case-label-without-semicolon',
+    text: '1:'
+  },
+  {
+    name: 'missing-g-code-semicolon',
+    text: 'G65 P1000'
+  },
+  {
     name: 'elseif-after-else',
     text: 'IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;'
   },
