@@ -1,6 +1,6 @@
 # SYNTEC 宏程序 VS Code 扩展
 
-![Version](https://img.shields.io/badge/version-2.15.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
 
 为新代宏程序（syntec-macro）提供语法高亮、补全、悬停说明、代码跳转和实时诊断。
 
@@ -117,3 +117,19 @@ END_IF;
   "editor.colorDecorators": false
 }
 ```
+
+## 3.x Rust/Wasm 后端路径
+
+`v2.15.0` 起默认分析后端为 JavaScript；3.x 路径已在 GitHub Releases 与 CI 矩阵上 ready，但默认切换由 user 决定。如果启用可选的 Rust/Wasm 实验通道：
+
+```json
+{
+  "syntecMacro.analysisBackend": "rust-wasm-shadow"
+}
+```
+
+- `javascript`（默认）：当前生产后端（v2.15.0 起）。
+- `rust-wasm-shadow`：双跑 JS + Rust Wasm，仅记录差分，不影响最终诊断；Rust 启动失败静默回退 JS。
+- `rust-wasm`：Rust Wasm 为主要后端，加载/运行失败显式回退 JS（仅在确认生产 wasm asset 已 bundle 进 VSIX 后启用）。
+
+完整发布门禁、3.x.x 版本切换流程、回滚步骤见 [docs/3.x-Release-Runbook.md](docs/3.x-Release-Runbook.md) 与 [docs/3.x-Rust-Wasm切换剩余任务规划.md](docs/3.x-Rust-Wasm切换剩余任务规划.md)。

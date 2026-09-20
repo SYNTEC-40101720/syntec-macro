@@ -3,7 +3,7 @@
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
   "icon": "images/icon.png",
-  "version": "2.15.0",
+  "version": "3.0.0",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
@@ -101,7 +101,7 @@
           ],
           "default": "javascript",
           "enumDescriptions": [
-            "JavaScript analyzer（默认，v2.15.0 起生产后端）",
+            "JavaScript analyzer（默认，v2.15.0 起生产后端；3.0.0 起与 Rust/Wasm 并存）",
             "Shadow 模式：双跑 JS + Rust Wasm，记录差分但不影响最终诊断；Rust 启动失败时静默回退 JS",
             "Rust Wasm 为主，加载/运行失败显式回退 JavaScript（P0-C 第 3 项未完成前不要在生产开启）"
           ],
@@ -111,7 +111,7 @@
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
@@ -121,6 +121,8 @@
     "compare:rust": "node scripts/compareRustCore.js",
     "probe:rust:wasm": "node scripts/probeRustWasm.js",
     "benchmark:rust:wasm": "node scripts/benchmarkRustWasm.js",
+    "benchmark:compare": "node scripts/benchmarkCompare.js",
+    "compare:perf": "node scripts/comparePerfData.js",
     "build:rust:wasm:asset": "node scripts/buildRustWasmAsset.js",
     "check:rust:wasm:asset": "node scripts/buildRustWasmAsset.js --check",
     "test:parser:tree-sitter": "node scripts/testTreeSitterSpike.js",
@@ -128,6 +130,7 @@
     "docs:diagnostics": "node scripts/generateDiagnosticDocs.js",
     "docs:diagnostics:check": "node scripts/generateDiagnosticDocs.js --check",
     "check:release": "node scripts/checkReleaseConsistency.js",
+    "check:release:readiness": "node scripts/checkReleaseReadiness.js",
     "check:vsix": "node scripts/checkVsixContents.js",
     "check:data": "node scripts/checkLanguageDataConsistency.js",
     "package": "npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",

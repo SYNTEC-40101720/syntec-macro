@@ -12,7 +12,12 @@ const REQUIRED_STATIC_FILES = [
   'images/icon.png',
   'snippets/syntec-macro.json',
   'syntaxes/language-configuration.json',
-  'syntaxes/syntec-macro.tmLanguage.json'
+  'syntaxes/syntec-macro.tmLanguage.json',
+  // 3.0.0: production wasm asset bundle into VSIX so `rustWasmAsset.js`
+  // can ship a fixed-version, SHA-256-audited wasm artifact with the
+  // extension. Asset bundle is gated by `check:rust:wasm:asset`.
+  'assets/rust-wasm/manifest.json',
+  'assets/rust-wasm/syntec_core.wasm'
 ];
 
 function normalizeFiles(files) {

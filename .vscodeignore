@@ -19,7 +19,9 @@ tsconfig.analysis.json
 
 # Build tools & scripts
 scripts/
-assets/
+# 3.0.0: 生产 wasm 资产 bundle 进 VSIX；scripts/buildRustWasmAsset.js 与 probe/benchmark
+# 脚本仍在 scripts/ 全排除（仅 CI 加载链路与 src/rustWasmAsset.js 需要资产）。
+!assets/
 *.py
 *.ps1
 build/

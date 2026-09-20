@@ -11,8 +11,16 @@ permissions:
 
 jobs:
   build-and-verify:
-    name: Build wasm + asset parity + probes
-    runs-on: ubuntu-latest
+    name: Build wasm + asset parity + probes (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # P1 第 3 项 跨平台矩阵：开发机 Windows + CI 主力 Ubuntu。
+        # Wasm artifact 字节级不在跨平台之间硬性等价（不同 toolchain 的
+        # 路径依赖差异，详见 manifest audit 步骤注释）；本矩阵只确认两个
+        # 平台都能构建、资产完整性校验通过、parity 与 benchmark 等价。
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -77,3 +85,77 @@ jobs:
 
       - name: Benchmark Rust Wasm (smoke, 5 iterations)
         run: npm run benchmark:rust:wasm -- --iterations 5
+
+      - name: P1 JS/Rust/Wasm parity + perf comparison (smoke, 3 iterations)
+        run: npm run benchmark:compare -- --iterations 3 --no-threshold
+
+      - name: Capture P1 perf data as GitHub artifact
+        # P1 第 3 项 真实性能数据采集：把 benchmark 输出归档为 ${{ matrix.os }}
+        # 资产，便于跨平台对比与未来回归阈值设定时回看历史数据。本步骤非
+        # 门禁——只把 stdout 串成 json 写入文件便于 download。
+        # 直接调 node（不走 npm 包装）避免 npm 输出的 banner 行污染 JSON。
+        if: always()
+        run: |
+          mkdir -p perf-data
+          node scripts/benchmarkCompare.js --iterations 5 --no-threshold --json > perf-data/benchmark-${{ matrix.os }}.json || true
+          cat perf-data/benchmark-${{ matrix.os }}.json
+        shell: bash
+
+      - name: Upload P1 perf data artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-perf-${{ matrix.os }}
+          path: perf-data/
+          retention-days: 30
+
+  cross-platform-alert:
+    # P1 第 3 项 跨平台告警：所有平台完成后下载两平台的 perf-data
+    # JSON 用 compare:perf 做交叉对比，把 parity mismatch / fallback>0 /
+    # regressions 列入 notice。本步不阻塞发布，只 reviewer review PR 时
+    # 在 actions log 看到跨平台差异。
+    name: Cross-platform parity alert
+    runs-on: ubuntu-latest
+    needs: build-and-verify
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all perf-data artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: p1-perf-*
+          path: perf-data-zipped
+          merge-multiple: false
+
+      - name: Flatten perf-data files for compare:perf
+        run: |
+          mkdir -p perf-data
+          find perf-data-zipped -name '*.json' -exec cp {} perf-data/ \\;
+          ls -la perf-data/
+
+      - name: Run cross-platform perf comparison
+        run: |
+          FILES=$(find perf-data -name 'benchmark-*.json' | sort)
+          if [ -z "$FILES" ]; then
+            echo "::notice::No perf-data files captured; skipping cross-platform comparison."
+            exit 0
+          fi
+          node scripts/comparePerfData.js $FILES
+
+      - name: Report matrix status
+        run: |
+          echo "::notice::Rust/Wasm matrix completed; check build-and-verify jobs for per-platform parity."
+          if [ "${{ needs.build-and-verify.result }}" != "success" ]; then
+            echo "::warning::At least one platform matrix entry failed; investigate before flipping default backend."
+          fi
