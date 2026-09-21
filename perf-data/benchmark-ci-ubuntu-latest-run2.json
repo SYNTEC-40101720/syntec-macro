@@ -1,0 +1,92 @@
+{
+  "results": [
+    {
+      "scenario": "fixture",
+      "lineCount": 394,
+      "iterations": 5,
+      "rustWasmBytes": 318041,
+      "jsStartupMs": 0.001252000000000919,
+      "rustStartupMs": 5.190429000000002,
+      "jsResultBytes": 10742,
+      "rustResultBytes": 20334,
+      "js": {
+        "firstMs": 45.84834500000001,
+        "p50Ms": 21.50210899999999,
+        "p95Ms": 25.28755600000001,
+        "maxMs": 25.28755600000001
+      },
+      "rust": {
+        "firstMs": 65.80899999999997,
+        "p50Ms": 17.741940999999997,
+        "p95Ms": 27.74932799999999,
+        "maxMs": 27.74932799999999
+      },
+      "parity": "equal"
+    },
+    {
+      "scenario": "large-20k",
+      "lineCount": 20000,
+      "iterations": 5,
+      "rustWasmBytes": 318041,
+      "jsStartupMs": 0.001252000000000919,
+      "rustStartupMs": 5.190429000000002,
+      "jsResultBytes": 375425,
+      "rustResultBytes": 717838,
+      "js": {
+        "firstMs": 454.00625799999995,
+        "p50Ms": 400.3753609999999,
+        "p95Ms": 427.506715,
+        "maxMs": 427.506715
+      },
+      "rust": {
+        "firstMs": 467.54220399999986,
+        "p50Ms": 419.0581119999997,
+        "p95Ms": 419.16210599999977,
+        "maxMs": 419.16210599999977
+      },
+      "parity": "equal"
+    }
+  ],
+  "nav": {
+    "scenario": "nav-500-files",
+    "fileCount": 500,
+    "linesPerFile": 40,
+    "jsBatchMs": 414.0464260000008,
+    "rustBatchMs": 501.9366709999995,
+    "jsResultBytes": 2119,
+    "rustResultBytes": 2118,
+    "rustFallbackCount": 0,
+    "parity": "equal",
+    "representativeFingerprint": {
+      "diagnostics": [],
+      "symbols": [
+        {
+          "name": "%@MACRO",
+          "kind": "macroHeader",
+          "line": 0
+        },
+        {
+          "name": "N10",
+          "kind": "label",
+          "line": 10
+        },
+        {
+          "name": "N20",
+          "kind": "label",
+          "line": 20
+        },
+        {
+          "name": "N30",
+          "kind": "label",
+          "line": 30
+        }
+      ],
+      "hasNavigation": true
+    }
+  },
+  "regressions": [],
+  "fallback": {
+    "total": 0,
+    "ratio": 0
+  }
+}

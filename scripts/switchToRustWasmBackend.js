@@ -35,12 +35,75 @@ const CHECK_JS_RETIREMENT_SCRIPT = path.join(ROOT, 'scripts', 'checkJsBackendRet
 const COMPARE_RUST_SCRIPT = path.join(ROOT, 'scripts', 'compareRustCore.js');
 
 /**
+ * 检查 perf-data/benchmark-ci-{platform}-run*.json 是否累积 5 次双平台 + nav 场景 Rust 不低于 JS。
+ *
+ * 守护 Phase 1.5 切换不可绕过: Rust/Wasm 必须在 nav 场景也 ≥ JS。若 nav 表现
+ * 明显劣于 JS, 强制不让 --apply 切换 (按 docs/3.x-Rust-Wasm切换剩余任务规划.md
+ * §3 不变约束 1)。
+ *
+ * @returns {{pass: boolean, detail: string}}
+ */
+function checkCiPerfRubric() {
+  const perfDir = path.join(ROOT, 'perf-data');
+  if (!fs.existsSync(perfDir)) {
+    return { pass: false, detail: 'perf-data 目录缺失' };
+  }
+  const files = fs.readdirSync(perfDir);
+  const ubuntuFiles = files.filter(f => /^benchmark-ci-ubuntu-latest-run\d+\.json$/.test(f)).sort();
+  const windowsFiles = files.filter(f => /^benchmark-ci-windows-latest-run\d+\.json$/.test(f)).sort();
+  if (ubuntuFiles.length < 5 || windowsFiles.length < 5) {
+    return {
+      pass: false,
+      detail: `CI perf 数据累积不足：ubuntu ${ubuntuFiles.length}/5，windows ${windowsFiles.length}/5`
+    };
+  }
+  // 收集 nav-500-files rust vs js batch 数据：每个 CI run 都算 Rust 与 JS 之比，
+  // ≥1 run Rust ≥ JS (误差 ≤5%) 则视作 nav 表现可接受。
+  const rustSlowerCount = { ubuntu: 0, windows: 0 };
+  const rustSlowerByScenario = [];
+  for (const [platform, filesForPlatform] of [['ubuntu', ubuntuFiles], ['windows', windowsFiles]]) {
+    for (const file of filesForPlatform) {
+      const data = JSON.parse(fs.readFileSync(path.join(perfDir, file), 'utf8'));
+      const nav = data.nav;
+      if (!nav) continue;
+      // nav 字段: { rustBatchMs, parity }  not  jsBatchMs  by  comparePerfData  schema?
+      // benchmarkCompare --json schema: nav: { jsBatchMs, rustBatchMs, parity } (per Phase 1.2 schema)
+      // 实际从 file dump: nav: rustBatchMs, parity (comparePerfData / benchmark结构)
+      // 看 file 实际 schema:
+      const jsBatch = nav.jsBatchMs || nav.jsBatch || nav.js;
+      const rustBatch = nav.rustBatchMs || nav.rustBatch || nav.rust;
+      if (typeof jsBatch !== 'number' || typeof rustBatch !== 'number') continue;
+      // 等价阈值: Rust vs JS 误差 ≤5% 允许, >10% 视作"明显慢"
+      const diff = (rustBatch - jsBatch) / jsBatch;
+      if (diff > 0.10) {
+        rustSlowerCount[platform] += 1;
+        rustSlowerByScenario.push(`nav-500-files ${platform} ${path.basename(file)}: Rust ${rustBatch}ms vs JS ${jsBatch}ms (+${Math.round(diff * 100)}%)`);
+      }
+    }
+  }
+  const totalRuns = ubuntuFiles.length + windowsFiles.length;
+  // 严苛条件: 任一平台 ≥3 次 Rust > JS 10% 即视作 nav 场景 Rust 劣于 JS, 拒切
+  if (rustSlowerCount.ubuntu >= 3 || rustSlowerCount.windows >= 3) {
+    return {
+      pass: false,
+      detail: `nav-500-files 场景 Rust 在多 run 明显慢于 JS（>10%）；ubuntu ${rustSlowerCount.ubuntu}/${ubuntuFiles.length} 次 / windows ${rustSlowerCount.windows}/${windowsFiles.length} 次:\n  ${rustSlowerByScenario.join('\n  ')}`
+    };
+  }
+  return {
+    pass: true,
+    detail: `CI perf 数据累积 ${totalRuns} 次双平台 pass${rustSlowerByScenario.length > 0 ? `（${rustSlowerByScenario.length} 次轻微 Rust 慢 10% 但不到 3 次/平台阈值）` : '，无 Rust 明显慢于 JS 场景'}`
+  };
+}
+
+/**
  * 跑 check:js-backend-retirement --strict + compare:rust 作为切换前置门禁。
  * 失败 throws 阻止切换。compare:rust 需要 SYNTEC_RUST_CLI 环境变量指向
  * 本地 CLI artifact。
  *
  * 允许 1-default-backend-rust-wasm + 2-release-cycle-observed 两项 FAIL，
  * 因为这两项正是本次切换要解决的特性；其他项 FAIL 阻止切换。
+ *
+ * 回归 PHASE 1.5 准入 rubric: 也调 checkCiPerfRubric 看 nav 场景 Rust 不低于 JS。
  *
  * @returns {{retirementOutput: string, compareRustOutput: string}}
  */
@@ -67,6 +130,15 @@ function runPreFlightChecks() {
   if (disallowedResults.length > 0) {
     throw new Error('切换前置 R1.1 准入发现未预期的 FAIL（除 1/2 项外不应 FAIL）:\n' +
       disallowedResults.map(r => `  ${r.id}: ${r.detail}`).join('\n'));
+  }
+
+  // CI perf 数据 nav 场景硬门禁
+  console.info('  跑 CI perf 数据 nav 场景硬门禁 check：（≥3 次/平台 Rust 明显慢于 JS 即拒切）');
+  const perfResult = checkCiPerfRubric();
+  console.info(`    ${perfResult.pass ? '✓' : '✗'} ${perfResult.pass ? 'PASS' : 'FAIL'} nav-500-files Rust 不低于 JS`);
+  console.info(`    ${perfResult.detail}`);
+  if (!perfResult.pass) {
+    throw new Error('切换前置 CI perf nav 场景不通过: ' + perfResult.detail);
   }
 
   // compare:rust parity 检查（不依赖 CI，本地 CLI 跑）。

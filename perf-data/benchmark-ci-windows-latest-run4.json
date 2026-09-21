@@ -1,0 +1,92 @@
+{
+  "results": [
+    {
+      "scenario": "fixture",
+      "lineCount": 394,
+      "iterations": 5,
+      "rustWasmBytes": 318040,
+      "jsStartupMs": 0.0011999999999972033,
+      "rustStartupMs": 5.8541000000000025,
+      "jsResultBytes": 11528,
+      "rustResultBytes": 21906,
+      "js": {
+        "firstMs": 39.1659,
+        "p50Ms": 14.437299999999993,
+        "p95Ms": 17.792599999999993,
+        "maxMs": 17.792599999999993
+      },
+      "rust": {
+        "firstMs": 49.28229999999999,
+        "p50Ms": 13.576899999999966,
+        "p95Ms": 15.961199999999991,
+        "maxMs": 15.961199999999991
+      },
+      "parity": "equal"
+    },
+    {
+      "scenario": "large-20k",
+      "lineCount": 20000,
+      "iterations": 5,
+      "rustWasmBytes": 318040,
+      "jsStartupMs": 0.0011999999999972033,
+      "rustStartupMs": 5.8541000000000025,
+      "jsResultBytes": 375425,
+      "rustResultBytes": 717838,
+      "js": {
+        "firstMs": 401.85490000000004,
+        "p50Ms": 354.55200000000013,
+        "p95Ms": 369.33140000000003,
+        "maxMs": 369.33140000000003
+      },
+      "rust": {
+        "firstMs": 385.1988000000001,
+        "p50Ms": 325.4766999999997,
+        "p95Ms": 325.78930000000037,
+        "maxMs": 325.78930000000037
+      },
+      "parity": "equal"
+    }
+  ],
+  "nav": {
+    "scenario": "nav-500-files",
+    "fileCount": 500,
+    "linesPerFile": 40,
+    "jsBatchMs": 365.6234000000004,
+    "rustBatchMs": 433.16879999999946,
+    "jsResultBytes": 2119,
+    "rustResultBytes": 2118,
+    "rustFallbackCount": 0,
+    "parity": "equal",
+    "representativeFingerprint": {
+      "diagnostics": [],
+      "symbols": [
+        {
+          "name": "%@MACRO",
+          "kind": "macroHeader",
+          "line": 0
+        },
+        {
+          "name": "N10",
+          "kind": "label",
+          "line": 10
+        },
+        {
+          "name": "N20",
+          "kind": "label",
+          "line": 20
+        },
+        {
+          "name": "N30",
+          "kind": "label",
+          "line": 30
+        }
+      ],
+      "hasNavigation": true
+    }
+  },
+  "regressions": [],
+  "fallback": {
+    "total": 0,
+    "ratio": 0
+  }
+}

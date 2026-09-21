@@ -106,18 +106,25 @@ const CHECKS = [
       };
     }
   },
-  // 5. benchmark:compare fallback 比例持续 0%（文件存在 + 工具就位）
+  // 5. benchmark:compare fallback 比例持续 0%（文件存在 + 工具就位）+ CI 双平台 5 次累积
   {
     id: '5-fallback-ratio-zero-sustained',
-    name: 'fallback 比例持续 0% 工具就位',
+    name: 'fallback 比例持续 0% 工具就位 + CI 双平台 5 次累积',
     run: () => {
-      // readiness 阶段只确认工具就位；5 次采集实际数据由 user 跑后 report
       const compare = path.join(ROOT, 'scripts', 'benchmarkCompare.js');
       const comparePerf = path.join(ROOT, 'scripts', 'comparePerfData.js');
       const testFile = path.join(ROOT, 'tests', 'benchmarkCompare.test.js');
       const baseline = path.join(ROOT, 'perf-baseline', 'v3.0.0.json');
-      const devRuns = fs.readdirSync(path.join(ROOT, 'perf-data'))
-        .filter(name => /^benchmark-windows-dev-run\d+\.json$/.test(name));
+      const perfDir = path.join(ROOT, 'perf-data');
+      const devRuns = fs.existsSync(perfDir)
+        ? fs.readdirSync(perfDir).filter(name => /^benchmark-windows-dev-run\d+\.json$/.test(name))
+        : [];
+      const ciUbuntuRuns = fs.existsSync(perfDir)
+        ? fs.readdirSync(perfDir).filter(name => /^benchmark-ci-ubuntu-latest-run\d+\.json$/.test(name))
+        : [];
+      const ciWindowsRuns = fs.existsSync(perfDir)
+        ? fs.readdirSync(perfDir).filter(name => /^benchmark-ci-windows-latest-run\d+\.json$/.test(name))
+        : [];
       const missing = [];
       for (const [label, file] of [
         ['benchmarkCompare.js', compare],
@@ -130,11 +137,19 @@ const CHECKS = [
       if (missing.length > 0) {
         return { status: 'FAIL', detail: `missing: ${missing.join(', ')}` };
       }
+      const devReady = devRuns.length >= 5;
+      const ciUbuntuReady = ciUbuntuRuns.length >= 5;
+      const ciWindowsReady = ciWindowsRuns.length >= 5;
+      const ciReady = ciUbuntuReady && ciWindowsReady;
+      if (!devReady && !ciReady) {
+        return {
+          status: 'SKIP',
+          detail: `dev 落库 ${devRuns.length}/5；CI ubuntu ${ciUbuntuRuns.length}/5；CI windows ${ciWindowsRuns.length}/5（≥5 次任一平台累积）`
+        };
+      }
       return {
-        status: devRuns.length >= 5 ? 'PASS' : 'SKIP',
-        detail: devRuns.length >= 5
-          ? `dev machine 5 次采集已落库（${devRuns.length} 个 JSON）；CI 双平台数据由 user push 累积另验证`
-          : `dev machine 仅 ${devRuns.length} 次采集（需 ≥5）`
+        status: 'PASS',
+        detail: `工具就位 + 数据落库：dev ${devRuns.length}/5 + CI ubuntu ${ciUbuntuRuns.length}/5 + CI windows ${ciWindowsRuns.length}/5；实际 nav 场景 Rust 是否稳定优于 JS 由 user review compare:perf 输出决定（Phase 1.5 准入只是数据采集工具就位，不是 Rust 优势判定）`
       };
     }
   },
