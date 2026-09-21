@@ -10,9 +10,18 @@ const { provideDefinition } = require('./definitionProvider');
 const diagnostics = require('./diagnosticsProvider');
 const navigation = require('./navigationProvider');
 const { provideDocumentFormattingEdits } = require('./formattingProvider');
+const { initHostRustAnalyzer } = require('./hostRustAnalyzer');
 
 function activate(context) {
   const selector = { language: LANG_ID };
+
+  // 初始化 host 端 Rust analyzer (R1.2 Stage B 前置 PR 2026-09-21):
+  // await wasm 实例加载并缓存同步入口供 formattingProvider/navigationProvider
+  // 同步路径调用; 加载期间 provider 走 'defer-js' policy 回退 JS (v3.1.x 兼容).
+  // 不阻塞 activate (异步加载), 失败仅日志 (provider 自然 fallback 到 JS).
+  initHostRustAnalyzer().catch(error => {
+    console.warn('[hostRustAnalyzer] 初始化失败, host provider 将走 JS fallback:', error instanceof Error ? error.message : error);
+  });
 
   // Completion
   context.subscriptions.push(

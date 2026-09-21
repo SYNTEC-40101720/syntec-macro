@@ -1,5 +1,11 @@
 // navigationProvider.js
 // 文档/工作区符号导航与宏调用引用查找
+//
+// R1.2 Stage B 前置 PR (2026-09-21): 同步路径 (`provideDocumentSymbol`/
+// `getReferenceTargetName`/`getDocumentProgramName`) 与异步 nav batch 路径
+// (`getWorkspaceMacroFiles`) 通过 hostRustAnalyzer 优先走 Rust backend;
+// 启动期 Rust 未就绪走 JS fallback (v3.1.x 行为不变). R1.2 Stage B 完成
+// (policy='empty') 后 JS fallback 路径将被移除.
 
 const vscode = require('vscode');
 const { analyzeNavigationDocument } = require('./analysisCore');
@@ -17,6 +23,11 @@ const {
   extractStaticMacroCalls,
   getMacroProgramName
 } = require('./navigationSymbols');
+const {
+  getHostRustAnalyzer,
+  shouldDeferToJsFallback,
+  makeRequest: makeHostRequest
+} = require('./hostRustAnalyzer');
 
 const navigationIndexCache = new Map();
 const NAVIGATION_INDEX_CONCURRENCY = 32;
@@ -34,8 +45,61 @@ function ensureNavigationFileWatcher() {
   navigationFileWatcher.onDidDelete(invalidate);
 }
 
+/**
+ * 同步路径 helpers: 优先走 host Rust analyzer 拿 symbols+calls, 启动期未就绪
+ * 走 JS fallback (v3.1.x 兼容). R1.2 Stage B 后 (policy='empty') JS 路径将被
+ * 移除并由 host analyzer 提供.
+ */
+function getSymbolsFromHostOrJs(document) {
+  const hostAnalyzer = getHostRustAnalyzer();
+  if (hostAnalyzer) {
+    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+    return result.symbols || [];
+  }
+  if (shouldDeferToJsFallback()) {
+    return extractNavigationSymbols(document.getText());
+  }
+  return [];
+}
+
+function getCallsFromHostOrJs(document) {
+  const hostAnalyzer = getHostRustAnalyzer();
+  if (hostAnalyzer) {
+    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+    if (result.navigation && result.navigation.calls) return result.navigation.calls;
+    return [];
+  }
+  if (shouldDeferToJsFallback()) {
+    return extractStaticMacroCalls(document.getText());
+  }
+  return [];
+}
+
+function getProgramMetadataFromHostOrJs(document) {
+  const hostAnalyzer = getHostRustAnalyzer();
+  if (hostAnalyzer) {
+    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+    if (result.navigation) {
+      return {
+        programEntryName: result.navigation.programEntryName,
+        macroProgramName: result.navigation.macroProgramName,
+        symbols: result.navigation.symbols
+      };
+    }
+    return null;
+  }
+  if (shouldDeferToJsFallback()) {
+    return {
+      programEntryName: null,
+      macroProgramName: getMacroProgramName(document.uri.fsPath, document.getText()),
+      symbols: extractNavigationSymbols(document.getText())
+    };
+  }
+  return null;
+}
+
 function provideDocumentSymbol(document) {
-  return extractNavigationSymbols(document.getText()).map(symbol => {
+  return getSymbolsFromHostOrJs(document).map(symbol => {
     const line = document.lineAt(symbol.line);
     return new vscode.DocumentSymbol(
       symbol.name,
@@ -49,16 +113,18 @@ function provideDocumentSymbol(document) {
 }
 
 function getDocumentProgramName(document) {
-  return getMacroProgramName(document.uri.fsPath, document.getText());
+  const meta = getProgramMetadataFromHostOrJs(document);
+  if (meta) return meta.macroProgramName;
+  return null;
 }
 
 function getReferenceTargetName(document, position) {
-  const call = extractStaticMacroCalls(document.getText()).find(item =>
+  const call = getCallsFromHostOrJs(document).find(item =>
     item.line === position.line && position.character >= item.start && position.character <= item.end
   );
   if (call) return call.targetName.toUpperCase();
 
-  const onMacroHeader = extractNavigationSymbols(document.getText()).some(symbol =>
+  const onMacroHeader = getSymbolsFromHostOrJs(document).some(symbol =>
     symbol.kind === 'macroHeader' && symbol.line === position.line
   );
   return onMacroHeader ? getDocumentProgramName(document) : null;

@@ -1,0 +1,129 @@
+// @ts-check
+// Host 端同步 Rust/Wasm analyzer 注入层 (R1.2 Stage B 前置 PR, 2026-09-21).
+//
+// 背景: v3.1.0 的 host 同步 provider (formattingProvider/navigationProvider 等)
+// 直调 `src/analysisCore.js` 的 `formatDocument`/`analyzeNavigationDocument`/等。
+// R1.2 Stage B 剔除 `analysisCore.js` 后这些同步路径会断。
+//
+// 本模块在 `extension.js::activate` 中 await 一次 wasm 实例加载并缓存同步
+// analyzer 实例; provider 通过 `getHostRustAnalyzer()` 拿到同步入口。
+// 加载期间由 `policy` 控制:
+//   - 'defer-js' (v3.1.x 默认): 启动期间回退 JS analyzer (兼容现有 v3.1.x 行为,
+//     不引入用户可感知变化)
+//   - 'empty'      (R1.2 后): 启动期间返空 edits/symbols 而非真值, 不回退 JS
+//
+// 单测见 tests/hostRustAnalyzer.test.js。
+
+const { loadRustWasmAsset } = require('./rustWasmAsset');
+const { createRustWasmAdapter } = require('./rustWasmAdapter');
+const {
+  createAnalysisRequest,
+  createDocumentSnapshot,
+  ANALYSIS_PROTOCOL_VERSION
+} = require('./analysisProtocol');
+
+// 内联 LANG_ID 而不 require providerShared (后者顶层 require('vscode') 在 node
+// 单测环境会 fail). 与 providerShared.js LANG_ID 保持同步定义.
+const LANG_ID = 'syntec-macro';
+void ANALYSIS_PROTOCOL_VERSION;
+
+let cachedHostAnalyzer = null;
+let initPromise = null;
+let policy = 'defer-js';
+
+/**
+ * 设置启动期间 fallback 策略。
+ * - 'defer-js' (v3.1.x 默认): Rust 未就绪时 caller 走 JS fallback 路径
+ * - 'empty' (R1.2 后切换): Rust 未就绪时 caller 走"返回空 edits/symbols"路径
+ * @param {'defer-js'|'empty'} newPolicy
+ */
+function setHostAnalyzerPolicy(newPolicy) {
+  if (newPolicy !== 'defer-js' && newPolicy !== 'empty') {
+    throw new TypeError(`unsupported host analyzer policy: ${newPolicy}`);
+  }
+  policy = newPolicy;
+}
+
+/**
+ * 当前 host analyzer fallback policy (供测试/observability 用)。
+ * @returns {'defer-js'|'empty'}
+ */
+function getHostAnalyzerPolicy() {
+  return policy;
+}
+
+/**
+ * 同步获取 host 端 Rust analyzer。加载未完成时返回 `null`（caller 按当前
+ * `policy` 走 fallback）。
+ * @returns {((request: import('./analysisProtocol').AnalysisRequest) => import('./analysisProtocol').AnalysisResult) | null}
+ */
+function getHostRustAnalyzer() {
+  return cachedHostAnalyzer;
+}
+
+/**
+ * caller 同步 host provider 中决定走 Rust 还是 fallback。
+ * 简化主体: caller 写法:
+ *   const analyzer = getHostRustAnalyzer();
+ *   if (analyzer) return analyzer(request);          // Rust 路径
+ *   if (shouldDeferToJsFallback()) return jsFallback(); // policy='defer-js' 时回 JS
+ *   return emptyResult();                              // policy='empty' 时返空
+ *
+ * @returns {boolean} Rust 未就绪时是否允许走 JS fallback (only if policy='defer-js')
+ */
+function shouldDeferToJsFallback() {
+  return cachedHostAnalyzer === null && policy === 'defer-js';
+}
+
+/**
+ * 重置 host analyzer 状态（测试用；生产环境一般不调用）。
+ */
+function resetHostRustAnalyzer() {
+  cachedHostAnalyzer = null;
+  initPromise = null;
+  policy = 'defer-js';
+}
+
+/**
+ * 初始化 host 端 Rust analyzer: await wasm 加载 + createRustWasmAdapter,
+ * 完成后同步 `getHostRustAnalyzer()` 可用。重复调用幂等返回同一 Promise。
+ *
+ * @param {string} [manifestPath] 资产 manifest 路径（测试 override 用）。
+ * @param {{loadAsset?: (path: string, opts?: object) => Promise<{instance: WebAssembly.Instance}>, createAdapter?: (exports: object, options?: object) => Function}} [injectables]
+ * @returns {Promise<Function>} resolve analyzer 同步入口。
+ */
+async function initHostRustAnalyzer(manifestPath, injectables = {}) {
+  if (cachedHostAnalyzer) return cachedHostAnalyzer;
+  if (initPromise) return initPromise;
+  const loadAsset = injectables.loadAsset || loadRustWasmAsset;
+  const createAdapter = injectables.createAdapter || createRustWasmAdapter;
+  initPromise = (async () => {
+    const { instance } = await loadAsset(manifestPath);
+    cachedHostAnalyzer = createAdapter(instance.exports);
+    return cachedHostAnalyzer;
+  })();
+  return initPromise;
+}
+
+/**
+ * 同步 helper: 为 host provider 用 AnalysisRequest 构造 helper。
+ * @param {string} text
+ * @param {string} [uri]
+ * @param {number} [version]
+ * @returns {import('./analysisProtocol').AnalysisRequest}
+ */
+function makeRequest(text, uri = 'file:///host-analyzer.nc', version = 0) {
+  return createAnalysisRequest(createDocumentSnapshot({
+    uri, version, languageId: LANG_ID, text
+  }));
+}
+
+module.exports = {
+  initHostRustAnalyzer,
+  getHostRustAnalyzer,
+  shouldDeferToJsFallback,
+  setHostAnalyzerPolicy,
+  getHostAnalyzerPolicy,
+  resetHostRustAnalyzer,
+  makeRequest
+};
