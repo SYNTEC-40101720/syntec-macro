@@ -108,6 +108,35 @@ pub unsafe extern "C" fn syntec_core_analyze_request_json(pointer: *const u8, le
     }
 }
 
+/// Wasm ABI for the lightweight navigation-only analysis path
+/// (`analyze_navigation_request`). Mirrors the JS production navigation
+/// indexer path (`analyzeNavigationDocument` -> `buildNavigationIndexEntry`),
+/// skipping all diagnostic validators and the formatter so batch navigation
+/// over 500+ files stays competitive with the JS equivalent. Returns 0 on
+/// parse/validation failure, exactly like `syntec_core_analyze_request_json`.
+#[cfg(target_arch = "wasm32")]
+#[no_mangle]
+pub unsafe extern "C" fn syntec_core_analyze_navigation_json(pointer: *const u8, length: usize) -> u64 {
+    if pointer.is_null() {
+        return 0;
+    }
+    let bytes = std::slice::from_raw_parts(pointer, length);
+    let Ok(json) = std::str::from_utf8(bytes) else {
+        return 0;
+    };
+    match analyze_navigation_request_json(json) {
+        Ok(result) => {
+            let json = result_to_json(&result)
+                .into_bytes()
+                .into_boxed_slice();
+            let length = json.len() as u32;
+            let pointer = Box::into_raw(json) as *mut u8 as u32;
+            ((pointer as u64) << 32) | length as u64
+        }
+        Err(_) => 0,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Severity {
     Error,
@@ -4939,6 +4968,53 @@ pub fn analyze_document(content: &str) -> AnalysisResult {
 /// 130 existing differential samples keep passing unchanged.
 pub fn analyze_request_json(json: &str) -> Result<AnalysisResult, String> {
     parse_analysis_request(json).map(|request| analyze_request(request))
+}
+
+/// Lightweight navigation-only analysis: mirrors JS `analyzeNavigationDocument`
+/// (i.e. `buildNavigationIndexEntry` in `navigationSymbols.js`). Skips every
+/// diagnostic validator and the formatter; only emits the
+/// `extract_navigation` symbols+calls plus the macro program metadata derived
+/// from the URI / macro header. Returns an `AnalysisResult` with empty
+/// diagnostics / edits so the existing JSON serializer can reuse `result_to_json`
+/// without forking the protocol shape. This is the production-equivalent path
+/// for the navigation indexer batch (500+ files) which never needs linting.
+pub fn analyze_navigation_request(request: AnalysisRequest) -> AnalysisResult {
+    let document = request.document.clone();
+    let profile = request.profile.clone();
+    let (navigation_symbols, navigation_calls) = extract_navigation(&document.text);
+    let has_macro_header = navigation_symbols
+        .iter()
+        .any(|symbol| symbol.kind == "macroHeader");
+    let navigation = if is_macro_file_content(&document.uri, has_macro_header) {
+        Some(AnalysisNavigation {
+            program_entry_name: get_program_entry_name(&document.uri),
+            macro_program_name: get_macro_program_name(&document.uri, has_macro_header),
+            symbols: navigation_symbols.clone(),
+            calls: navigation_calls,
+        })
+    } else {
+        None
+    };
+    let navigation_symbols_ref = match &navigation {
+        Some(nav) => nav.symbols.clone(),
+        None => Vec::new(),
+    };
+    AnalysisResult::for_document_with_edits(
+        document,
+        &profile,
+        Vec::new(),
+        navigation,
+        &navigation_symbols_ref,
+        Vec::new(),
+    )
+}
+
+/// JSON shim for `analyze_navigation_request`: accepts the same `AnalysisRequest`
+/// JSON as `analyze_request_json` but returns the lightweight navigation-only
+/// `AnalysisResult` (no diagnostics, no edits). Used by the Wasm ABI export
+/// `syntec_core_analyze_navigation_json` and the JS adapter's navigation path.
+pub fn analyze_navigation_request_json(json: &str) -> Result<AnalysisResult, String> {
+    parse_analysis_request(json).map(|request| analyze_navigation_request(request))
 }
 
 /// Minimal JSON parser for `AnalysisRequest`. Avoids pulling in `serde` to keep

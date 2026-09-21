@@ -209,6 +209,7 @@ function createRustWasmAdapter(wasmExports, options = {}) {
     if (!wasmExports[name]) throw new TypeError(`missing Wasm export: ${name}`);
   }
   const requestAbi = wasmExports.syntec_core_analyze_request_json;
+  const navigationAbi = wasmExports.syntec_core_analyze_navigation_json;
   const legacyAbi = wasmExports.syntec_core_analyze_json;
 
   return request => {
@@ -218,7 +219,15 @@ function createRustWasmAdapter(wasmExports, options = {}) {
     let inputPointer = 0;
     let inputLength = 0;
     try {
-      if (typeof requestAbi === 'function') {
+      // Navigation-only batch path: when options.navigationFilePath is set
+      // (mirroring `analyzeNavigationDocument` / `buildNavigationIndexEntry`
+      // in JS) and the Wasm artifact exposes the lightweight
+      // `syntec_core_analyze_navigation_json` export, route the request through
+      // the navigation-only analyzer so we skip diagnostics+formatter and
+      // benchmark the same workload as the JS navigation indexer.
+      const useNavigation = typeof navigationAbi === 'function' && options.navigationFilePath !== undefined;
+      const abi = useNavigation ? navigationAbi : requestAbi;
+      if (typeof abi === 'function') {
         // P0-B preferred path: send the entire AnalysisRequest JSON.
         const requestJson = JSON.stringify({
           protocolVersion: normalizedRequest.protocolVersion,
@@ -234,14 +243,16 @@ function createRustWasmAdapter(wasmExports, options = {}) {
           }
           new Uint8Array(wasmExports.memory.buffer, inputPointer, input.length).set(input);
         }
-        const packed = requestAbi(inputPointer, input.length);
+        const packed = abi(inputPointer, input.length);
         const output = splitPackedPointer(packed);
         outputPointer = output.pointer;
         outputLength = output.length;
         if (outputPointer === 0 || outputLength === 0) {
-          throw new Error('Rust Wasm rejected the analysis request');
+          throw new Error(useNavigation
+            ? 'Rust Wasm rejected the navigation request'
+            : 'Rust Wasm rejected the analysis request');
         }
-      } else if (typeof legacyAbi === 'function') {
+      } else if (!useNavigation && typeof legacyAbi === 'function') {
         // Legacy fallback for older Wasm artifacts that only expose the
         // text-only ABI. The adapter still post-fills document/profile, which
         // is exactly the gap P0-B intends to close; this branch exists only so
@@ -263,8 +274,10 @@ function createRustWasmAdapter(wasmExports, options = {}) {
         if (outputPointer === 0 || outputLength === 0) {
           throw new Error('Rust Wasm returned an empty result');
         }
-      } else {
+      } else if (!useNavigation) {
         throw new TypeError('missing Wasm export: syntec_core_analyze_request_json or syntec_core_analyze_json');
+      } else {
+        throw new TypeError('missing Wasm export: syntec_core_analyze_navigation_json');
       }
       const bytes = new Uint8Array(
         wasmExports.memory.buffer,

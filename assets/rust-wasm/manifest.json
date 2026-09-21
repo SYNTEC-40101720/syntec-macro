@@ -3,8 +3,8 @@
   "crateVersion": "0.1.0",
   "targetTriple": "wasm32-unknown-unknown",
   "wasmPath": "syntec_core.wasm",
-  "byteLength": 318040,
-  "sha256": "88ddaeacf0aae64641a0f1b848bb637cd7a5bdd7be47f425f998b4e5dc7d8f5f",
+  "byteLength": 320312,
+  "sha256": "b60d854cae9ec3a596c62dc9409a349e7e439c48b6cf56c04613eb510e819c94",
   "exports": [
     "memory",
     "syntec_core_alloc",
@@ -18,5 +18,5 @@
     "legacyTextAbi": true,
     "formatDocument": true
   },
-  "builtAt": "2026-09-21T03:07:16.681Z"
+  "builtAt": "2026-09-21T13:21:34.274Z"
 }

@@ -203,10 +203,10 @@ function stableFingerprint(result) {
  *   instance: WebAssembly.Instance, bytes: Buffer, startupMs: number
  * }>}
  */
-async function loadRustAdapter(manifestPath = DEFAULT_MANIFEST_PATH) {
+async function loadRustAdapter(manifestPath = DEFAULT_MANIFEST_PATH, adapterOptions) {
   const start = performance.now();
   const { instance, bytes } = await loadRustWasmAsset(manifestPath);
-  const adapter = createRustWasmAdapter(instance.exports);
+  const adapter = createRustWasmAdapter(instance.exports, adapterOptions);
   const startupMs = performance.now() - start;
   return { adapter, instance, bytes, startupMs };
 }
@@ -334,7 +334,7 @@ async function main(args = process.argv.slice(2)) {
   );
   const jsNavBatchMs = performance.now() - navStart;
 
-  const { adapter } = await loadRustAdapter();
+  const { adapter } = await loadRustAdapter(DEFAULT_MANIFEST_PATH, { navigationFilePath: 'nav-batch' });
   let rustNavFallbackCount = 0;
   const rustNavStart = performance.now();
   const rustNav = navFiles.map(f => {
