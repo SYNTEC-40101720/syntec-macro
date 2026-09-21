@@ -4,22 +4,22 @@
       "scenario": "fixture",
       "lineCount": 394,
       "iterations": 5,
-      "rustWasmBytes": 318040,
-      "jsStartupMs": 0.0015000000000000568,
-      "rustStartupMs": 7.285999999999994,
+      "rustWasmBytes": 320312,
+      "jsStartupMs": 0.0011999999999972033,
+      "rustStartupMs": 7.050399999999996,
       "jsResultBytes": 11528,
       "rustResultBytes": 21906,
       "js": {
-        "firstMs": 41.7166,
-        "p50Ms": 18.025199999999984,
-        "p95Ms": 28.438900000000018,
-        "maxMs": 28.438900000000018
+        "firstMs": 46.77160000000001,
+        "p50Ms": 19.366599999999977,
+        "p95Ms": 23.861400000000003,
+        "maxMs": 23.861400000000003
       },
       "rust": {
-        "firstMs": 66.59009999999998,
-        "p50Ms": 16.329999999999984,
-        "p95Ms": 26.283900000000017,
-        "maxMs": 26.283900000000017
+        "firstMs": 60.36070000000001,
+        "p50Ms": 17.2226,
+        "p95Ms": 25.316200000000038,
+        "maxMs": 25.316200000000038
       },
       "parity": "equal"
     },
@@ -27,22 +27,22 @@
       "scenario": "large-20k",
       "lineCount": 20000,
       "iterations": 5,
-      "rustWasmBytes": 318040,
-      "jsStartupMs": 0.0015000000000000568,
-      "rustStartupMs": 7.285999999999994,
+      "rustWasmBytes": 320312,
+      "jsStartupMs": 0.0011999999999972033,
+      "rustStartupMs": 7.050399999999996,
       "jsResultBytes": 375425,
       "rustResultBytes": 717838,
       "js": {
-        "firstMs": 548.5893000000001,
-        "p50Ms": 491.6514000000001,
-        "p95Ms": 508.23580000000015,
-        "maxMs": 508.23580000000015
+        "firstMs": 573.3191999999999,
+        "p50Ms": 506.0652,
+        "p95Ms": 537.1284999999999,
+        "maxMs": 537.1284999999999
       },
       "rust": {
-        "firstMs": 459.58719999999994,
-        "p50Ms": 405.5171,
-        "p95Ms": 414.03079999999954,
-        "maxMs": 414.03079999999954
+        "firstMs": 482.1399999999999,
+        "p50Ms": 421.5872000000004,
+        "p95Ms": 425.9426999999996,
+        "maxMs": 425.9426999999996
       },
       "parity": "equal"
     }
@@ -51,10 +51,10 @@
     "scenario": "nav-500-files",
     "fileCount": 500,
     "linesPerFile": 40,
-    "jsBatchMs": 506.79379999999946,
-    "rustBatchMs": 559.6361999999999,
+    "jsBatchMs": 525.5929000000006,
+    "rustBatchMs": 102.88879999999972,
     "jsResultBytes": 2119,
-    "rustResultBytes": 2118,
+    "rustResultBytes": 2119,
     "rustFallbackCount": 0,
     "parity": "equal",
     "representativeFingerprint": {
