@@ -44,8 +44,13 @@ const CHECKS = [
       if (!fs.existsSync(changelogPath)) return { status: 'FAIL', detail: 'CHANGELOG.md missing' };
       const src = fs.readFileSync(changelogPath, 'utf8');
       // 查找已发布版本段（## X.Y.Z - YYYY-MM-DD，非 [Unreleased]）记录中
-      // 含「default backend: rust-wasm」或「默认 backend 已切 rust-wasm」的 marker。
-      const hasMarker = /## \d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}[\s\S]*?(?:default backend:\s*rust-wasm|默认 backend 已切 rust-wasm|默认分析后端.*rust-wasm)/i.test(src);
+      // 含 rust-wasm 默认 backend marker 的字面/语义变体：
+      //   - `default backend: rust-wasm` (英文 marker 形式)
+      //   - `默认 backend 已切 rust-wasm` (路线图示例措辞)
+      //   - `默认 backend 切换为 rust-wasm` (v3.1.0 实际 CHANGELOG 措辞)
+      //   - `默认分析后端.*rust-wasm` (中文变体，更宽松)
+      // R1.2 阻塞解除后此项必须 PASS（v3.1.0+ 已含 marker）。
+      const hasMarker = /## \d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}[\s\S]*?(?:default backend:\s*rust-wasm|默认 backend (?:已切|切换为) rust-wasm|默认分析后端.*rust-wasm)/i.test(src);
       return {
         status: hasMarker ? 'PASS' : 'SKIP',
         detail: hasMarker
