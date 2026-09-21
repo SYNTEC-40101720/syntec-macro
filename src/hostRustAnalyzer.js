@@ -16,6 +16,7 @@
 
 const { loadRustWasmAsset } = require('./rustWasmAsset');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
+const { DEFAULT_MANIFEST_PATH: DEFAULT_WORKER_MANIFEST_PATH } = require('./rustWasmWorkerAdapter');
 const {
   createAnalysisRequest,
   createDocumentSnapshot,
@@ -27,7 +28,12 @@ const {
 const LANG_ID = 'syntec-macro';
 void ANALYSIS_PROTOCOL_VERSION;
 
+// 复用 rustWasmWorkerAdapter 的默认 manifest 路径, 保证 host 端同步 analyzer
+// 与 worker 异步 adapter 指向同一 wasm 资产 (相同字节级 / SHA 校验).
+const DEFAULT_MANIFEST_PATH = DEFAULT_WORKER_MANIFEST_PATH;
+
 let cachedHostAnalyzer = null;
+let cachedHostInstance = null;  // wasm Instance，用于按 file 创建 nav-only adapter
 let initPromise = null;
 let policy = 'defer-js';
 
@@ -62,6 +68,37 @@ function getHostRustAnalyzer() {
 }
 
 /**
+ * 同步获取 host 端 wasm Instance（仅供需要 file-specific adapter 的路径用，
+ * e.g. navigationProvider nav batch）。加载未完成时返回 `null`。
+ * @returns {WebAssembly.Instance | null}
+ */
+function getHostWasmInstance() {
+  return cachedHostInstance;
+}
+
+/**
+ * 给定真实 filePath，创建一个 nav-only adapter：走 Phase 1.3 的
+ * `syntec_core_analyze_navigation_json` ABI（跳过 diagnostics+formatter，
+ * 4-6x 快于 analyze_request），并让 adapter 在 normalize 时为该文件
+ * 注入 programEntryName/macroProgramName 元数据。每文件一个 adapter 是 OK
+ * 的 — adapter closure 仅捕获 wasm exports + options，无额外内存开销。
+ *
+ * 加载未完成时返回 `null`（caller 按 policy 走 fallback）。
+ *
+ * @param {string} filePath 裸文件路径（不含 file:// scheme）
+ * @param {{createAdapter?: (exports: object, options?: object) => Function}} [injectables]
+ * @returns {((request: import('./analysisProtocol').AnalysisRequest) => import('./analysisProtocol').AnalysisResult) | null}
+ */
+function createNavOnlyAdapter(filePath, injectables = {}) {
+  if (!cachedHostInstance) return null;
+  if (typeof filePath !== 'string' || filePath.length === 0) {
+    throw new TypeError('createNavOnlyAdapter: filePath must be a non-empty string');
+  }
+  const createAdapter = injectables.createAdapter || createRustWasmAdapter;
+  return createAdapter(cachedHostInstance.exports, { navigationFilePath: filePath });
+}
+
+/**
  * caller 同步 host provider 中决定走 Rust 还是 fallback。
  * 简化主体: caller 写法:
  *   const analyzer = getHostRustAnalyzer();
@@ -80,6 +117,7 @@ function shouldDeferToJsFallback() {
  */
 function resetHostRustAnalyzer() {
   cachedHostAnalyzer = null;
+  cachedHostInstance = null;
   initPromise = null;
   policy = 'defer-js';
 }
@@ -95,10 +133,12 @@ function resetHostRustAnalyzer() {
 async function initHostRustAnalyzer(manifestPath, injectables = {}) {
   if (cachedHostAnalyzer) return cachedHostAnalyzer;
   if (initPromise) return initPromise;
+  const resolvedManifestPath = manifestPath || DEFAULT_MANIFEST_PATH;
   const loadAsset = injectables.loadAsset || loadRustWasmAsset;
   const createAdapter = injectables.createAdapter || createRustWasmAdapter;
   initPromise = (async () => {
-    const { instance } = await loadAsset(manifestPath);
+    const { instance } = await loadAsset(resolvedManifestPath);
+    cachedHostInstance = instance;
     cachedHostAnalyzer = createAdapter(instance.exports);
     return cachedHostAnalyzer;
   })();
@@ -121,6 +161,8 @@ function makeRequest(text, uri = 'file:///host-analyzer.nc', version = 0) {
 module.exports = {
   initHostRustAnalyzer,
   getHostRustAnalyzer,
+  getHostWasmInstance,
+  createNavOnlyAdapter,
   shouldDeferToJsFallback,
   setHostAnalyzerPolicy,
   getHostAnalyzerPolicy,

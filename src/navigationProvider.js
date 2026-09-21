@@ -26,6 +26,7 @@ const {
 const {
   getHostRustAnalyzer,
   shouldDeferToJsFallback,
+  createNavOnlyAdapter,
   makeRequest: makeHostRequest
 } = require('./hostRustAnalyzer');
 
@@ -168,8 +169,24 @@ async function getWorkspaceMacroFiles(token) {
         languageId: LANG_ID,
         text
       }));
-      const result = analyzeNavigationDocument(request, filePath);
-      const index = result.navigation;
+      // R1.2 Stage B 前置 PR 补完 (2026-09-22): 走 host 端 nav-only adapter
+      // (Phase 1.3 落地的 syntec_core_analyze_navigation_json ABI, 4-6x 快于
+      // analyze_request); 启动期未就绪走 JS analyzeNavigationDocument 兼容
+      // (v3.1.x 行为不变). R1.2 Stage B (policy='empty') 后 JS 路径将被
+      // 移除, 改为返空 navigation 或抛错.
+      const navAdapter = createNavOnlyAdapter(filePath);
+      let index;
+      if (navAdapter) {
+        const result = navAdapter(request);
+        index = result.navigation;
+      } else if (shouldDeferToJsFallback()) {
+        const result = analyzeNavigationDocument(request, filePath);
+        index = result.navigation;
+      } else {
+        // policy='empty' 且 host 未就绪: 返 null (上层 collectionNatural 读
+        // programEntryName/macroProgramName 时按 null 跳过该 file).
+        index = null;
+      }
       navigationIndexCache.set(uriKey, {
         signature,
         source: openDocument ? 'document' : 'file',
