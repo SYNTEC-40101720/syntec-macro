@@ -1,0 +1,2087 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T14:10:52.935Z",
+  "generator": "scripts/exportRustParityBaseline.js",
+  "note": "Rust/JS parity baseline captured against v3.1.0 JS analyzer. Used by scripts/compareRustCore.js --baseline <path> after R1.2 JS module removal so compare:rust continues to gate Rust CLI output without needing runtime JS.",
+  "cases": [
+    {
+      "name": "balanced-if",
+      "text": "IF #1 = 1 THEN\nEND_IF;",
+      "expected": []
+    },
+    {
+      "name": "unmatched-closer",
+      "text": "END_IF;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_UNMATCHED_END"
+        }
+      ]
+    },
+    {
+      "name": "unclosed-if",
+      "text": "IF #1 = 1 THEN",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning",
+          "code": "SYNTEC_CONTROL_UNCLOSED_BLOCK"
+        }
+      ]
+    },
+    {
+      "name": "repeat-until",
+      "text": "REPEAT\nUNTIL #1 = 1 END_REPEAT;",
+      "expected": []
+    },
+    {
+      "name": "comments-and-strings",
+      "text": "MSG(\"IF END_IF // text\"); // IF\nIF #1 = 1 THEN\nEND_IF;",
+      "expected": []
+    },
+    {
+      "name": "unmatched-else",
+      "text": "ELSE",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 4,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_UNMATCHED_ELSE"
+        }
+      ]
+    },
+    {
+      "name": "unmatched-elseif",
+      "text": "ELSEIF #1 = 1 THEN",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_UNMATCHED_ELSEIF"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-elsif",
+      "text": "ELSIF #1 = 1 THEN",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_ELSIF"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-div",
+      "text": "#1 := #2 DIV #3;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 9,
+          "endCol": 12,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_DIV"
+        }
+      ]
+    },
+    {
+      "name": "trailing-header-semicolon",
+      "text": "IF #1 = 1 THEN;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 14,
+          "endCol": 15,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning",
+          "code": "SYNTEC_CONTROL_UNCLOSED_BLOCK"
+        }
+      ]
+    },
+    {
+      "name": "trailing-branch-semicolon",
+      "text": "ELSE;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 4,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 4,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_UNMATCHED_ELSE"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-equality",
+      "text": "#1 == #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-inequality",
+      "text": "#1 != #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-logical-and",
+      "text": "#1 && #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-logical-or",
+      "text": "#1 || #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-compound-assignment",
+      "text": "#1 += 1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_COMPOUND_ASSIGNMENT"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-increment",
+      "text": "#1++;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 2,
+          "endCol": 4,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_INCREMENT"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-percent",
+      "text": "#1 % #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 2,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_PERCENT_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-logical-not",
+      "text": "!#1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_LOGICAL_NOT_OPERATOR"
+        }
+      ]
+    },
+    {
+      "name": "unsupported-fanuc-comparison",
+      "text": "#1 EQ #2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_UNSUPPORTED_FANUC_COMPARISON"
+        }
+      ]
+    },
+    {
+      "name": "missing-right-parenthesis",
+      "text": "(#1 + 1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "missing-right-bracket",
+      "text": "#1 := [1 + 2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 6,
+          "endCol": 7,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "extra-right-parenthesis",
+      "text": ");",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "parenthesis-string-boundary",
+      "text": "MSG(\"(\");",
+      "expected": []
+    },
+    {
+      "name": "static-mod-decimal",
+      "text": "1 MOD 2.5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 9,
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "name": "static-mod-integer",
+      "text": "1 MOD 2;",
+      "expected": []
+    },
+    {
+      "name": "missing-assignment-semicolon",
+      "text": "#1 := 1",
+      "expected": [
+        {
+          "line": 1,
+          "col": 7,
+          "endCol": 8,
+          "severity": "error",
+          "code": "SYNTEC_MISSING_SEMICOLON"
+        }
+      ]
+    },
+    {
+      "name": "missing-end-semicolon",
+      "text": "END_IF",
+      "expected": [
+        {
+          "line": 1,
+          "col": 6,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_MISSING_SEMICOLON"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_UNMATCHED_END"
+        }
+      ]
+    },
+    {
+      "name": "header-without-semicolon",
+      "text": "IF #1 = 1 THEN",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning",
+          "code": "SYNTEC_CONTROL_UNCLOSED_BLOCK"
+        }
+      ]
+    },
+    {
+      "name": "case-label-without-semicolon",
+      "text": "1:",
+      "expected": []
+    },
+    {
+      "name": "missing-g-code-semicolon",
+      "text": "G65 P1000",
+      "expected": [
+        {
+          "line": 1,
+          "col": 9,
+          "endCol": 10,
+          "severity": "error",
+          "code": "SYNTEC_MISSING_SEMICOLON"
+        }
+      ]
+    },
+    {
+      "name": "static-math-domain",
+      "text": "#1 := ATAN2(0, 0);\n#2 := POW(-1, 2);\n#3 := LN(0);\n#4 := SQRT(-1);\n#5 := ACOS(1.1);\n#6 := ASIN(-1.1);",
+      "expected": [
+        {
+          "line": 1,
+          "col": 6,
+          "endCol": 17,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        },
+        {
+          "line": 2,
+          "col": 6,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        },
+        {
+          "line": 3,
+          "col": 6,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        },
+        {
+          "line": 4,
+          "col": 6,
+          "endCol": 14,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        },
+        {
+          "line": 5,
+          "col": 6,
+          "endCol": 15,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        },
+        {
+          "line": 6,
+          "col": 6,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_MATH_DOMAIN"
+        }
+      ]
+    },
+    {
+      "name": "dynamic-math-domain-boundary",
+      "text": "#1 := ATAN2(#2, #3);\n#4 := SQRT(#5 + 1);\n#6 := ACOS(1);",
+      "expected": []
+    },
+    {
+      "name": "static-io-ranges",
+      "text": "READDI(512);\nSETDO(1, 2);\nREADRREGBIT(65536, 0);\nREADRREGBIT(1, 32);",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_IO_POINT_RANGE"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_IO_VALUE_RANGE"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 21,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_R_REGISTER_RANGE"
+        },
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 18,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_R_BIT_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "dynamic-io-ranges",
+      "text": "READDI(#1);\nSETDO(#1, #2);\nREADRREGBIT(#3, #4);\nSETRREGBIT(1, 2, 1);",
+      "expected": []
+    },
+    {
+      "name": "basic-function-ranges",
+      "text": "ALARM(65536);\nMSG(-1);\nPARAM(1.5, 2);\nCHKINF(6);",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 12,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_ID_RANGE"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_ID_RANGE"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 13,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_INTEGER_ARGUMENT"
+        },
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 9,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_CHKINF_CATEGORY_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "dynamic-basic-function-ranges",
+      "text": "ALARM(#1);\nMSG(#2);\nPARAM(#3, #4);\nCHKINF(#5);",
+      "expected": []
+    },
+    {
+      "name": "variable-access-boundaries",
+      "text": "#TEMP := 1;\n@TEMP := 1;\n#0 := 1;\n@0 := 1;\nAR-1;\nMAR1.5;\nAR[-2];",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_NAMED_LOCAL_VARIABLE"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 5,
+          "severity": "error",
+          "code": "SYNTEC_NAMED_GLOBAL_VARIABLE"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 2,
+          "severity": "warning",
+          "code": "SYNTEC_VACANT_ASSIGNMENT"
+        },
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 2,
+          "severity": "warning",
+          "code": "SYNTEC_VACANT_ASSIGNMENT"
+        },
+        {
+          "line": 5,
+          "col": 0,
+          "endCol": 4,
+          "severity": "error",
+          "code": "SYNTEC_INVALID_APP_VARIABLE_NUMBER"
+        },
+        {
+          "line": 6,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_INVALID_APP_VARIABLE_NUMBER"
+        },
+        {
+          "line": 7,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_INVALID_APP_VARIABLE_NUMBER"
+        }
+      ]
+    },
+    {
+      "name": "dynamic-variable-access",
+      "text": "AR[#1];\nMAR[100];\n#1 := 1;",
+      "expected": []
+    },
+    {
+      "name": "reserved-r-writes",
+      "text": "@401 := 1;\n@440 := 1;\n@10081 := 1;\n@10512 := 1;\n@111000 := 1;\n@450 := 1;\n@10500 := 1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 1,
+          "endCol": 5,
+          "severity": "warning",
+          "code": "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE"
+        },
+        {
+          "line": 2,
+          "col": 1,
+          "endCol": 5,
+          "severity": "warning",
+          "code": "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE"
+        },
+        {
+          "line": 3,
+          "col": 1,
+          "endCol": 7,
+          "severity": "warning",
+          "code": "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE"
+        },
+        {
+          "line": 4,
+          "col": 1,
+          "endCol": 7,
+          "severity": "warning",
+          "code": "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE"
+        },
+        {
+          "line": 5,
+          "col": 1,
+          "endCol": 8,
+          "severity": "warning",
+          "code": "SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE"
+        }
+      ]
+    },
+    {
+      "name": "string-function-warnings",
+      "text": "OPEN(\"COM1\");\nAXID(\"Y\");\nOPEN(\"file.nc\");\nAXID(Y);\nMSG(\"OPEN(\\\\\"COM1\\\\\")\");",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 12,
+          "severity": "warning",
+          "code": "SYNTEC_FUNCTION_OPEN_COM_PORT"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_FUNCTION_AXID_QUOTED_AXIS"
+        }
+      ]
+    },
+    {
+      "name": "sysdata-drvdata-formats",
+      "text": "SYSDATA(336.5);\nSYSDATA(\"336\");\nDRVDATA(1000.5, 3366);\nDRVDATA(1000, \"bad\");",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 14,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_INTEGER_ARGUMENT"
+        },
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 14,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_INTEGER_ARGUMENT"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 21,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_INTEGER_ARGUMENT"
+        },
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 20,
+          "severity": "error",
+          "code": "SYNTEC_FUNCTION_DRVDATA_ARGUMENT_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "valid-sysdata-drvdata",
+      "text": "SYSDATA(336);\nDRVDATA(1000, 3366);\nDRVDATA(1000, \"1Ah\");\nDRVDATA(1000, #1);",
+      "expected": []
+    },
+    {
+      "name": "assignment-style-equals",
+      "text": "#1 = 2;\n@3 = #1;\nAR1 = 3;\nMAR[2] = 4;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 3,
+          "endCol": 4,
+          "severity": "warning",
+          "code": "SYNTEC_ASSIGNMENT_STYLE_EQUALS"
+        },
+        {
+          "line": 2,
+          "col": 3,
+          "endCol": 4,
+          "severity": "warning",
+          "code": "SYNTEC_ASSIGNMENT_STYLE_EQUALS"
+        },
+        {
+          "line": 3,
+          "col": 4,
+          "endCol": 5,
+          "severity": "warning",
+          "code": "SYNTEC_ASSIGNMENT_STYLE_EQUALS"
+        },
+        {
+          "line": 4,
+          "col": 7,
+          "endCol": 8,
+          "severity": "warning",
+          "code": "SYNTEC_ASSIGNMENT_STYLE_EQUALS"
+        }
+      ]
+    },
+    {
+      "name": "assignment-style-boundary",
+      "text": "IF #1 = 2 THEN\n#1 := 2;\nEND_IF;",
+      "expected": []
+    },
+    {
+      "name": "chinese-code-boundaries",
+      "text": "中文;\n#1 := 1；\nMSG(\"中文\"); // 中文\n(* 中文 *)\n#2 := 2;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "error"
+        },
+        {
+          "line": 2,
+          "col": 7,
+          "endCol": 8,
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "name": "goto-and-macro-call-boundaries",
+      "text": "GOTO 200;\nN100;\nGOTO 100;\nG65 P1000 G01;",
+      "expected": [
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 3,
+          "severity": "warning",
+          "code": "SYNTEC_CALL_MACRO_NOT_LAST_G_CODE"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "valid-goto-and-macro-call",
+      "text": "GOTO 100;\nN100;\nG65 P1000;",
+      "expected": []
+    },
+    {
+      "name": "case-default-label",
+      "text": "CASE #1 OF\n  DEFAULT:\nEND_CASE;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 2,
+          "endCol": 10,
+          "severity": "warning",
+          "code": "SYNTEC_UNSUPPORTED_DEFAULT"
+        }
+      ]
+    },
+    {
+      "name": "robot-toolcor-t-arg",
+      "text": "TOOLCOR T1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 8,
+          "endCol": 9,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_TOOLCOR_T_ARG"
+        }
+      ]
+    },
+    {
+      "name": "robot-toolcoron-deprecated",
+      "text": "TOOLCORON P1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_TOOLCORON_DEPRECATED"
+        }
+      ]
+    },
+    {
+      "name": "robot-toolcor-clear",
+      "text": "TOOLCOR CLEAR;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 13,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_TOOLCOR_CLEAR"
+        }
+      ]
+    },
+    {
+      "name": "robot-toolcoron-t-arg-ordering",
+      "text": "TOOLCORON T1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 10,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_TOOLCOR_T_ARG"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_TOOLCORON_DEPRECATED"
+        }
+      ]
+    },
+    {
+      "name": "robot-toolcor-valid",
+      "text": "TOOLCOR P1;",
+      "expected": []
+    },
+    {
+      "name": "robot-movj-ii-deprecated",
+      "text": "MOVJ-II X100.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_DEPRECATED_MOVJ_II"
+        }
+      ]
+    },
+    {
+      "name": "robot-movc-xp-point-syntax",
+      "text": "MOVC Xp=10.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 5,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_MOVC_POINT_ARG"
+        },
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_MOVC_PAIR_REQUIRED"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-direct-arg-equals",
+      "text": "MOVJ X=100. FJ50;\nMOVL Y=20. PL3 PQ5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 6,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_DIRECT_ARG_EQUALS"
+        },
+        {
+          "line": 2,
+          "col": 6,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_DIRECT_ARG_EQUALS"
+        },
+        {
+          "line": 2,
+          "col": 11,
+          "endCol": 19,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_SMOOTH_ARG_CONFLICT"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-static-arg-range",
+      "text": "MOVL P21;\nINCMOVJ Q25;\nINCMOVL P0;\nUSERCOR P22;\nG68.18 P0;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 5,
+          "endCol": 8,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STATIC_ARG_RANGE"
+        },
+        {
+          "line": 2,
+          "col": 8,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STATIC_ARG_RANGE"
+        },
+        {
+          "line": 3,
+          "col": 8,
+          "endCol": 10,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STATIC_ARG_RANGE"
+        },
+        {
+          "line": 4,
+          "col": 8,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STATIC_ARG_RANGE"
+        },
+        {
+          "line": 5,
+          "col": 7,
+          "endCol": 9,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STATIC_ARG_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-static-arg-boundary",
+      "text": "MOVL P1 X10.;\nINCMOVJ Q5;\nINCMOVL P1;",
+      "expected": []
+    },
+    {
+      "name": "robot-mov-smooth-conflict",
+      "text": "MOVL X10. PL5 PQ10.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 10,
+          "endCol": 20,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_SMOOTH_ARG_CONFLICT"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-unsupported-smooth",
+      "text": "MOVJ PQ5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 5,
+          "endCol": 9,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_SMOOTH_ARG"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-movj-p-arg",
+      "text": "MOVJ P1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 5,
+          "endCol": 8,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_MOVJ_P_ARG"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-incmovl-missing-p",
+      "text": "INCMOVL X10.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 7,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_MISSING_REQUIRED_ARG"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-movc-pair-valid",
+      "text": "MOVC X10.;\nMOVC X20.;",
+      "expected": []
+    },
+    {
+      "name": "robot-mov-movc-pair-unmatched",
+      "text": "MOVC X10.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_MOVC_PAIR_REQUIRED"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-movc-single-line-x1x2",
+      "text": "MOVC X1=10. X2=20.;",
+      "expected": []
+    },
+    {
+      "name": "robot-mov-coordinate-syntactics",
+      "text": "USERCOR P1 F100.;\nTOOLCOR P1 G01 X10.;\nG68.18 P1 MOVJ;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 11,
+          "endCol": 12,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX"
+        },
+        {
+          "line": 2,
+          "col": 11,
+          "endCol": 14,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX"
+        },
+        {
+          "line": 3,
+          "col": 10,
+          "endCol": 14,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-direct-arg-equals-boundary",
+      "text": "MOVJ X100.;\nMOVL PL3;",
+      "expected": []
+    },
+    {
+      "name": "robot-g10-modbus-l1900-c3-missing",
+      "text": "G10 L1900 C3;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 13,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-c6-missing",
+      "text": "G10 L1900 C6 I165 A1000;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 24,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-c-unknown",
+      "text": "G10 L1900 C5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 10,
+          "endCol": 12,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-missing-c",
+      "text": "G10 L1900;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 10,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-c3-x-unsupported",
+      "text": "G10 L1900 C3 I165 A1000 Q1 K1 X1995;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 36,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-c6-qk-unsupported",
+      "text": "G10 L1900 C6 I165 A1000 X1995 Q1 K1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 36,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-valid-c3",
+      "text": "G10 L1900 C3 I165 A1000 Q100 K1;",
+      "expected": []
+    },
+    {
+      "name": "robot-g10-modbus-l1900-integer-decimal",
+      "text": "G10 L1900 C3 I165 A1000 Q100 K1.5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 29,
+          "endCol": 33,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_INTEGER"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-range-negative",
+      "text": "G10 L1900 C3 I-1 A1000 Q100 K1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 13,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-range-x-overflow",
+      "text": "G10 L1900 C6 I165 A1000 X999999;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 24,
+          "endCol": 31,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1900-range-pq-r-register",
+      "text": "G10 L1900 C6 I165 A1000 X1995 P99999;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 30,
+          "endCol": 36,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1901-missing",
+      "text": "G10 L1901 P100;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 15,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1901-unsupported",
+      "text": "G10 L1901 P100 R2 Q1 C3;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 24,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_FORMAT"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1901-range-r-overflow",
+      "text": "G10 L1901 P100 R300 Q1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 15,
+          "endCol": 19,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_G10_MODBUS_RANGE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-modbus-l1901-valid",
+      "text": "G10 L1901 P100 R2 Q1;",
+      "expected": []
+    },
+    {
+      "name": "robot-stitch-lk-conflict",
+      "text": "STITCHON S1 Q1 L500 K5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 15,
+          "endCol": 23,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STITCH_ARG_CONFLICT"
+        }
+      ]
+    },
+    {
+      "name": "robot-stitch-lk-missing",
+      "text": "STITCHON S1 Q1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 15,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_STITCH_MISSING_ARG"
+        }
+      ]
+    },
+    {
+      "name": "robot-stitch-l-decimal",
+      "text": "STITCHON S1 Q1 L5.5;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 15,
+          "endCol": 20,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_STITCH_L_INTEGER"
+        }
+      ]
+    },
+    {
+      "name": "robot-stitch-l-only",
+      "text": "STITCHON S1 Q1 L500;",
+      "expected": []
+    },
+    {
+      "name": "robot-weaveon-mixed-p",
+      "text": "WEAVEON P1 E5.;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 15,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_WEAVEON_MIXED_ARGS"
+        }
+      ]
+    },
+    {
+      "name": "robot-weaveon-q-decimal-warning",
+      "text": "WEAVEON E5. Q1;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 12,
+          "endCol": 14,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_WEAVEON_Q_DECIMAL"
+        }
+      ]
+    },
+    {
+      "name": "robot-weaveon-q-decimal-ok",
+      "text": "WEAVEON E5. Q1.0;",
+      "expected": []
+    },
+    {
+      "name": "robot-weaveon-p-only",
+      "text": "WEAVEON P3;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-swaitsig-limit",
+      "text": "MOVL X10.;\nSWAITSIG P1 L10;\nSWAITSIG P2 L10;",
+      "expected": [
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_SWAITSIG_LIMIT"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-syncout-limit",
+      "text": "MOVJ X100.;\nSYNCOUT S1 Q1 P1;\nSYNCOUT S1 Q1 P2;\nSYNCOUT S1 Q1 P3;\nSYNCOUT S1 Q1 P4;\nSYNCOUT S1 Q1 P5;\nSYNCOUT S1 Q1 P6;\nSYNCOUT S1 Q1 P7;\nSYNCOUT S1 Q1 P8;\nSYNCOUT S1 Q1 P9;\nSYNCOUT S1 Q1 P10;\nSYNCOUT S1 Q1 P11;",
+      "expected": [
+        {
+          "line": 12,
+          "col": 0,
+          "endCol": 18,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_SYNCOUT_LIMIT"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-swaitsig-allowed",
+      "text": "MOVL X10.;\nSWAITSIG P1 L10;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-syncout-allowed",
+      "text": "MOVJ X100.;\nSYNCOUT S1 Q1 P1;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-wait-clears-state",
+      "text": "MOVL X10.;\nSWAITSIG P1 L10;\nWAIT();\nSWAITSIG P1 L10;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-stitchon-forbids-movj",
+      "text": "STITCHON S1 Q1 L500;\nMOVJ X100.;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-stitchon-forbids-weaveon",
+      "text": "STITCHON S1 Q1 L500;\nWEAVEON E5. Q1.0 K30.;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 22,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-stitchon-m96-warning",
+      "text": "STITCHON S1 Q1 L500;\nM96;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 4,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-stitchon-stitchoff-closes",
+      "text": "STITCHON S1 Q1 L500;\nSTITCHOFF;\nMOVJ X100.;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-weaveon-forbids-movj",
+      "text": "WEAVEON E5. Q1.0 K30.;\nMOVJ X100.;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-weaveon-forbids-stitchon",
+      "text": "WEAVEON E5. Q1.0 K30.;\nSTITCHON S1 Q1 L500;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 20,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-weaveon-weaveoff-closes",
+      "text": "WEAVEON E5. Q1.0 K30.;\nWEAVEOFF;\nMOVJ X100.;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-waitsync-forbids-movj",
+      "text": "WAITSYNC P1;\nMOVJ X100.;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 11,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-waitsync-forbids-mcode",
+      "text": "WAITSYNC P1;\nM01;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 4,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-waitsync-endsync-closes",
+      "text": "WAITSYNC P1;\nENDSYNC P1;\nMOVJ X100.;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-g192-forbids-swaitsig",
+      "text": "G192.1 P1;\nSWAITSIG P1 L10;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-l1802-silent-after-1500",
+      "text": "%@MACRO\n#1500 := 1;\nG10 L1802 P500;",
+      "expected": [
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-l1802-silent-after-1820",
+      "text": "%@MACRO\n#1820 := 2;\nG10 L1802 P300;",
+      "expected": [
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE"
+        }
+      ]
+    },
+    {
+      "name": "robot-g10-l1802-no-silent-assignment",
+      "text": "%@MACRO\nG10 L1802 P300;",
+      "expected": []
+    },
+    {
+      "name": "robot-g10-l1802-reset-by-zero",
+      "text": "%@MACRO\n#1500 := 1;\n#1500 := 0;\nG10 L1802 P300;",
+      "expected": []
+    },
+    {
+      "name": "robot-g10-l1802-multiple-in-silent-mode",
+      "text": "%@MACRO\n#1500 := 1;\nG10 L1802 P100;\nG10 L1802 P200;",
+      "expected": [
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE"
+        },
+        {
+          "line": 4,
+          "col": 0,
+          "endCol": 9,
+          "severity": "warning",
+          "code": "SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-g192-g1922-closes",
+      "text": "G192.1 P1;\nG192.2;\nSWAITSIG P1 L10;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-stitchon-movl-skip-forbidden",
+      "text": "STITCHON S1 Q1 L500;\nMOVL X10. SKIP;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 15,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-stitchon-movl-no-skip-allowed",
+      "text": "STITCHON S1 Q1 L500;\nMOVL X10.;",
+      "expected": []
+    },
+    {
+      "name": "robot-signal-mutual-exclusion-stitch-in-weave",
+      "text": "WEAVEON E5. Q1.0 K30.;\nSTITCHON S1 Q1 L500;\nSTITCHOFF;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 20,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 10,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "robot-signal-mutual-exclusion-weave-in-stitch",
+      "text": "STITCHON S1 Q1 L500;\nWEAVEON E5. Q1.0 K30.;\nWEAVEOFF;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 22,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        },
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 9,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+        }
+      ]
+    },
+    {
+      "name": "bare-percent-missing-macro-header",
+      "text": "%\nN10;\nGOTO 10;",
+      "expected": [
+        {
+          "line": 1,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "macro-header-no-bare-percent-warning",
+      "text": "%@MACRO\nN10;\nGOTO 10;",
+      "expected": []
+    },
+    {
+      "name": "goto-target-dynamic-not-checked",
+      "text": "GOTO #1;\nN100;",
+      "expected": []
+    },
+    {
+      "name": "goto-target-in-string-ignored",
+      "text": "MSG(\"GOTO 999\");\nN100;",
+      "expected": []
+    },
+    {
+      "name": "goto-target-in-block-comment-ignored",
+      "text": "(* GOTO 999 *)\nN100;",
+      "expected": []
+    },
+    {
+      "name": "goto-multiple-labels-found",
+      "text": "N100;\nN200;\nGOTO 100;",
+      "expected": []
+    },
+    {
+      "name": "goto-reference-line-col-position",
+      "text": "N100;\n  GOTO 200;",
+      "expected": [
+        {
+          "line": 2,
+          "col": 0,
+          "endCol": 1,
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "name": "macro-call-g65-valid",
+      "text": "G65 P1000;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-g66-valid",
+      "text": "G66 P1000;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-g66-1-valid",
+      "text": "G66.1 P1000;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-m98-valid",
+      "text": "M98 P8000;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-m198-valid",
+      "text": "M198 P9000;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-m99-return",
+      "text": "M99;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-m99-p-target",
+      "text": "M99 P100;",
+      "expected": []
+    },
+    {
+      "name": "macro-call-g67-cancel",
+      "text": "G67;",
+      "expected": []
+    },
+    {
+      "name": "elseif-after-else",
+      "text": "IF #1 = 1 THEN\nELSE\nELSEIF #2 = 2 THEN\nEND_IF;",
+      "expected": [
+        {
+          "line": 3,
+          "col": 0,
+          "endCol": 6,
+          "severity": "error",
+          "code": "SYNTEC_CONTROL_ELSEIF_AFTER_ELSE"
+        }
+      ]
+    },
+    {
+      "name": "exit-boundary",
+      "text": "IF #1 = 1 THEN\nWHILE #2 = 1 DO\nEXIT;",
+      "expected": []
+    },
+    {
+      "name": "nesting-depth",
+      "text": "IF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nIF #1 = 1 THEN\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;\nEND_IF;",
+      "expected": [
+        {
+          "line": 11,
+          "col": 0,
+          "endCol": 2,
+          "severity": "warning",
+          "code": "SYNTEC_CONTROL_NESTING_DEPTH_EXCEEDED"
+        }
+      ]
+    }
+  ],
+  "navigationCases": [
+    {
+      "name": "macro-with-calls",
+      "uri": "file:///G1000.nc",
+      "text": "%@MACRO\nN100;\nG65 P2000;\nM98 P3000;\n",
+      "expected": {
+        "programEntryName": "G1000",
+        "macroProgramName": "G1000",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N100",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 5
+          }
+        ],
+        "calls": [
+          {
+            "targetName": "G2000",
+            "line": 2,
+            "start": 4,
+            "end": 9
+          },
+          {
+            "targetName": "O3000",
+            "line": 3,
+            "start": 4,
+            "end": 9
+          }
+        ]
+      }
+    },
+    {
+      "name": "macro-named-call",
+      "uri": "file:///G1000.nc",
+      "text": "%@MACRO\nN1;\nN2;\nG66 P_\"Path\"\n",
+      "expected": {
+        "programEntryName": "G1000",
+        "macroProgramName": "G1000",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          },
+          {
+            "name": "N2",
+            "kind": "label",
+            "line": 2,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": []
+      }
+    },
+    {
+      "name": "macro-extension-matching",
+      "uri": "file:///O42.cnc",
+      "text": "%@MACRO\nN1;\n",
+      "expected": {
+        "programEntryName": "O42",
+        "macroProgramName": "O42",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": []
+      }
+    },
+    {
+      "name": "macro-no-extension-with-header",
+      "uri": "file:///G42",
+      "text": "%@MACRO\nN1;\n",
+      "expected": {
+        "programEntryName": "G42",
+        "macroProgramName": "G42",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": []
+      }
+    },
+    {
+      "name": "iso-format-no-macro-header",
+      "uri": "file:///iso-demo.nc",
+      "text": "%\nN1;\nG65 P1000;\n",
+      "expected": {
+        "programEntryName": null,
+        "macroProgramName": null,
+        "symbols": [
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": [
+          {
+            "targetName": "G1000",
+            "line": 2,
+            "start": 4,
+            "end": 9
+          }
+        ]
+      }
+    },
+    {
+      "name": "non-macro-file",
+      "uri": "file:///notes.txt",
+      "text": "G0 X1;\n",
+      "expected": null
+    },
+    {
+      "name": "mismatched-basename-no-extension",
+      "uri": "file:///README",
+      "text": "G0 X1;\nN1;\n",
+      "expected": null
+    },
+    {
+      "name": "numeric-macro-basename",
+      "uri": "file:///1234",
+      "text": "%@MACRO\nN1;\n",
+      "expected": {
+        "programEntryName": null,
+        "macroProgramName": "1234",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": []
+      }
+    },
+    {
+      "name": "g-prefixed-basename-no-extension",
+      "uri": "file:///G9999",
+      "text": "%@MACRO\nN1;\nG66.1 P_\"NamedCall\"\n",
+      "expected": {
+        "programEntryName": "G9999",
+        "macroProgramName": "G9999",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N1",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 3
+          }
+        ],
+        "calls": []
+      }
+    },
+    {
+      "name": "m198-call-from-macro",
+      "uri": "file:///G0072.nc",
+      "text": "%@MACRO\nN10;\nM198 P555;\n",
+      "expected": {
+        "programEntryName": "G0072",
+        "macroProgramName": "G0072",
+        "symbols": [
+          {
+            "name": "%@MACRO",
+            "kind": "macroHeader",
+            "line": 0,
+            "startCharacter": 0,
+            "endCharacter": 7
+          },
+          {
+            "name": "N10",
+            "kind": "label",
+            "line": 1,
+            "startCharacter": 0,
+            "endCharacter": 4
+          }
+        ],
+        "calls": [
+          {
+            "targetName": "O0555",
+            "line": 2,
+            "start": 5,
+            "end": 9
+          }
+        ]
+      }
+    }
+  ],
+  "formatCases": [
+    {
+      "name": "blank",
+      "text": "",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "macro-header-only",
+      "text": "%@MACRO\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "program-delimiter",
+      "text": "%\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "indented-block",
+      "text": "IF #1 = 1 THEN\n#1 := 1;\nEND_IF;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "IF #1 = 1 THEN\n    #1 := 1;\nEND_IF;\n"
+      }
+    },
+    {
+      "name": "missing-then-body",
+      "text": "IF #1 = 1 THEN\nEND_IF;\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "nested-block",
+      "text": "IF #1 = 1 THEN\nWHILE #2 = 1 DO\n#2 := 2;\nEND_WHILE;\nEND_IF;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "IF #1 = 1 THEN\n    WHILE #2 = 1 DO\n        #2 := 2;\n    END_WHILE;\nEND_IF;\n"
+      }
+    },
+    {
+      "name": "alias-closer",
+      "text": "IF #1 = 1 THEN\n#3 := 3;\nENDIF;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "IF #1 = 1 THEN\n    #3 := 3;\nEND_IF;\n"
+      }
+    },
+    {
+      "name": "case-block",
+      "text": "CASE #1 OF\n1:\n#4 := 4;\nEND_CASE;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "CASE #1 OF\n    1:\n    #4 := 4;\nEND_CASE;\n"
+      }
+    },
+    {
+      "name": "repeat-until",
+      "text": "REPEAT\n#5 := #5 + 1;\nUNTIL #5 >= 10 END_REPEAT;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "REPEAT\n    #5 := #5 + 1;\nUNTIL #5 >= 10 END_REPEAT;\n"
+      }
+    },
+    {
+      "name": "assignment-equals",
+      "text": "#1 = 2;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "#1 := 2;\n"
+      }
+    },
+    {
+      "name": "control-structure-trailing-semicolon",
+      "text": "IF #1 = 1 THEN;\nEND_IF;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "IF #1 = 1 THEN\nEND_IF;\n"
+      }
+    },
+    {
+      "name": "dangling-comparison",
+      "text": "#1 < 2;\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "comment-line",
+      "text": "@1 := 1; // comment\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "block-comment-span",
+      "text": "(* block\n comment *)\n@2 := 2;\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "(* block\ncomment *)\n@2 := 2;\n"
+      }
+    },
+    {
+      "name": "string-with-if",
+      "text": "MSG(\"IF #1 THEN ELSE\");\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "if-with-inline-body",
+      "text": "IF #1 = 1 THEN #6 := 1; END_IF;\n",
+      "expected": {
+        "editsLength": 0,
+        "newText": null
+      }
+    },
+    {
+      "name": "crlf-eol",
+      "text": "IF #1 = 1 THEN\r\n#1 := 1;\r\nEND_IF;\r\n",
+      "expected": {
+        "editsLength": 1,
+        "newText": "IF #1 = 1 THEN\r\n    #1 := 1;\r\nEND_IF;\r\n"
+      }
+    }
+  ]
+}
