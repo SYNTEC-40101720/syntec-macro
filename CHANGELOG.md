@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **JS Backend 退役路线图与准入自检工具**: 作为 Rust/Wasm 3.x 后续 Major v4.0 的退役准备工作，新增以下 agent 可立即落地的工具与文档：
+  - 新增 `docs/JS-Backend退役路线图.md`：定义 JS analyzer 函数式核心退役（13 个 JS 模块 ~3261 行）+ 数据表迁移至 host 共享层（7 个 JS 数据表）+ agent 不擅自做的事（v4.0 切版 / GitHub Release / Catalyst）三段路线，以及 3 项不变前提（Phase 1.5 切默认 backend / Phase 5.x 跨行 parity / fallback 持续 0% ≥1 release cycle）。
+  - 新增 `scripts/auditJsBackend.js` + npm `audit:js-backend`：一次性表面审计工具，对照 `src/diagnosticCodes.js` 全量 67 个 code 扫描 `crates/syntec-core/src/lib.rs` literal 覆盖情况，同时列出 14 个 analyzer 函数式核心模块 / 7 个 JS 数据真源表 / 14 个 host-only Provider 绑定层；输出 markdown 报告供 R1 准入 review 直接 append。当前实跑结果：67 - 64 = 3 个 `*_Q_RANGE` dead code（`SYNTEC_ROBOT_SKIPCOND_Q_RANGE` / `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE`）两端均未 emit，待 Phase 5.3 决策。
+  - 新增 `scripts/checkJsBackendRetirement.js` + npm `check:js-backend-retirement`：对照 R1 路线图的 6 项准入条件做 informational/strict review，每项返回 `PASS`/`SKIP`/`FAIL`+detail；默认 exitCode=0（非门禁），`--strict` 任一 FAIL exitCode=1 作 CI/发布前硬门禁。当前实跑 3 PASS / 2 SKIP / 1 FAIL（默认 backend 仍 javascript，未切 rust-wasm）。
+  - 新增 `tests/checkJsBackendRetirement.test.js` 10 项契约测试覆盖：CHECKS 数组 6 项 id 完整、每项 run() 形稳健、main 与 `--strict` exitCode 行为、当前 v3.0.0 应 FAIL（默认 backend）+ SKIP（3 dead code）+ PASS（wasm asset + 路线图文档）的预期断言。
+  - 把 §R 段接入 `docs/迭代优化计划.md` 主索引，作为 v3.x → v4.0 推进入口。
+  - 本批工具仅作退役准入诊断；不动 `src/` 任何 analyzer 与 provider 文件，不改动 wasm asset。
+  - `docs/JS-Backend退役路线图.md` 中追加 **Phase 5.3 — Dead code 三项决策** 章节：列出三项 `SYNTEC_ROBOT_*_Q_RANGE`（SKIPCOND / SWAITSIG / SYNCOUT）的当前状态审计表、路径 A（两端共同剔除，agent 可执行）vs 路径 B（两端共同补 emit，需 user CNC B 级证据）的双决策表与混路径策略，end 让 R1.1 准入自检工具第 6 项「dead code 决策文档化」PASS。同时澄清 `addStaticSignalQRangeDiagnostic` 在 JS 端实际 emit 用的是 `ROBOT_STATIC_ARG_RANGE`（非三项独立 code），三项 code 是历史遗留占位。
+
 - **资料补章 → 程序匹配（Phase α 关键字与 hover 资料对齐）**: 让 `src/keywords.js` / `src/codeDocs.js` / `src/functions.js` 跟上资料补章 `f87b180`「Confluence 手册对齐补章」的新规范：
   - `src/keywords.js` `gcodes` 表补登 §8.16~§8.21 新机器人指令 `G196`（电弧跟踪）/ `G193.101`（客制激光焊）/ `G903`（断刀监控）；`G144.103/104`、`G145.1/2` 已在表中无需补。
   - `src/codeDocs.js` 补完缺失的 `G10 L1802` hover 条目（依据手册 §8.4.3 静音模式版本门控段 + COR-345/COR-348 + 版本门槛 `10.118.28G/33+` + 静音版本差异表 10.118.40R/42R/48C/50+），同时补登 `G196` / `G193.101` / `G903` hover。
@@ -22,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `crates/syntec-core/src/lib.rs` `RobotLineState` 新增 `silent_mode_active: bool` + `l1802_warned_lines: HashSet<usize>` 字段；新增 `detect_silent_mode_assignment`（解析 `#1500 := N` / `#1820 := N`）与 `detect_g10_l1802_span`（识别 `G10 L1802` 行）两个 helper，复用现有的 `matches_keyword` / `is_identifier_character` / `utf16_prefix_len` 辅助函数；`validate_robot_line_state` 在 `let Some(command)` 早返回前先扫描静音赋值与 L1802，确保 `#1500 := 1;` 行（command 为 None）也能处理。
   - `scripts/compareRustCore.js` 新增 5 个对照样例（`robot-g10-l1802-silent-after-1500` / `...after-1820` / `...no-silent-assignment` / `...reset-by-zero` / `...multiple-in-silent-mode`）；P0-B request parity 130 → 135/135 等价，navigation 10/10、edits 17/17 维持。
   - `docs/Rust诊断parity清单.md` 顶部更新为 68/68，已覆盖段加 `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`。
-  - 本机未安装 wasm32 target，`assets/rust-wasm/` 旧 wasm 与 manifest 一致未重打包；P0-C 仍处于 JS fallback 评估期，新 code 在 JS 路径 emit，wasm 路径暂未启用——联网环境后续需 `rustup target add wasm32-unknown-unknown` + `npm run build:rust:wasm:asset` 才能让 wasm 路径也 emit 新 code。
+  - **Wasm 资产重打包（2026-09-21）**: 本机 `wasm32-unknown-unknown` target 实际已安装，`cargo +stable-x86_64-pc-windows-msvc build --release --target wasm32-unknown-unknown` 重建 wasm binary（11.07s），`npm run build:rust:wasm:asset` 重组生产资产：`assets/rust-wasm/syntec_core.wasm` byteLength 由 311963 增至 318040（+6077 bytes 含 L1802 检测路径），SHA-256 由 `7b69e5dc...` 改为 `88ddaeacf0aae646...`；`manifest.json` 的 byteLength / sha256 / builtAt 同步刷新，exports/abiFlags 不变。`npm run check:rust:wasm:asset` PASS、`npm run probe:rust:wasm` counts=0/1 通过、`npm run benchmark:rust:wasm -- --iterations 10` fixture p50=13.38ms / p95=23.45ms、large p50=342.39ms / p95=385.43ms 均在阈值内。新 wasm 让 shadow/primary 路径与 CLI parity：所有 wasm 路径也 emit L1802 warning，不再有 wasm 与 JS emit 不一致缺口。
   - 同步把 `scripts/checkReleaseReadiness.js` 第 2 项「稳定诊断 + navigation + format parity」的硬正则从 `67\s*/\s*67` 放宽为接受 ≥67/6X 的 marker（`6[7-9]\s*/\s*6[7-9]|[0-9]{3,}\s*/\s*[0-9]{3,}|parity 收口完成`），detail 改为「Rust 诊断 parity 已收口（marker >= 67/67）」；保留 P0-A.1 67/67 历史收口语义同时允许本批「资料补章 → 程序匹配」扩展到 68/68。`npm run check:release:readiness -- --strict` 恢复到 6 PASS / 1 SKIP / 0 FAIL 的 v3.0.0 release 前应有状态。
 
 - **打包前 Rust/Wasm 资产校验**: `npm run package` 现在会先执行 `check:rust:wasm:asset`，确认 VSIX 使用的 Wasm 二进制与 manifest 中的字节长度和 SHA-256 一致，避免本地直接打包携带过期资产。
