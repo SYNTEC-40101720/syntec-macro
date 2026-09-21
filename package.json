@@ -3,7 +3,7 @@
   "displayName": "SYNTEC 宏程序",
   "description": "为新代（Syntec）CNC 宏程序提供语法高亮、智能补全、悬停文档、G/M代码跳转、实时语法检查",
   "icon": "images/icon.png",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "publisher": "syntec-team",
   "repository": {
     "type": "git",
@@ -99,13 +99,13 @@
             "rust-wasm-shadow",
             "rust-wasm"
           ],
-          "default": "javascript",
+          "default": "rust-wasm",
           "enumDescriptions": [
-            "JavaScript analyzer（默认，v2.15.0 起生产后端；3.0.0 起与 Rust/Wasm 并存）",
+            "JavaScript analyzer（fallback 路径；v3.1.0 起让位给 rust-wasm 作默认）",
             "Shadow 模式：双跑 JS + Rust Wasm，记录差分但不影响最终诊断；Rust 启动失败时静默回退 JS",
-            "Rust Wasm 为主，加载/运行失败显式回退 JavaScript（P0-C 第 3 项未完成前不要在生产开启）"
+            "Rust/Wasm analyzer（默认，v3.1.0 起生产后端；加载/运行失败显式回退 JavaScript）"
           ],
-          "description": "分析后端选择（Rust/Wasm 仍是开发态对照；切换后立即重启 worker）"
+          "description": "分析后端选择（切换后立即重启 worker；默认 rust-wasm，JS 仅作 fallback）"
         }
       }
     }

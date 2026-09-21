@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 3.1.0 - 2026-09-21
+
+### Changed
+
+- **Phase 1.5 — 默认 backend 切换为 rust-wasm + 版本升级 3.1.0**: `syntecMacro.analysisBackend` default 由 `javascript` 切到 `rust-wasm`；`enumDescriptions` 同步；`package.json` / `package-lock.json` / `README` 徽章 / `CHANGELOG` 全部切到 3.1.0。后续 JS 仍保留 fallback 路径，加载/运行失败时显式降级。
+- 前置 `check:js-backend-retirement --strict` 准入 6 项 (除 1/2 切换本身解决) 全部 PASS；`compare:rust` Parity 全等价；`check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL。
+
 ## [Unreleased]
+
+### Added
+
+- 
 
 ### Added
 

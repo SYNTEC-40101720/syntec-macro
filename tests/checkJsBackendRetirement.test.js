@@ -102,11 +102,12 @@ test('main tolerates all-PASS without setting exitCode', () => {
   }
 });
 
-test('check 1 (default-backend-rust-wasm) FAILs as expected on current v3.0.0', () => {
-  // v3.0.0 默认 backend 仍是 javascript，应 FAIL
+test('check 1 (default-backend-rust-wasm) PASSes after Phase 1.5 切换', () => {
+  // Phase 1.5 (2026-09-21) 落地后 default backend 已切 rust-wasm，应 PASS。
+  // v3.0.0 之前 default = javascript 此项 FAIL；v3.1.0+ 后改为 PASS。
   const result = CHECKS[0].run();
-  assert.strictEqual(result.status, 'FAIL',
-    'current v3.0.0 default backend should be javascript, expecting FAIL');
+  assert.strictEqual(result.status, 'PASS',
+    'Phase 1.5 切换后 default backend 应为 rust-wasm，expecting PASS');
   assert.ok(/javascript|rust-wasm/.test(result.detail), 'detail should mention backend value');
 });
 
