@@ -4,11 +4,15 @@ const {
   ANALYSIS_PROTOCOL_VERSION,
   normalizeAnalysisRequest
 } = require('./analysisProtocol');
+// R1.2 Stage B §2.4 (2026-09-22): rustWasmAdapter 不再直 require 即将被 R1.2
+// 剔除的 `navigationSymbols.js`, 改走 host-only 元数据 helper 集合
+// `pathResolver.js` (§2.3 新建). 当前 pathResolver 暂 re-export 既有实现,
+// R1.2 Stage B `git rm navigationSymbols.js` 时在 pathResolver 内 inline.
 const {
   getMacroProgramName,
   getProgramEntryName,
   isMacroFileContent
-} = require('./navigationSymbols');
+} = require('./pathResolver');
 
 function assertObject(value, name) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
