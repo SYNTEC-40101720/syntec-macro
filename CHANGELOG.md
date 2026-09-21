@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 把 §R 段接入 `docs/迭代优化计划.md` 主索引，作为 v3.x → v4.0 推进入口。
   - 本批工具仅作退役准入诊断；不动 `src/` 任何 analyzer 与 provider 文件，不改动 wasm asset。
   - `docs/JS-Backend退役路线图.md` 中追加 **Phase 5.3 — Dead code 三项决策** 章节：列出三项 `SYNTEC_ROBOT_*_Q_RANGE`（SKIPCOND / SWAITSIG / SYNCOUT）的当前状态审计表、路径 A（两端共同剔除，agent 可执行）vs 路径 B（两端共同补 emit，需 user CNC B 级证据）的双决策表与混路径策略，end 让 R1.1 准入自检工具第 6 项「dead code 决策文档化」PASS。同时澄清 `addStaticSignalQRangeDiagnostic` 在 JS 端实际 emit 用的是 `ROBOT_STATIC_ARG_RANGE`（非三项独立 code），三项 code 是历史遗留占位。
+- **Phase 1.5 切换辅助脚本（dry-run/find out）**: 新增 `scripts/switchToRustWasmBackend.js` + npm `switch:to-rust-wasm-backend`，作为 Phase 1.5 切默认 backend `javascript → rust-wasm` + 升版本 `3.0.0 → 3.1.0` 的一键向导；默认 dry-run 模式只打印改动 + 跑前置门禁（R1.1 准入除 1/2 项两个切换本身要解决的 FAIL 以外全 PASS + compare:rust parity 通过），`--apply` 才落盘并给出后续 user 侧步骤清单。新增 `tests/switchToRustWasmBackend.test.js` 7 项纯函数单测覆盖 `applyPackageJsonEdits` / `applyLockEdits` / `applyReadmeEdits` / `applyChangelogEdits` 的字符串/对象契约；不覆盖 `runPreFlightChecks`（依赖子进程 + 本地 CLI 环境）。脚本就位后 user 在 CI perf 数据累积达标后可直接跑 `--apply` 完成切换，再按 `docs/3.x-Release-Runbook.md` §2–§6 发版，agent 不擅自执行 `--apply`。
 
 - **资料补章 → 程序匹配（Phase α 关键字与 hover 资料对齐）**: 让 `src/keywords.js` / `src/codeDocs.js` / `src/functions.js` 跟上资料补章 `f87b180`「Confluence 手册对齐补章」的新规范：
   - `src/keywords.js` `gcodes` 表补登 §8.16~§8.21 新机器人指令 `G196`（电弧跟踪）/ `G193.101`（客制激光焊）/ `G903`（断刀监控）；`G144.103/104`、`G145.1/2` 已在表中无需补。
