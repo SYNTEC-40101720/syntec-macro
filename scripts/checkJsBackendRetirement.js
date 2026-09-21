@@ -55,30 +55,25 @@ const CHECKS = [
     }
   },
   // 3. Rust 稳定诊断 parity 100% 无 dead code 缺口
+  // Phase 5.3 路径 A 已落地（2026-09-21）：JS+Rust 共同剔除三项
+  // `SYNTEC_ROBOT_*_Q_RANGE` dead code，两端行为完全等价，无 dead code。
   {
     id: '3-rust-stable-diagnostic-parity',
-    name: 'Rust 稳定诊断 parity 100% （无新增 dead code）',
+    name: 'Rust 稳定诊断 parity 100% （含 emit 入口等价）',
     run: () => {
       const jsCodes = readJsDiagnosticCodes();
       const rustCodes = readRustEmittedCodes();
       const rustMissing = jsCodes.filter(c => !rustCodes.has(c.code));
-      // dead code 三项两端均不 emit，剔除 JS 时这三项需共同剔除 JS+Rust
-      // 的 DiagnosticCode key 与 code action（或两端共同补 emit）。在本次
-      // 准入只记录为 SKIP：是否完成完全由 Phase 5.3 的 dead code 决策表落地。
-      const deadCodes = ['SYNTEC_ROBOT_SKIPCOND_Q_RANGE', 'SYNTEC_ROBOT_SWAITSIG_Q_RANGE', 'SYNTEC_ROBOT_SYNCOUT_Q_RANGE'];
-      const nonDeadMissing = rustMissing.filter(c => !deadCodes.includes(c.code));
-      if (nonDeadMissing.length > 0) {
+      // Phase 5.3 路径 A 已剔除三项 dead code；任何 JS-only code 都是潜在缺口
+      if (rustMissing.length > 0) {
         return {
           status: 'FAIL',
-          detail: `Rust 缺失非 dead-code：${nonDeadMissing.map(c => c.code).join(', ')}`
+          detail: `Rust 缺失 code（含 dead code 与未实装的）：${rustMissing.map(c => c.code).join(', ')}`
         };
       }
-      const deadStillMissing = rustMissing.filter(c => deadCodes.includes(c.code));
       return {
-        status: deadStillMissing.length === 0 ? 'PASS' : 'SKIP',
-        detail: deadStillMissing.length === 0
-          ? 'JS+Rust 全 code parity，无 dead code'
-          : `dead code ${deadStillMissing.length} 项待 Phase 5.3 决策（两端共同剔除或共同补 emit）`
+        status: 'PASS',
+        detail: `JS+Rust 全 code parity：${jsCodes.length} 个 code 两端 emit 路径完全等价，无 dead code`
       };
     }
   },

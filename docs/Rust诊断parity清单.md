@@ -6,7 +6,7 @@
 当前 Rust 覆盖：68 / 68（按 code 字符串去重后为 65 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。
 未覆盖：0 个 code。本批新增 `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`（资料补章 → 程序匹配 Phase β.1 → γ.2 同步），已在 `crates/syntec-core/src/lib.rs` `validate_robot_line_state` 落地，并新增 5 个 `compare:rust` 差分样例（`robot-g10-l1802-silent-after-1500` / `...after-1820` / `...no-silent-assignment` / `...reset-by-zero` / `...multiple-in-silent-mode`），P0-B request parity 130 → 135，navigation 10/10、edits 17/17 维持等价。本机 wasm32 target 未安装，`assets/rust-wasm/` 旧 wasm 暂未重打包（P0-C 仍是 JS fallback 评估期），manifest/check 不变。
 
-`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——本批保持两端共同无 emit，parity 等价。至此 P0-A.1 "诊断 code 收口" 全部稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上，P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 135/135 等价），P0-B 第 2 项「完整结果」已合上：navigation parity 10/10 等价（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 依据 `document.uri` 完整计算）+ edits/TextEdit parity 17/17 等价（`format_document` 完整移植 `formatter.js`，整文档 `TextEdit` 契约一致）+ profile 协商透传非空字符串与 JS 一致；下一步进入 P0-C 生产 Wasm 资产与 Worker 接入。
+`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——**Phase 5.3 路径 A 已于 2026-09-21 落地**：JS+Rust 两端共同剔除上述三项 dead code 与对应 code action，JS 端 `src/diagnosticCodes.js` 与 `src/diagnosticActions.js` 已移除三项 key 与 code action；Rust 端本就无 literal 无需动；JS 总 code 数 67→64；既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖三 command 的 Q range 警报）。至此 P0-A.1 "诊断 code 收口" 全部稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上，P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 135/135 等价），P0-B 第 2 项「完整结果」已合上：navigation parity 10/10 等价（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 依据 `document.uri` 完整计算）+ edits/TextEdit parity 17/17 等价（`format_document` 完整移植 `formatter.js`，整文档 `TextEdit` 契约一致）+ profile 协商透传非空字符串与 JS 一致；下一步进入 P0-C 生产 Wasm 资产与 Worker 接入。
 
 ## 状态定义
 
@@ -112,16 +112,18 @@
 | `SYNTEC_NAMED_LOCAL_VARIABLE` `SYNTEC_NAMED_GLOBAL_VARIABLE` `SYNTEC_VACANT_ASSIGNMENT` `SYNTEC_PUBLIC_VAR_R_RESERVED_WRITE` `SYNTEC_INVALID_APP_VARIABLE_NUMBER` `SYNTEC_ASSIGNMENT_STYLE_EQUALS` | VAR-001 / VAR-002 / VAR-003 | `#`/`@`/AR/MAR 变量 |
 | `SYNTEC_FUNCTION_MATH_DOMAIN` `SYNTEC_FUNCTION_IO_POINT_RANGE` `SYNTEC_FUNCTION_IO_VALUE_RANGE` `SYNTEC_FUNCTION_R_REGISTER_RANGE` `SYNTEC_FUNCTION_R_BIT_RANGE` `SYNTEC_FUNCTION_ID_RANGE` `SYNTEC_FUNCTION_INTEGER_ARGUMENT` `SYNTEC_FUNCTION_DRVDATA_ARGUMENT_FORMAT` `SYNTEC_FUNCTION_CHKINF_CATEGORY_RANGE` `SYNTEC_FUNCTION_OPEN_COM_PORT` `SYNTEC_FUNCTION_AXID_QUOTED_AXIS` | FUN-001 / FUN-002 / FUN-003 | 62 内置函数 / SYSDATA/DRVDATA / 系统控制 |
 | `SYNTEC_ROBOT_DEPRECATED_MOVJ_II` `SYNTEC_ROBOT_DIRECT_ARG_EQUALS` `SYNTEC_ROBOT_UNSUPPORTED_MOVC_POINT_ARG` `SYNTEC_ROBOT_UNSUPPORTED_MOVJ_P_ARG` `SYNTEC_ROBOT_SMOOTH_ARG_CONFLICT` `SYNTEC_ROBOT_UNSUPPORTED_SMOOTH_ARG` `SYNTEC_ROBOT_STATIC_ARG_RANGE` `SYNTEC_ROBOT_MISSING_REQUIRED_ARG` `SYNTEC_ROBOT_MOVC_PAIR_REQUIRED` `SYNTEC_ROBOT_UNSUPPORTED_COORDINATE_SYNTAX` `SYNTEC_ROBOT_TOOLCOR_T_ARG` `SYNTEC_ROBOT_TOOLCORON_DEPRECATED` `SYNTEC_ROBOT_TOOLCOR_CLEAR` `SYNTEC_ROBOT_G10_MODBUS_FORMAT` `SYNTEC_ROBOT_G10_MODBUS_INTEGER` `SYNTEC_ROBOT_G10_MODBUS_RANGE` `SYNTEC_ROBOT_STITCH_ARG_CONFLICT` `SYNTEC_ROBOT_STITCH_MISSING_ARG` `SYNTEC_ROBOT_STITCH_L_INTEGER` `SYNTEC_ROBOT_WEAVEON_MIXED_ARGS` `SYNTEC_ROBOT_WEAVEON_Q_DECIMAL` `SYNTEC_ROBOT_SWAITSIG_LIMIT` `SYNTEC_ROBOT_SYNCOUT_LIMIT` `SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND` | ROB-001 | LTP 机器人专项语法 |
-| Dead code: `SYNTEC_ROBOT_SWAITSIG_Q_RANGE` `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` | ROB-001 | LTP 机器人专项语法 (两端均不 emit) |
+| Dead code（已于 2026-09-21 Phase 5.3 路径 A 删除）：`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` | ROB-001 | LTP 机器人专项语法 (两端均不 emit，已两端共同剔除) |
 | 无 code warning: CASE 分支标签后同行陈述 / CASE ELSE 后同行陈述 / 中文标点字符 / `%` 缺 `%@MACRO` / GOTO 目标不存在 | FLOW-001 / FMT-001 | 范围控制流 / `%@MACRO` 格式 |
 
-## Dead code（两端共同不 emit，parity 等价）
+## Dead code（两端共同不 emit → 2026-09-21 Phase 5.3 路径 A 已共同剔除）
 
-下列三个 code 已在 `src/diagnosticActions.js` 注册 code action，但 JS `src/robotValidator.js` 实际不 emit；Rust 同样保持无 emit，parity 等价。后续若 JS 补登记 emit 入口，需同步迁移 Rust：
+下列三个 code 此前曾在 `src/diagnosticActions.js` 注册 code action，但 JS `src/robotValidator.js` 实际不 emit；Rust 同样保持无 emit。2026-09-21 Phase 5.3 路径 A 落地，JS+Rust 两端共同剔除 key 与 code action：
 
-- `SYNTEC_ROBOT_SWAITSIG_Q_RANGE`
-- `SYNTEC_ROBOT_SYNCOUT_Q_RANGE`
-- `SYNTEC_ROBOT_SKIPCOND_Q_RANGE`
+- ~~`SYNTEC_ROBOT_SWAITSIG_Q_RANGE`~~
+- ~~`SYNTEC_ROBOT_SYNCOUT_Q_RANGE`~~
+- ~~`SYNTEC_ROBOT_SKIPCOND_Q_RANGE`~~
+
+JS DiagnosticCode 全集由 67 → 64 项，与 Rust lib.rs literal 集合完全等价。既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三 command 的 Q range 警报）。若未来 user 上 CNC 拿到 B 级证据需重新加回独立 code，可按 `docs/JS-Backend退役路线图.md` §Phase 5.3 路径 B 重新落回。
 
 ## 无 code warning（待逐项收口）
 

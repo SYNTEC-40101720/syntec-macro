@@ -110,11 +110,12 @@ test('check 1 (default-backend-rust-wasm) FAILs as expected on current v3.0.0', 
   assert.ok(/javascript|rust-wasm/.test(result.detail), 'detail should mention backend value');
 });
 
-test('check 3 (rust-stable-diagnostic-parity) SKIPs on 3 dead codes', () => {
-  // 当前 dead code 三项两端均未 emit，check 3 应 SKIP
+test('check 3 (rust-stable-diagnostic-parity) PASSes after Phase 5.3 path-A 落地', () => {
+  // Phase 5.3 路径 A 在 2026-09-21 剔除三项 dead code，JS+Rust 全 parity
   const result = CHECKS[2].run();
-  assert.ok(['SKIP', 'PASS'].includes(result.status),
-    'dead code 3 项未决策，预期 SKIP；如 dead code 已决策剔除则 PASS');
+  assert.strictEqual(result.status, 'PASS',
+    'dead code 三项已剔除，JS+Rust 全 code parity，应为 PASS');
+  assert.ok(/parity|全 code|全等价/.test(result.detail), 'detail should mention parity');
 });
 
 test('check 4 (wasm asset consistency) PASSes after 2026-09-21 repack', () => {

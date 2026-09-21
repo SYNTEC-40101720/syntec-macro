@@ -21,15 +21,29 @@
 
 ## Phase 5.3 — Dead code 三项决策（agent 不擅自执行）
 
+> **路径 A 已落地（2026-09-21）**：JS+Rust 共同剔除三项 `ROBOT_*_Q_RANGE` dead code 与对应 code action。详见末尾「当前状态——路径 A 已落地」。
+
 > 三项 `SYNTEC_ROBOT_*_Q_RANGE` dead code 当前两端共同不 emit；`src/robotValidator.js` 中 `addStaticSignalQRangeDiagnostic` 实际 emit 用的是 `ROBOT_STATIC_ARG_RANGE`（同一 code 复用覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三个 command 的 Q range 警报），三项独立 code 是历史遗留没接 emit 入口。
 
-### 当前状态审计（2026-09-21 surface audit）
+### 当前状态审计（2026-09-21 路径 A 落地前）
 
 | code | JS `diagnosticCodes.js` | JS `diagnosticActions.js` | JS 实际 emit 入口 | Rust `lib.rs` literal |
 |---|:---:|:---:|:---:|:---:|
 | `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` | ✅（key 注册）| ✅（code action title/message）| ❌（emit 用了 `ROBOT_STATIC_ARG_RANGE`）| ❌ |
 | `SYNTEC_ROBOT_SWAITSIG_Q_RANGE` | ✅ | ✅ | ❌（同上）| ❌ |
 | `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` | ✅ | ✅ | ❌（同上）| ❌ |
+
+### 当前状态——路径 A 已落地（2026-09-21）
+
+JS+Rust 两端共同剔除三项 dead code：
+- `src/diagnosticCodes.js` 删除 `ROBOT_SKIPCOND_Q_RANGE` / `ROBOT_SWAITSIG_Q_RANGE` / `ROBOT_SYNCOUT_Q_RANGE` 三个 key；JS 总 code 数 67→64。
+- `src/diagnosticActions.js` 删除对应三项 code action。
+- Rust 端本就无 literal，无需动。
+- `scripts/checkJsBackendRetirement.js` 第 3 项准入从 SKIP→PASS，判定为「JS+Rust 全 code parity，无 dead code」。
+- `docs/诊断规则与修复动作.md` 派生物已通过 `npm run docs:diagnostics` 重生成。
+- `docs/Rust诊断parity清单.md` dead code 段标记为「已剔除」。
+- 既有诊断行为不变（`ROBOT_STATIC_ARG_RANGE` 覆蓋三 command 的 Q range 警报，与 2026-09-21 前行为一致）。
+- 路径 B 不再适用：未来若 user 拿到 CNC B 级证据需重新加回独立 code，只需按路径 B 步骤重新添加（参考 `iterationoptimization计划` §R #6 "后续 follow-up 扩展允许"）。
 
 ### 决策路径
 
