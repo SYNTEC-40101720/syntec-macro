@@ -568,3 +568,13 @@
 ## 14. 后续维护流程
 
 详见 [基础文件格式与状态标记](macro-handbook/01-format.md)。
+
+---
+
+## 附录 A. Confluence 参考索引
+
+详见 [Confluence 参考索引](macro-handbook/08-confluence-sources.md)。
+
+### A.0 索引说明
+
+内容已迁移到 [Confluence 参考索引](macro-handbook/08-confluence-sources.md)。

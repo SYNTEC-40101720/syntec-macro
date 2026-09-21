@@ -273,6 +273,49 @@ R 寄存器「经 @ 映射后 Macro 可写」范围（CF [Macro 变数规格](ht
 - 区域变量固定编号超过 `#400` 时，后续可依变量区间提示用途或风险；对表达式索引不做静态范围诊断。
 - 对静态可判定的 R 寄存器映射保留区写入，后续可加入 warning，提示可能导致不可预期行为。
 
+### 2.7.1 系统变数 bit 级规格
+
+状态：已确认 / 部分版本差异
+
+来源：CF [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246/Macro)（v221, 2026-07-09）与 LTP [Macro变数规格 (LEANTEC)](https://syntecclub.atlassian.net/wiki/spaces/LTP/pages/64815277/Macro)（v221）。
+
+控制系统变数（`#1500` ~ `#1820` 区段）以位元（bit）粒度承载运行时控制旗标，写入前必须确认版本门槛与 Pr 联动关系；以下表为静态可校验参考，实际位元定义以控制器版本 [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246/Macro) 页 §系统变数 為准。
+
+| 变数 | 用途 | bit 级规格 | 版本门控 / Pr 联动 |
+|---|---|---|---|
+| `#1500` | 宁静模式（Silent Mode） | bit0=1 启用，宏程序与 G/M 码动作隐藏输出、仅 Diagnostic 模式 | 见 §2.5；无 Pr 强制条件 |
+| `#1502` | 单步执行（Macro Stepping） | bit0=1 MACRO 单节单步运行；写入后每执行一节即暂停等待 | `Pr3221=1` 强制启用，可写不可关闭 |
+| `#1504` | Feedhold 与 Override 控制 | bit2=1 Feedhold（暂停进给）、bit4=1 Override（进给倍率抑制） | `Pr3221` 联动；无单一 Pr 强制条件 |
+| `#1510` | FileOperationControlWord（档桉控制字） | bit0=1 Reload 主程序、bit1=1 Reload 副程序、bit2=1 仅更新主程序档名/行号/序号 | 与 `#1517` 系统变数联动；写入需同步 `#1517` |
+| `#1820` | 静音插补模式（Silent Interpolation Mode） | 值 0 关闭、值 1 仅 G01 静音插补、值 2 全模式静音插补 | `10.120.24E` / `10.118.28A` / `10.118.31+` 及后续版本可用 || `#1901` ~ `#1918` | G92 / G92.1 座标系偏移量（各轴向） | r/w，对应 1~4 轴群；记载各轴 `G92`/`G92.1` 座标偏移 | 见 [程序座标设定 G92/G92.1](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44135263/G92+G92.1) |
+| `#1930` | G92.1 座标系旋转角度 | r/w，对应 1~4 轴群；跟 `#1931~#1933` 旋转中心一起决定 `G92.1` 的旋转座标变换 | 同上 |
+| `#1931` ~ `#1933` | G92.1 座标系旋转中心轴向 | r/w，对应 1~4 轴群；标记 `G92.1` 动作中止旋转中心所在轴 | 同上 |
+
+注：`#1901~#1918` 的分类在 [Macro变数规格](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44106246/Macro) 中属《轴群使用者记忆变数》子段；与 `#401~#999` 主体区别在于该子段直接绑定 `G92`/`G92.1` 指令的偏移状态，不应被普通区域运算逻辑覆写。
+使用注意：
+
+- 在 LTP 机身机器人风险性高的场景下，`#1504 bit2`（Feedhold）与 `#1504 bit4`（Override）的任一 bit 在呼叫 `G10 L18xx` 系列 MACRO IO 前必须先置位，否则 MOVJ/MOVL 不可响应即时停止；写入前应該搭配 `R615` MST 请求旗标（`R615` 与 `R615.8~.11` 多轴群旗标）做跨轴群一致性检查。
+- `#1510` 写入应 `WAIT()` 至少一个单节后才读回 `#1517` 的状态，否则核心执行表尚未同步；在 `#1500=1` 宁静模式下，`#1510` 仍按档桉控制字生效。
+- `#1820` 在低于 `10.118.31` 的旧版本写入值 1 / 2 会被忽略，并不报警；静态诊断可向用户提示版本门控。
+- 这些 bit 级变数仅適用控制器核心状态操作，不应使用 `MOD` （`#1500` ~ `#1820` 为 Double 型态，Long/Double 混型的 `MOD` 会触发 `COR-054`）。
+
+示例（宁静模式 + 单步调试）：
+
+```iecst
+#1500 := 1;   // 启用宁静模式，隐藏 G/M 码输出
+#1502 := 1;   // 启用 MACRO 单步（Pr3221=1 时强制）
+#1504 := 4;  // bit2=1 Feedhold，暂停进给
+// 业务逻辑...
+#1504 := 0;  // 清除 Feedhold 后继续
+#1500 := 0;  // 关闭宁静模式
+```
+
+插件策略：
+
+- 固定编号 `#1500` / `#1502` / `#1504` / `#1510` / `#1820` 识别为系统控制变数，后续可加入对应推荐代码片段。
+- 写入 `#1820` 之前，插件静态展示可附带 hint，提示版本门控（`10.118.31+`）。
+- 不对 bit 赋值的十进制值（例如 `#1504 := 4` 这类 bit2 mask）做大于范围诊断；插件只提示语义不要胞定。
+
 ### 2.8 常见变量警报
 
 状态：已确认 / 部分待确认
@@ -433,6 +476,108 @@ DiskC\app\%AppName%\
 - 静态可判定的负数或小数直接编号可报 error。
 - 非 APP Macro 路径识别需结合工作区路径，后续可加入路径级 warning/error。
 - 未读取 `app.acfg` 前，不应对 AR/MAR 最大编号做强诊断。
+
+### 2.10 PLC ↔ 系统变数映射
+
+状态：已确认 / 部分版本差异
+
+来源：CF [PLC介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796/PLC)（v771, 2026-08-19）。该页 §C Bit Interface / §S Bit Interface / §R Register Interface 节列出 CNC-PLC 接口的全表；本节只收录对静态诊断有价值的映射子集。
+
+#### 2.10.1 C/S Bit Interface（PLC-CNC 交互旗标）
+
+PLC 通过 C Bit 向 CNC 採集状态、通过 S Bit 向 PLC 输出状态。以下仅列出与 Macro 变量 / 多轴群场景强相关的旗标示意；完整 bit 表需查 [PLC介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796/PLC) §C Bit Interface 与 §S Bit Interface 节。
+
+| PLC/CNC 旗标 | 方向 | 语义 | Macro 使用场景 |
+|---|---|---|---|
+| `C101 ~ C132` | PLC → CNC | 对应 `#6001 ~ #6032` 系统变数 | Macro 可通过 `#6xxx` 读到 PLC 请求状态 |
+| `R514 ~ R518` | CNC → PLC | 现存警报（由人机写入） | Macro 不应覆盖写，读取仅供诊断 |
+| `R518` | CNC → PLC | 手动坐标 | Macro 与 `#1901 ~ #1918` 坐标变数联动使用 |
+| `R530` | Macro/PLC 交握 | 上升沿触发外部事件（如轴群切换、宏调用） | 写入后须 `WAIT()` 等待原点 / 锁定完成 |
+| `R629` | CNC → PLC | PLC 轴 M 码（类比 `S29`） | PLC 轴动作联动 Macro 代码执行 |
+| `R633 ~ R636` | CNC → PLC | 参考点到达旗标 | Macro 回零 / 定点使用 `#1900~#1918` 读机械坐标 |
+| `R633.x` | CNC → PLC | 轴向位移禁止旗标 | 机器人风险性高的场景需诊断 bit 赋值 |
+| `R615` | CNC → PLC | MST 请求旗标（Master Spindle / Tool / M-Code） | 多轴群场景下读取 `R615.8 ~ R615.11` 的辅助轴群请求位 |
+| `R16140` / `R16150` | CNC → PLC | 软面板倍率（SOFTKEY 与 Override） | Macro 调用 `G10 L18xx` 后联动面板显示倍率 |
+| `R661 ~ R676` | CNC → PLC | G00 / G01 进给倍率 | PLC 轴 `G00` / `G01` 联动 Macro 代码 |
+
+与 Pr 联动：
+
+- `Pr732` 与 M30 计数联动：M30 为主程序结束，详细计数规则由 PLC 介面不同版本实现，需查 [控制器参数总表](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105816) 与 [PLC介面说明](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796/PLC)。
+- `Pr701 ~ Pr720` 轴群归属、`Pr721 ~ Pr730` MST 通道、`Pr731` 主系统轴群数，详细设定参考 [新代 81RA 多轴群设置步骤](https://syntecclub.atlassian.net/wiki/spaces/SZJS/pages/834429119/81RA)。
+
+#### 2.10.2 系统变数 #6001~#6032 ↔ C101~C132 推荐使用技巧
+
+```iecst
+%@MACRO
+#1 := #6025;   // 读取 PLC C125 请求状态
+IF #1 = 1 THEN
+  #1500 := 1;  // 请求启动宁静模式
+  #1504 := 4;  // bit2=1 Feedhold
+  WAIT();
+  // ...
+END_IF;
+```
+
+注意：
+
+- `#6xxx` 系统变数只应读，不应写；写入会与 PLC 决策冲突。
+- 不应在 `#1500=1` 宁静模式下跳过 `R615 MST 请求旗标`，可能导致 MST 请求丢失。
+
+#### 2.10.3 G10 L1900/L1901/L1910/L1911 Modbus 实践映射
+
+来源 [新代控制器 Modbus 通讯SOP（Macro语法与PLC实现）](https://syntecclub.atlassian.net/wiki/spaces/~C1720/pages/483251200/Modbus+SOP+Macro+PLC)，微量保留在此节依据。R 寄存器 32 位以 16 位拆分：
+
+- Modbus RTU / TCP 读写结果以 32-bit 整数存入 1 个 R 变量。
+- 高 / 低 16 位拆分：`R2` 为低位、`R1` 为高位。一般公式 `Rn 高位 = R(n*2)`，`Rn 低位 = R(n*2 + 1)`。
+- 软位元件 `M` → Coil 区段直接处理。
+
+```iecst
+// G10 L1900 写入 Modbus，从 R1000 开始存
+G10 L1900 R1000 ;
+// L1901 以 32-bit 读取、拆位 Loop
+#1 := @14000;  // = R1000 在 @ 映射后 high 16 bit
+#2 := @14001;  //  = R1001 low 16 bit
+```
+
+接线（DB9）：7=+ / 6=-。适用新代全系列。
+
+#### 2.10.4 插件策略
+
+- 固定编号 `#6001` ~ `#6032` 识别为 PLC 读取变数，后续可加 hint 提示「只读」。
+- 固定编号 `@10000 ~ @10031`（对应 `R0 ~ R31`）为 CNC 系统介面区，插件可加 warning 提示使用区段系统保留、写入高风险。
+- 不对 `R615.x` 等位元级 R 表达做静态诊断，避免错误负阳性。
+
+#### 2.10.5 M30 与 R615 / Pr732 计数联动（partial 待确认）
+
+状态：部分待确认
+
+来源：CF [PLC介面说明 §R615](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105796/PLC)（v771）已证实「M30 → R615 MST 请求旗标」路径；[控制器参数总表 §Pr732](https://syntecclub.atlassian.net/wiki/spaces/TechManual/pages/44105816) 侧面提到与 M30 计数联动，但详细位元拆位公式未公开。
+
+已证实部分：
+
+- `M30` 作为主程序末节指令，同时承担：生成 PLC 主轴 / M 码完成旗标（`R615` 上升沿）+ 触发多轴群辅助旗标位（`R615.8 ~ R615.11`，见 §2.10.1。
+- 多轴群场景下，`Pr701 ~ Pr720` 轴群归属 + `Pr731` 主系统轴群数配置 + `R615` 联动决定哪个轴群的 MST 计数被更新。
+
+待 PLC 实机二次确认部分：
+
+- CF 公开页面未列出 `Pr732` 与 M30 计数的详细位元拆位公式、各轴群选择性计数动作（PLC 实作差异）。
+- 模态变量 `#1108` 等计数累积的具体绑定需实机验证。
+
+示例：
+
+```iecst
+%@MACRO
+// 主程序末节，触发 M30 → R615 MST 完成旗标 → PLC 计数
+M30;
+// 此段在父程序返回后执行，运行时应在 PLC 侧监听 R615 上升沿
+WAIT();
+#1 := @10615;  // 读 R615 状态，看 MST 请求是否完成
+IF #1 = 1 THEN
+    // ...
+END_IF;
+```
+
+插件策略：不对此 partial 项做强诊断；提供 hover + snippet 提示「M30 可联动 `Pr732` / `R615` 上报计数，需实机二次确认」。
 
 ## 3. 运算子
 
