@@ -5,6 +5,7 @@ const vscode = require('vscode');
 const { getAllKeywords, getKeywordDoc } = require('./keywords');
 const { getCodeDoc, getG10LCodeDoc } = require('./codeDocs');
 const { functionIndex, isFeatureEnabled } = require('./providerShared');
+const { getSystemVariableDoc } = require('./systemVariables');
 
 const SYMBOL_OPERATORS = [':=', '<>', '<=', '>=', '&', '=', '<', '>', '+', '-', '*', '/'];
 
@@ -121,6 +122,13 @@ function provideHover(document, position) {
   const variableRange = getRegexRangeAtPosition(document, position, /#\[[^\]]+\]|#[1-9]\d*|@\[[^\]]+\]|@\d+/g);
   if (variableRange) {
     const variable = document.getText(variableRange).toUpperCase();
+    const sysVarDoc = getSystemVariableDoc(variable);
+    if (sysVarDoc) {
+      const md = new vscode.MarkdownString();
+      md.appendMarkdown('**系统变数**: ' + variable + '\n\n');
+      md.appendMarkdown(sysVarDoc.replace(/\n/g, '\n\n'));
+      return new vscode.Hover(md, variableRange);
+    }
     return new vscode.Hover(new vscode.MarkdownString('**变量**: ' + variable), variableRange);
   }
 

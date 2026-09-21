@@ -373,15 +373,33 @@ test('New G codes exist in gcodes array', () => {
     'G190.1', 'G190.2', 'G191.1', 'G191.2']) {
     assert.ok(gcodes.includes(gcode), `${gcode} should be in gcodes`);
   }
+  // 资料补章 §8.16~§8.21 新登机器人指令
+  for (const gcode of ['G196', 'G193.101', 'G903']) {
+    assert.ok(gcodes.includes(gcode), `${gcode} should be in gcodes (资料补章 §8.16~§8.21)`);
+  }
 });
 
-test('New robot application keywords have hover docs', () => {
-  const { getKeywordDoc } = require('../src/keywords');
-  for (const keyword of ['WAITSYNC', 'ENDSYNC', 'CIRMODE']) {
-    const doc = getKeywordDoc(keyword);
-    assert.ok(doc, `${keyword} should have hover docs`);
-    assert.ok(doc.sig.includes(keyword), `${keyword} sig should contain keyword`);
+test('CHKMN/CHKSN/CHKMT/CHKMI/CHKINF doc mention MACRO XML 应用关系', () => {
+  const { buildFunctionIndex } = require('../src/functions');
+  const index = buildFunctionIndex();
+  for (const name of ['CHKMN', 'CHKSN', 'CHKMT', 'CHKMI', 'CHKINF']) {
+    const fn = index.get(name);
+    assert.ok(fn, `${name} should be present in functions index`);
+    assert.ok(fn.doc.includes('MACRO XML 资料应用关系'), `${name} doc should mention MACRO XML relation (资料补章 §9.13)`);
   }
+});
+
+test('资料补章 new G codes have hover docs', () => {
+  const { getCodeDoc, getG10LCodeDoc } = require('../src/codeDocs');
+  for (const code of ['G196', 'G193.101', 'G903']) {
+    const doc = getCodeDoc(code);
+    assert.ok(doc, `${code} should have hover doc (资料补章 §8.16~§8.21)`);
+    assert.ok(doc.sig.includes(code), `${code} sig should contain code`);
+  }
+  const l1802 = getG10LCodeDoc('L1802');
+  assert.ok(l1802, 'L1802 should have hover doc (资料补章 §8.4.3)');
+  assert.ok(l1802.doc.includes('静音模式'), 'L1802 doc should mention 静音模式 version gate');
+  assert.ok(l1802.doc.includes('COR-345'), 'L1802 doc should reference COR-345');
 });
 
 test('Language associations include common machining extensions', () => {

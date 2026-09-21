@@ -3662,6 +3662,13 @@ struct RobotLineState {
     in_weave_on: bool,
     in_wait_sync: bool,
     in_g192: bool,
+    // Files-level silent-mode gate mirror of `src/robotValidator.js`. Tracks
+    // the most recent #1500 / #1820 assignment in file scope. When the next
+    // G10 L1802 appears while silent_mode_active is true, emit the version
+    // gate warning. l1802_warned_lines de-duplicates a single line scanned
+    // multiple times; multiple L1802 lines each emit once.
+    silent_mode_active: bool,
+    l1802_warned_lines: HashSet<usize>,
 }
 
 fn is_movement_command(command: &str) -> bool {
@@ -3772,9 +3779,112 @@ fn push_range_forbidden(
     );
 }
 
+// Mirror of `detectSilentModeAssignment` in `src/robotValidator.js`.
+// Matches `#1500 := <num>` / `#1820 := <num>` (case-insensitive, optional
+// whitespace around `:=`). Returns Some(true) when entering silent mode,
+// Some(false) when explicitly cleared by assigning 0, None when the line has
+// no such assignment.
+fn detect_silent_mode_assignment(clean: &str) -> Option<bool> {
+    for var in ["#1500", "#1820"] {
+        let var_chars: Vec<char> = var.chars().collect();
+        let mut start = 0;
+        while start + var_chars.len() <= clean.len() {
+            // Enforce word boundary: previous char must not be alnum/_.
+            if start > 0 {
+                let prev = clean.as_bytes()[start - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'#' || prev == b'@' {
+                    start += 1;
+                    continue;
+                }
+            }
+            if !matches_keyword(&clean.chars().collect::<Vec<_>>(), start, &var_chars) {
+                start += 1;
+                continue;
+            }
+            let after_var = start + var_chars.len();
+            let chars: Vec<char> = clean.chars().collect();
+            let mut cursor = after_var;
+            while cursor < chars.len() && chars[cursor].is_whitespace() {
+                cursor += 1;
+            }
+            if cursor >= chars.len() || chars[cursor] != ':' || cursor + 1 >= chars.len() || chars[cursor + 1] != '=' {
+                start += 1;
+                continue;
+            }
+            cursor += 2;
+            while cursor < chars.len() && chars[cursor].is_whitespace() {
+                cursor += 1;
+            }
+            let bytes = clean.as_bytes();
+            let mut end = cursor;
+            if end < bytes.len() && (bytes[end] == b'-' || bytes[end] == b'+') {
+                end += 1;
+            }
+            let mut saw_digit = false;
+            while end < bytes.len() {
+                if bytes[end].is_ascii_digit() {
+                    saw_digit = true;
+                    end += 1;
+                } else if bytes[end] == b'.' {
+                    end += 1;
+                } else {
+                    break;
+                }
+            }
+            if !saw_digit {
+                start += 1;
+                continue;
+            }
+            let value_str: String = chars[cursor..end].iter().collect();
+            if let Ok(value) = value_str.parse::<f64>() {
+                return Some(value != 0.0);
+            }
+            start += 1;
+        }
+    }
+    None
+}
+
+// Mirror of `detectG10L1802` in `src/robotValidator.js`. Returns `(col, end_col)`
+// in UTF-16 character counts when the line starts with `G10 L1802` after
+// stripping leading whitespace, with both tokens bounded by whitespace / EOL
+// so it does not match `L18020` or other longer identifiers.
+fn detect_g10_l1802_span(chars: &[char]) -> Option<(usize, usize)> {
+    let mut start = 0;
+    while start < chars.len() && chars[start].is_whitespace() {
+        start += 1;
+    }
+    let g10: Vec<char> = "G10".chars().collect();
+    if start + g10.len() > chars.len() || !matches_keyword(chars, start, &g10) {
+        return None;
+    }
+    let mut cursor = start + g10.len();
+    if cursor >= chars.len() || !chars[cursor].is_whitespace() {
+        return None;
+    }
+    while cursor < chars.len() && chars[cursor].is_whitespace() {
+        cursor += 1;
+    }
+    let l: Vec<char> = "L1802".chars().collect();
+    if matches_keyword(chars, cursor, &l)
+        && (cursor + l.len() == chars.len()
+            || !is_identifier_character(chars[cursor + l.len()]))
+    {
+        let col = utf16_prefix_len(chars, start);
+        let end_col = utf16_prefix_len(chars, cursor + l.len());
+        return Some((col, end_col));
+    }
+    None
+}
+
 // Mirror of `validateRobotLineState` (`src/robotValidator.js`): MOVC pair
 // tracking, SWAITSIG/SYNCOUT counters, and the STITCHON/WEAVEON/WAITSYNC/G192
 // 生效范围禁忌规则组。
+//
+// Silent-mode version gate: scan #1500 / #1820 assignments and G10 L1802
+// before the `let Some(command)` early-return, so that lines such as
+// `#1500 := 1;` (whose get_command result is None) are still processed.
+// Mirror of `detectSilentModeAssignment` + `detectG10L1802` in JS.
 fn validate_robot_line_state(
     state: &mut RobotLineState,
     clean: &str,
@@ -3783,13 +3893,33 @@ fn validate_robot_line_state(
     in_conditional_branch: bool,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(command) = command else {
-        return;
-    };
     let chars: Vec<char> = clean.chars().collect();
     let clean_end = utf16_prefix_len(&chars, chars.len());
 
-    // If a pending MOVC was left open and the new line is a non-MOVC movement,
+    // Silent-mode assignment scan: `#1500 := <num>` / `#1820 := <num>`.
+    if let Some(active) = detect_silent_mode_assignment(clean) {
+        state.silent_mode_active = active;
+    }
+
+    // G10 L1802 silent-mode version gate.
+    if let Some((col, end_col)) = detect_g10_l1802_span(&chars) {
+        if state.silent_mode_active && !state.l1802_warned_lines.contains(&line) {
+            state.l1802_warned_lines.insert(line);
+            push_diagnostic(
+                diagnostics,
+                line,
+                col,
+                end_col,
+                Severity::Warning,
+                "SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE",
+                "静音模式（#1500=1 或 #1820 非零）下 G10 L1802 在 10.118.40R/42R/48C/50+ 版本族不支援；请确认控制器版本或清除静音模式后再使用",
+            );
+        }
+    }
+
+    let Some(command) = command else {
+        return;
+    };
     // emit the pair error immediately and clear the pending marker.
     if state.pending_movc_line > 0 && command != "MOVC" && is_movement_command(command) {
         add_pending_movc_diagnostic(diagnostics, state.pending_movc_line);

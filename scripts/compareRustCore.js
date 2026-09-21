@@ -450,6 +450,26 @@ const CASES = [
     text: 'G192.1 P1;\nSWAITSIG P1 L10;'
   },
   {
+    name: 'robot-g10-l1802-silent-after-1500',
+    text: '%@MACRO\n#1500 := 1;\nG10 L1802 P500;'
+  },
+  {
+    name: 'robot-g10-l1802-silent-after-1820',
+    text: '%@MACRO\n#1820 := 2;\nG10 L1802 P300;'
+  },
+  {
+    name: 'robot-g10-l1802-no-silent-assignment',
+    text: '%@MACRO\nG10 L1802 P300;'
+  },
+  {
+    name: 'robot-g10-l1802-reset-by-zero',
+    text: '%@MACRO\n#1500 := 1;\n#1500 := 0;\nG10 L1802 P300;'
+  },
+  {
+    name: 'robot-g10-l1802-multiple-in-silent-mode',
+    text: '%@MACRO\n#1500 := 1;\nG10 L1802 P100;\nG10 L1802 P200;'
+  },
+  {
     name: 'robot-signal-g192-g1922-closes',
     text: 'G192.1 P1;\nG192.2;\nSWAITSIG P1 L10;'
   },

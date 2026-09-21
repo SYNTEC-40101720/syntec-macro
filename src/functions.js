@@ -74,11 +74,11 @@ exports.functions = [
   { name: 'MSG',     sig: 'MSG([id, ]"text")', doc: '显示提示信息（可按 ESC 消除，程序结束时自动消失）\nMSG(id) 或 MSG("text") 或 MSG(id, "text")\n参数: id=提示ID(0~65535), text=提示内容\nMSG("text") 预设 ID：10.118.48U/10.118.52O/10.118.56I/10.118.60C/10.118.62+ 为 65535，之前版本为 -1\n范例: MSG("钻头遗失"); MSG(100, "钻头遗失");' },
   { name: 'WAIT',    sig: 'WAIT()',         doc: '系统停止预解，直到 WAIT 前指令执行完毕\nWAIT()\n确保 WAIT 前的 G/M 码执行完毕前不会继续预解\n注意：M98/M99/M198 不受 WAIT() 的等待保证\n常用于读取系统数据前挡预解' },
   { name: 'SLEEP',   sig: 'SLEEP()',        doc: '暂时放弃此次宏程序循环的执行权（约数十毫秒后恢复）\nSLEEP()\n防止迴圈耗尽 CPU 资源导致人机卡死\n执行后让出资源给人机介面等其他执行绪\n建议在 WHILE/FOR/REPEAT 循环中适时调用\n注意：SLEEP 仅对迴圈有效，放在 IF 中无实质作用\n与 WAIT 区别：WAIT 关闭预解确保读到最新系统状态，SLEEP 用于休息与资源分配' },
-  { name: 'CHKMN',   sig: 'CHKMN("code")',  doc: '检查机械厂代码是否一致\nCHKMN("code") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #51 := CHKMN("5566");' },
-  { name: 'CHKSN',   sig: 'CHKSN("sn")',    doc: '检查控制器序号是否一致\nCHKSN("sn") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #52 := CHKSN("M9A0001");' },
-  { name: 'CHKMT',   sig: 'CHKMT("type")',  doc: '检查机床属性是否一致\nCHKMT("type") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #53 := CHKMT("MILL");' },
-  { name: 'CHKMI',   sig: 'CHKMI("model")', doc: '检查控制器机型是否一致\nCHKMI("model") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #54 := CHKMI("S");' },
-  { name: 'CHKINF',  sig: 'CHKINF(cat, "code")', doc: '检查代码与类别编号对应的内容是否一致\nCHKINF(cat, "code") -> 1(一致) / 0(不符)\n目标版本：10.118.22M+\ncat: 1=机械厂代码, 2=序号, 3=机床属性, 4=机型, 5=专机代码\n范例: #51 := CHKINF(1, "5566");' },
+  { name: 'CHKMN',   sig: 'CHKMN("code")',  doc: '检查机械厂代码是否一致\nCHKMN("code") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #51 := CHKMN("5566");\n与 MACRO XML 资料应用关系：CHKMN/CHKSN/CHKMT/CHKMI/CHKINF 常用于授权或机型分支前检查；MACRO XML 资料应用（DBLOAD/DBSAVE 与 schema@.xml/schemaR.xml 配置）时，可用以判定执行权与 schema 模板适用机型；插件不做 XML schema 解析与机型枚举推断，仅做语法识别。' },
+  { name: 'CHKSN',   sig: 'CHKSN("sn")',    doc: '检查控制器序号是否一致\nCHKSN("sn") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #52 := CHKSN("M9A0001");\n与 MACRO XML 资料应用关系：见 CHKMN。' },
+  { name: 'CHKMT',   sig: 'CHKMT("type")',  doc: '检查机床属性是否一致\nCHKMT("type") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #53 := CHKMT("MILL");\n与 MACRO XML 资料应用关系：常见 type 用于选择 schema@.xml 或 schemaR.xml 模板分支；插件不做类型枚举。' },
+  { name: 'CHKMI',   sig: 'CHKMI("model")', doc: '检查控制器机型是否一致\nCHKMI("model") -> 1(一致) / 0(不符)\n目标版本：10.116.6A\n范例: #54 := CHKMI("S");\n与 MACRO XML 资料应用关系：见 CHKMN；model 字串列表以控制器实机配置为准。' },
+  { name: 'CHKINF',  sig: 'CHKINF(cat, "code")', doc: '检查代码与类别编号对应的内容是否一致\nCHKINF(cat, "code") -> 1(一致) / 0(不符)\n目标版本：10.118.22M+\ncat: 1=机械厂代码, 2=序号, 3=机床属性, 4=机型, 5=专机代码\n范例: #51 := CHKINF(1, "5566");\n与 MACRO XML 资料应用关系：CHKINF 是 CHKMN/CHKSN/CHKMT/CHKMI 的统一接口，cat 5=专机代码常用于 DBLOAD/DBSAVE 前的 schema 匹配判定；插件不做专机列表枚举。' },
   { name: 'AXID',    sig: 'AXID(axis)',       doc: '查询轴名称对应的轴编号（1基）\nAXID(axis) -> 轴编号(整数) / VACANT(不存在)\n参数: axis 使用裸轴名，不使用字符串\n范例: AXID(Y) -> 2, AXID(Y2) -> 6' },
 
   // ===== 堆栈操作函数 =====

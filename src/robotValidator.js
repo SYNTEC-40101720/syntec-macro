@@ -510,7 +510,12 @@ function createRobotState() {
     inStitchOn: false,
     inWeaveOn: false,
     inWaitSync: false,
-    inG192: false
+    inG192: false,
+    // 静音模式状态：true 代表 #1500=1 或 #1820 非零已赋值且未复位。
+    // 仅作文件级静默提示，不做跨 G65/G66 子作用域精确推断；
+    // 避免运行期动态状态误报，遵循 plan β.1 「无法精确确定时不 emit」。
+    silentModeActive: false,
+    l1802WarnedLines: new Set()
   };
 }
 
@@ -519,8 +524,48 @@ function addPendingMovcDiagnostic(diagnostics, lineNum) {
     'MOVC 必须成对出现：第一行为中间点，第二行为结束点', 'error', DiagnosticCode.ROBOT_MOVC_PAIR_REQUIRED);
 }
 
+// 解析静音模式赋值：#1500、#1820
+// 匹配形如 `#1500 := 1` / `#1820 := 2` / `#1500:=0` / `@1500 := 1`（后者不符规范但宽容识别）
+// 返回 true=静音赋值进入、false=清除静音、null=无 明确赋值
+function detectSilentModeAssignment(clean) {
+  const m1500 = clean.match(/#1500\s*:=\s*(-?\d+(?:\.\d+)?)/i);
+  if (m1500) {
+    const v = parseFloat(m1500[1]);
+    return Number.isFinite(v) && v !== 0;
+  }
+  const m1820 = clean.match(/#1820\s*:=\s*(-?\d+(?:\.\d+)?)/i);
+  if (m1820) {
+    const v = parseFloat(m1820[1]);
+    return Number.isFinite(v) && v !== 0;
+  }
+  return null;
+}
+
+function detectG10L1802(clean) {
+  const m = clean.match(/\bG10\s+L1802\b/i);
+  if (!m) return null;
+  return { col: m.index, endCol: m.index + m[0].length };
+}
+
 function validateRobotLineState(state, clean, command, lineNum, inConditionalBranch = false) {
   const diagnostics = [];
+
+  // 静音模式赋值扫描（不限 command，#1500/#1820 赋值行可能未被 getCommand 识别）
+  const silentAssign = detectSilentModeAssignment(clean);
+  if (silentAssign !== null) {
+    state.silentModeActive = silentAssign;
+  }
+
+  // G10 L1802 静音版本门控：仅在静音模式下游 L1802 时 emit warning，
+  // 同一行只 emit 一次，但跨多行 L1802 各自提示。
+  const l1802 = detectG10L1802(clean);
+  if (l1802 && state.silentModeActive && !state.l1802WarnedLines.has(lineNum)) {
+    state.l1802WarnedLines.add(lineNum);
+    addRobotDiagnostic(diagnostics, lineNum, l1802.col, l1802.endCol,
+      '静音模式（#1500=1 或 #1820 非零）下 G10 L1802 在 10.118.40R/42R/48C/50+ 版本族不支援；请确认控制器版本或清除静音模式后再使用',
+      'warning', DiagnosticCode.ROBOT_G10_L1802_SILENT_VERSION_GATE);
+  }
+
   if (!command) return diagnostics;
 
   if (state.pendingMovcLine > 0 && command !== 'MOVC' && isMovementCommand(command)) {

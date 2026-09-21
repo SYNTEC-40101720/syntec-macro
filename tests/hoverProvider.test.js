@@ -137,3 +137,54 @@ test('provideHover returns null when no word match at position', withVscodeMock(
   const hover = provideHover(doc, new Position(0, 1));
   assert.strictEqual(hover, null);
 }));
+
+test('provideHover returns system variable hover on #1500 (silent mode)', withVscodeMock(() => {
+  const { provideHover } = loadHoverProvider();
+  const doc = createDocumentSnapshot('#1500 := 1;\n', { uri: 'file:///test.nc' });
+  const hover = provideHover(doc, new Position(0, 3));
+  assert.ok(hover, '#1500 cursor should produce a system variable hover');
+  const text = firstHoverContent(hover);
+  assert.ok(text.includes('系统变数'), `expected system variable hover, got: ${text}`);
+  assert.ok(text.includes('#1500'));
+  assert.ok(text.includes('宁静模式'));
+}));
+
+test('provideHover returns system variable hover on #1820 (silent interpolation)', withVscodeMock(() => {
+  const { provideHover } = loadHoverProvider();
+  const doc = createDocumentSnapshot('#1820 := 2;\n', { uri: 'file:///test.nc' });
+  const hover = provideHover(doc, new Position(0, 3));
+  assert.ok(hover);
+  const text = firstHoverContent(hover);
+  assert.ok(text.includes('系统变数'));
+  assert.ok(text.includes('静音插补'));
+}));
+
+test('provideHover returns G92 system variable hover on #1930 (rotation angle)', withVscodeMock(() => {
+  const { provideHover } = loadHoverProvider();
+  const doc = createDocumentSnapshot('#1930 := 15;\n', { uri: 'file:///test.nc' });
+  const hover = provideHover(doc, new Position(0, 3));
+  assert.ok(hover);
+  const text = firstHoverContent(hover);
+  assert.ok(text.includes('系统变数'));
+  assert.ok(text.includes('旋转角度'));
+}));
+
+test('provideHover returns PLC mapping hover on #6001 (C101)', withVscodeMock(() => {
+  const { provideHover } = loadHoverProvider();
+  const doc = createDocumentSnapshot('#6001 := 1;\n', { uri: 'file:///test.nc' });
+  const hover = provideHover(doc, new Position(0, 3));
+  assert.ok(hover);
+  const text = firstHoverContent(hover);
+  assert.ok(text.includes('系统变数'));
+  assert.ok(text.includes('PLC') && text.includes('C101'));
+}));
+
+test('provideHover falls back to plain variable hover on #500 (no system mapping)', withVscodeMock(() => {
+  const { provideHover } = loadHoverProvider();
+  const doc = createDocumentSnapshot('#500 := 1;\n', { uri: 'file:///test.nc' });
+  const hover = provideHover(doc, new Position(0, 3));
+  assert.ok(hover);
+  const text = firstHoverContent(hover);
+  assert.ok(text.includes('变量'));
+  assert.ok(!text.includes('系统变数'));
+}));

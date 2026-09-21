@@ -68,6 +68,7 @@ const DIAGNOSTIC_HELP = {
   [DiagnosticCode.ROBOT_SYNCOUT_Q_RANGE]: { title: '查看 SYNCOUT Q 引数说明', message: 'SYNCOUT 的 Q 引数必须为非负整数；S=2 时按 R 编号×100+bit 编码（R 编号范围为 0~65535，末两位 bit 为 00~15，例如 Q1874100 表示 R18741.00），S=1/3 时范围为 0~511。' },
   [DiagnosticCode.ROBOT_SYNCOUT_LIMIT]: { title: '查看 SYNCOUT 限制', message: '同一有移动量移动单节最多允许 10 个 SYNCOUT；请拆分运动单节或减少同步输出。' },
   [DiagnosticCode.ROBOT_RANGE_FORBIDDEN_COMMAND]: { title: '查看机器人区间限制', message: '当前指令位于 STITCHON/WEAVEON/WAITSYNC/G192.1 等特殊区间内，控制器不支持该组合；请移出区间或关闭对应模式后再使用。' },
+  [DiagnosticCode.ROBOT_G10_L1802_SILENT_VERSION_GATE]: { title: '查看 L1802 静音版本门槛', message: '静音模式（#1500=1 或 #1820 非零）下 G10 L1802 在 10.118.40R/42R/48C/50+ 版本族不支援；请确认控制器版本或清除静音模式后再使用 L1802。' },
   [DiagnosticCode.CONTROL_NESTING_DEPTH_EXCEEDED]: { title: '查看嵌套深度说明', message: '控制流 IF/CASE/REPEAT/WHILE/FOR 互相嵌套上限为 10 层，超过触发 COM-007 巢状超过 10 层。建议拆分子程序或扁平化嵌套结构。' }
 };
 

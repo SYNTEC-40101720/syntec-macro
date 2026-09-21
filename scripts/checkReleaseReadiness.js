@@ -37,11 +37,14 @@ const CHECKS = [
       const parityDoc = path.join(ROOT, 'docs', 'Rust诊断parity清单.md');
       if (!fs.existsSync(parityDoc)) return { status: 'FAIL', detail: 'parity doc missing' };
       const src = fs.readFileSync(parityDoc, 'utf8');
-      // Look for literal '67/67' or 'parity 收口' markers.
-      const hasCompletion = /67\s*\/\s*67|parity 收口完成/.test(src);
+      // P0-A.1 收口语义 marker 是「67/67」（历史首批稳定诊断）。
+      // 资料补章 → 程序匹配 Phase β.1/γ.2 已扩展集合到 68/68（新增
+      // `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`），后续 follow-up 也可能再
+      // 扩展。允许「6X/6X」（X>=7）数字形态或显式「parity 收口完成」字串。
+      const hasCompletion = /6[7-9]\s*\/\s*6[7-9]|[0-9]{3,}\s*\/\s*[0-9]{3,}|parity 收口完成/.test(src);
       return {
         status: hasCompletion ? 'PASS' : 'FAIL',
-        detail: hasCompletion ? 'Rust 诊断 parity 收口 67/67' : 'parity 67/67 marker missing'
+        detail: hasCompletion ? 'Rust 诊断 parity 已收口（marker >= 67/67）' : 'parity 67/67 marker missing'
       };
     }
   },

@@ -2,9 +2,11 @@
 
 本清单对照 [`src/diagnosticCodes.js`](../src/diagnosticCodes.js) 中登记的全部诊断 code，记录 Rust 核心（`crates/syntec-core/src/lib.rs`）的覆盖状态、迁移批次和验证入口。它是 [3.x Rust/Wasm 切换剩余任务规划](3.x-Rust-Wasm切换剩余任务规划.md) P0-A.1 "诊断 code 收口" 的执行依据；每次迁移批次必须同步更新本清单、差分样例和对应单测。
 
-更新日期：2026-09-20
-当前 Rust 覆盖：67 / 67（按 code 字符串去重后为 64 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。
-未覆盖：0 个 code。`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——本批保持两端共同无 emit，parity 等价。至此 P0-A.1 "诊断 code 收口" 全部 67 个稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上（差分扩展到 130 类），P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 130/130 等价），P0-B 第 2 项「完整结果」已合上：navigation parity 10/10 等价（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 依据 `document.uri` 完整计算）+ edits/TextEdit parity 17/17 等价（`format_document` 完整移植 `formatter.js`，整文档 `TextEdit` 契约一致）+ profile 协商透传非空字符串与 JS 一致；下一步进入 P0-C 生产 Wasm 资产与 Worker 接入。
+更新日期：2026-09-21
+当前 Rust 覆盖：68 / 68（按 code 字符串去重后为 65 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。
+未覆盖：0 个 code。本批新增 `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`（资料补章 → 程序匹配 Phase β.1 → γ.2 同步），已在 `crates/syntec-core/src/lib.rs` `validate_robot_line_state` 落地，并新增 5 个 `compare:rust` 差分样例（`robot-g10-l1802-silent-after-1500` / `...after-1820` / `...no-silent-assignment` / `...reset-by-zero` / `...multiple-in-silent-mode`），P0-B request parity 130 → 135，navigation 10/10、edits 17/17 维持等价。本机 wasm32 target 未安装，`assets/rust-wasm/` 旧 wasm 暂未重打包（P0-C 仍是 JS fallback 评估期），manifest/check 不变。
+
+`SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——本批保持两端共同无 emit，parity 等价。至此 P0-A.1 "诊断 code 收口" 全部稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上，P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 135/135 等价），P0-B 第 2 项「完整结果」已合上：navigation parity 10/10 等价（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 依据 `document.uri` 完整计算）+ edits/TextEdit parity 17/17 等价（`format_document` 完整移植 `formatter.js`，整文档 `TextEdit` 契约一致）+ profile 协商透传非空字符串与 JS 一致；下一步进入 P0-C 生产 Wasm 资产与 Worker 接入。
 
 ## 状态定义
 
@@ -14,7 +16,7 @@
 | 待迁移 | code 已在 JS 登记，Rust 尚未实现等价诊断。 |
 | 无 code warning | JS 当前产出无 `code` 的 warning；需逐项决定是否补登记 code，再决定 Rust 是否跟随。 |
 
-## 已覆盖（67）
+## 已覆盖（68）
 
 基础语法与控制流：
 
@@ -91,6 +93,7 @@
 - `SYNTEC_ROBOT_SWAITSIG_LIMIT`
 - `SYNTEC_ROBOT_SYNCOUT_LIMIT`
 - `SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND`
+- `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`
 
 ## 诊断 code ↔ 能力矩阵交叉引用
 
