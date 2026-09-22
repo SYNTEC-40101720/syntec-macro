@@ -473,7 +473,7 @@ async function main(args = process.argv.slice(2)) {
     `Rust wasm ${results[0].rustStartupMs.toFixed(2)} ms (artifact ${results[0].rustWasmBytes} bytes)`
   );
   console.info(
-    `  fallback: ${totalFallback} / ${scenarios.length * 2 + navFiles.length} runs ` +
+    `  fallback: ${totalFallback} / ${scenarios.length + navFiles.length} runs ` +
     `(ratio ${(fallbackRatio * 100).toFixed(2)}%)`
   );
 
@@ -484,7 +484,10 @@ async function main(args = process.argv.slice(2)) {
     }
   }
 
-  const anyMismatch = results.some(r => r.parity !== 'equal') || navResult.parity !== 'equal';
+  // R1.2 Stage B: parity='rust-only' 表示 JS 已退役 (未被当作 mismatch);
+  // 只有真正的 'mismatch' 才触发 exitCode=1. JS 退役不再阻塞 benchmark CI.
+  const anyMismatch = results.some(r => r.parity === 'mismatch') ||
+    /^mismatch/.test(String(navResult.parity));
   if (anyMismatch || regressions.length > 0) process.exitCode = 1;
   return undefined;
 }

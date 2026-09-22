@@ -8,9 +8,9 @@ const {
   createLargeMacroText,
   createRequest
 } = require('./benchmarkAnalysis');
-// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument now throws on call.
-const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
-const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
+// R1.2 Stage B: ../src/analysisCore 已删除; benchmark 不再做 JS↔Rust parity,
+// 改为纯 Rust/Wasm 性能测量. JS↔Rust parity 由 CI 的 `npm run compare:rust`
+// 走 `tests/fixtures/rust-parity-baseline.json` 完成.
 const { normalizeRustAnalysisResult } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 
@@ -83,8 +83,8 @@ function measure(exports, text, iterations) {
   };
 }
 
-function stableJavaScriptDiagnostics(text, uri) {
-  return analyzeDocument(createRequest(text, uri)).diagnostics.map(diagnostic => ({
+function stableRustDiagnostics(rustResult) {
+  return rustResult.diagnostics.map(diagnostic => ({
     line: diagnostic.range.start.line + 1,
     col: diagnostic.range.start.character,
     endCol: diagnostic.range.end.character,
@@ -114,17 +114,9 @@ async function main(args = process.argv.slice(2)) {
       createRequest(text, uri),
       measured.result
     );
-    const rustDiagnostics = rustResult.diagnostics.map(diagnostic => ({
-      line: diagnostic.range.start.line + 1,
-      col: diagnostic.range.start.character,
-      endCol: diagnostic.range.end.character,
-      severity: diagnostic.severity,
-      code: diagnostic.code
-    }));
-    const jsDiagnostics = stableJavaScriptDiagnostics(text, uri);
-    if (JSON.stringify(rustDiagnostics) !== JSON.stringify(jsDiagnostics)) {
-      throw new Error(`${name} Wasm/JavaScript diagnostics mismatch`);
-    }
+    // R1.2 Stage B: 仅断言 Rust 诊断结构齐备, 不再对照 JS;
+    // JS↔Rust parity 由 CI compare:rust 走 fixture baseline 完成.
+    stableRustDiagnostics(rustResult);
     console.info(
       `${name}: ${text.split(/\r?\n/).length} lines; ` +
       `p50 ${measured.p50Ms.toFixed(2)} ms, p95 ${measured.p95Ms.toFixed(2)} ms, ` +
@@ -145,5 +137,5 @@ module.exports = {
   loadWasm,
   main,
   measure,
-  stableJavaScriptDiagnostics
+  stableRustDiagnostics
 };

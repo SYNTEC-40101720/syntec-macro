@@ -2,10 +2,10 @@
 
 const fs = require('fs');
 const path = require('path');
-// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument, analyzeNavigationDocument now throws on call.
-const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
-const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
-const analyzeNavigationDocument = _r1_2_retired____src_analysisCore('analyzeNavigationDocument');
+// R1.2 Stage B: ../src/analysisCore 已删除; JS analyzer 不再可用。
+// 探针不再做 JS↔Rust parity 差分; JS 等价检查由 scripts/compareRustCore.js
+// --baseline tests/fixtures/rust-parity-baseline.json 在 CI compare:rust step 完成。
+// 本探针保留核心用途: Wasm exports / ABI / syntec_core_analyze_request_json。
 const { createRequest } = require('./benchmarkAnalysis');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');
@@ -145,23 +145,22 @@ async function main() {
     severity: diagnostic.severity,
     code: diagnostic.code
   }));
+  // R1.2 Stage B: JS analyzer 已退役, 不再做 JS↔Rust 诊断 parity。
+  // 仅断言 Rust adapter 对 parity cases 返回合法 AnalysisResult 形状;
+  // 完整 JS↔Rust parity 差分由 CI 的 `npm run compare:rust` 在
+  // `compareRustCore.js --baseline tests/fixtures/rust-parity-baseline.json` 完成。
   for (const text of parityCases) {
     const rustResult = analyzeRust(createRequest(text, 'file:///wasm-probe.nc'));
-    const javascriptResult = analyzeDocument(createRequest(text, 'file:///wasm-probe.nc'));
-    const rustDiagnostics = stableDiagnostics(rustResult);
-    const javascriptDiagnostics = stableDiagnostics(javascriptResult);
-    if (JSON.stringify(rustDiagnostics) !== JSON.stringify(javascriptDiagnostics)) {
-      throw new Error(`Rust Wasm JSON mismatch: ${JSON.stringify(rustResult)}`);
+    if (!Array.isArray(rustResult.diagnostics)) {
+      throw new Error(`Rust Wasm result missing diagnostics for: ${text}`);
     }
+    // Stable shape assertion: no exceptions thrown by stableDiagnostics round-trip.
+    stableDiagnostics(rustResult);
   }
   const navigationText = '%@MACRO\nN10;\nG65 P100;\nG66 P"MyMacro";\nM198 P7;\nM98 P1234;';
   const rustNavigation = analyzeRustNavigation(
     createRequest(navigationText, 'file:///G1000')
   );
-  const jsNavigation = analyzeNavigationDocument(
-    createRequest(navigationText, 'file:///G1000'),
-    'G1000'
-  ).navigation;
   const rustSymbols = rustNavigation.symbols.map(symbol => ({
     name: symbol.name,
     kind: symbol.kind,
@@ -169,19 +168,13 @@ async function main() {
     startCharacter: symbol.startCharacter,
     endCharacter: symbol.endCharacter
   }));
-  const jsSymbols = jsNavigation.symbols.map(symbol => ({
-    name: symbol.name,
-    kind: symbol.kind,
-    line: symbol.line,
-    startCharacter: symbol.startCharacter,
-    endCharacter: symbol.endCharacter
-  }));
   const rustCalls = rustNavigation.navigation.calls;
-  if (rustNavigation.navigation.programEntryName !== jsNavigation.programEntryName ||
-      rustNavigation.navigation.macroProgramName !== jsNavigation.macroProgramName ||
-      JSON.stringify(rustSymbols) !== JSON.stringify(jsSymbols) ||
-      JSON.stringify(rustCalls) !== JSON.stringify(jsNavigation.calls)) {
-    throw new Error(`Rust Wasm navigation mismatch: ${JSON.stringify(rustNavigation)}`);
+  // R1.2 Stage B: 不再对 JS navigation parity; 仅断言 Rust navigation 结构齐备。
+  if (rustNavigation.navigation.programEntryName === undefined ||
+      rustNavigation.navigation.macroProgramName === undefined ||
+      !Array.isArray(rustSymbols) ||
+      !Array.isArray(rustCalls)) {
+    throw new Error(`Rust Wasm navigation result malformed: ${JSON.stringify(rustNavigation)}`);
   }
 
   // P0-B 真实 request 传输 ABI: ensure `syntec_core_analyze_request_json`
