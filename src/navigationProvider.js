@@ -1,14 +1,12 @@
 // navigationProvider.js
 // 文档/工作区符号导航与宏调用引用查找
 //
-// R1.2 Stage B 前置 PR (2026-09-21): 同步路径 (`provideDocumentSymbol`/
-// `getReferenceTargetName`/`getDocumentProgramName`) 与异步 nav batch 路径
-// (`getWorkspaceMacroFiles`) 通过 hostRustAnalyzer 优先走 Rust backend;
-// 启动期 Rust 未就绪走 JS fallback (v3.1.x 行为不变). R1.2 Stage B 完成
-// (policy='empty') 后 JS fallback 路径将被移除.
+// R1.2 Stage B (2026-09-22): JS fallback 路径已移除 — 同步路径经 hostRustAnalyzer
+// 走 Rust; 启动期未就绪 (policy='empty') 返空. 异步 nav batch 走 createNavOnlyAdapter
+// nav-only ABI, 未就绪时返 null 由上层跳过该 file. path helper 经 pathResolver 拿
+// (原 navigationIndex.js / navigationSymbols.js 即将随 §2.12 删除).
 
 const vscode = require('vscode');
-const { analyzeNavigationDocument } = require('./analysisCore');
 const { LANG_ID } = require('./providerShared');
 const {
   createAnalysisRequest,
@@ -17,15 +15,9 @@ const {
 const {
   collectNavigationIndexEntries,
   isPotentialNavigationFile
-} = require('./navigationIndex');
-const {
-  extractNavigationSymbols,
-  extractStaticMacroCalls,
-  getMacroProgramName
-} = require('./navigationSymbols');
+} = require('./pathResolver');
 const {
   getHostRustAnalyzer,
-  shouldDeferToJsFallback,
   createNavOnlyAdapter,
   makeRequest: makeHostRequest
 } = require('./hostRustAnalyzer');
@@ -47,60 +39,40 @@ function ensureNavigationFileWatcher() {
 }
 
 /**
- * 同步路径 helpers: 优先走 host Rust analyzer 拿 symbols+calls, 启动期未就绪
- * 走 JS fallback (v3.1.x 兼容). R1.2 Stage B 后 (policy='empty') JS 路径将被
- * 移除并由 host analyzer 提供.
+ * 同步路径 helpers: 走 host Rust analyzer 拿 symbols+calls; Rust 未就绪
+ * (policy='empty') 返空. R1.2 Stage B 后 JS fallback 已移除.
  */
-function getSymbolsFromHostOrJs(document) {
+function getSymbolsFromHost(document) {
   const hostAnalyzer = getHostRustAnalyzer();
-  if (hostAnalyzer) {
-    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
-    return result.symbols || [];
-  }
-  if (shouldDeferToJsFallback()) {
-    return extractNavigationSymbols(document.getText());
-  }
+  if (!hostAnalyzer) return [];
+  const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+  return result.symbols || [];
+}
+
+function getCallsFromHost(document) {
+  const hostAnalyzer = getHostRustAnalyzer();
+  if (!hostAnalyzer) return [];
+  const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+  if (result.navigation && result.navigation.calls) return result.navigation.calls;
   return [];
 }
 
-function getCallsFromHostOrJs(document) {
+function getProgramMetadataFromHost(document) {
   const hostAnalyzer = getHostRustAnalyzer();
-  if (hostAnalyzer) {
-    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
-    if (result.navigation && result.navigation.calls) return result.navigation.calls;
-    return [];
-  }
-  if (shouldDeferToJsFallback()) {
-    return extractStaticMacroCalls(document.getText());
-  }
-  return [];
-}
-
-function getProgramMetadataFromHostOrJs(document) {
-  const hostAnalyzer = getHostRustAnalyzer();
-  if (hostAnalyzer) {
-    const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
-    if (result.navigation) {
-      return {
-        programEntryName: result.navigation.programEntryName,
-        macroProgramName: result.navigation.macroProgramName,
-        symbols: result.navigation.symbols
-      };
-    }
-    return null;
-  }
-  if (shouldDeferToJsFallback()) {
+  if (!hostAnalyzer) return null;
+  const result = hostAnalyzer(makeHostRequest(document.getText(), document.uri.toString(), document.version));
+  if (result.navigation) {
     return {
-      programEntryName: null,
-      macroProgramName: getMacroProgramName(document.uri.fsPath, document.getText()),
-      symbols: extractNavigationSymbols(document.getText())
+      programEntryName: result.navigation.programEntryName,
+      macroProgramName: result.navigation.macroProgramName,
+      symbols: result.navigation.symbols
     };
   }
   return null;
 }
 
 function provideDocumentSymbol(document) {
-  return getSymbolsFromHostOrJs(document).map(symbol => {
+  return getSymbolsFromHost(document).map(symbol => {
     const line = document.lineAt(symbol.line);
     return new vscode.DocumentSymbol(
       symbol.name,
@@ -114,18 +86,18 @@ function provideDocumentSymbol(document) {
 }
 
 function getDocumentProgramName(document) {
-  const meta = getProgramMetadataFromHostOrJs(document);
+  const meta = getProgramMetadataFromHost(document);
   if (meta) return meta.macroProgramName;
   return null;
 }
 
 function getReferenceTargetName(document, position) {
-  const call = getCallsFromHostOrJs(document).find(item =>
+  const call = getCallsFromHost(document).find(item =>
     item.line === position.line && position.character >= item.start && position.character <= item.end
   );
   if (call) return call.targetName.toUpperCase();
 
-  const onMacroHeader = getSymbolsFromHostOrJs(document).some(symbol =>
+  const onMacroHeader = getSymbolsFromHost(document).some(symbol =>
     symbol.kind === 'macroHeader' && symbol.line === position.line
   );
   return onMacroHeader ? getDocumentProgramName(document) : null;
@@ -169,24 +141,12 @@ async function getWorkspaceMacroFiles(token) {
         languageId: LANG_ID,
         text
       }));
-      // R1.2 Stage B 前置 PR 补完 (2026-09-22): 走 host 端 nav-only adapter
-      // (Phase 1.3 落地的 syntec_core_analyze_navigation_json ABI, 4-6x 快于
-      // analyze_request); 启动期未就绪走 JS analyzeNavigationDocument 兼容
-      // (v3.1.x 行为不变). R1.2 Stage B (policy='empty') 后 JS 路径将被
-      // 移除, 改为返空 navigation 或抛错.
+      // R1.2 Stage B (2026-09-22): 走 host 端 nav-only adapter (Phase 1.3 落地的
+      // syntec_core_analyze_navigation_json ABI, 4-6x 快于 analyze_request);
+      // host 未就绪 (policy='empty') 返 null, 上层按 null 跳过该 file.
+      // JS analyzeNavigationDocument 路径已移除 (analysisCore.js 即将 git rm).
       const navAdapter = createNavOnlyAdapter(filePath);
-      let index;
-      if (navAdapter) {
-        const result = navAdapter(request);
-        index = result.navigation;
-      } else if (shouldDeferToJsFallback()) {
-        const result = analyzeNavigationDocument(request, filePath);
-        index = result.navigation;
-      } else {
-        // policy='empty' 且 host 未就绪: 返 null (上层 collectionNatural 读
-        // programEntryName/macroProgramName 时按 null 跳过该 file).
-        index = null;
-      }
+      const index = navAdapter ? navAdapter(request).navigation : null;
       navigationIndexCache.set(uriKey, {
         signature,
         source: openDocument ? 'document' : 'file',

@@ -1,14 +1,33 @@
-// M3 开发态差分检查：比较 Rust 控制流试点与当前 JavaScript 后端。
+// M3 开发态差分检查：比较 Rust 控制流试点与当前 baseline.
+//
+// R1.2 Stage B (2026-09-22): 默认 baseline 改为 `tests/fixtures/rust-parity-baseline.json`
+// (由 scripts/exportRustParityBaseline.js 生成的离线 fixture). JS analyzer (src/analysisCore.js)
+// 已 git rm; 运行时 JS 路径仍可用 `--runtime-js` flag 触发, 但 R1.2 后该路径无 JS 实体可调,
+// 仅保留作 historic reference (会在 lazy require 时抛 MODULE_NOT_FOUND).
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { createRequest } = require('./benchmarkAnalysis');
-const {
-  analyzeDocument,
-  analyzeNavigationDocument,
-  formatDocument
-} = require('../src/analysisCore');
+
+const DEFAULT_BASELINE = path.join(
+  __dirname,
+  '..',
+  'tests',
+  'fixtures',
+  'rust-parity-baseline.json'
+);
+
+// 运行时 JS baseline 引用按需 lazy require (R1.2 后 analysisCore 已删, 该分支会 throw).
+// 保留函数定义作 historic reference; main() 默认不进入该分支.
+let _jsAnalyzer = null;
+function loadJavaScriptAnalyzer() {
+  if (!_jsAnalyzer) {
+    const { analyzeDocument, analyzeNavigationDocument, formatDocument } = require('../src/analysisCore');
+    _jsAnalyzer = { analyzeDocument, analyzeNavigationDocument, formatDocument };
+  }
+  return _jsAnalyzer;
+}
 
 const DEFAULT_RUST_CLI = path.join(
   __dirname,
@@ -577,6 +596,7 @@ function normalizeDiagnostic(item) {
 }
 
 function getJavaScriptDiagnostics(text) {
+  const { analyzeDocument } = loadJavaScriptAnalyzer();
   const result = analyzeDocument(createRequest(text, 'file:///rust-diff.nc'));
   return result.diagnostics.map(diagnostic => normalizeDiagnostic({
     line: diagnostic.range.start.line + 1,
@@ -723,6 +743,7 @@ const NAVIGATION_CASES = [
 ];
 
 function getJavaScriptNavigation(uri, text) {
+  const { analyzeNavigationDocument } = loadJavaScriptAnalyzer();
   const fakePath = uri.replace(/^file:\/\/\//, '');
   const request = createRequest(text, uri);
   const result = analyzeNavigationDocument(request, fakePath);
@@ -763,6 +784,7 @@ const FORMAT_CASES = [
 ];
 
 function getJavaScriptEdit(text) {
+  const { formatDocument } = loadJavaScriptAnalyzer();
   const request = createRequest(text, 'file:///formatter.nc');
   const result = formatDocument(request);
   if (result.edits.length === 0) {
@@ -842,7 +864,13 @@ function getRustNavigation(rustCli, uri, text) {
 function main() {
   const argv = process.argv.slice(2);
   const baselineIndex = argv.indexOf('--baseline');
-  const baselinePath = baselineIndex >= 0 ? argv[baselineIndex + 1] : null;
+  const runtimeJsIndex = argv.indexOf('--runtime-js');
+  // R1.2 Stage B: 默认走 fixture baseline; --runtime-js 显式 opt-in 时才走运行时 JS (R1.2 后 JS 已删, 该分支会抛).
+  let baselinePath = baselineIndex >= 0 ? argv[baselineIndex + 1] : null;
+  const useRuntimeJs = runtimeJsIndex >= 0;
+  if (!baselinePath && !useRuntimeJs) {
+    baselinePath = DEFAULT_BASELINE;
+  }
   const rustCli = process.env.SYNTEC_RUST_CLI || DEFAULT_RUST_CLI;
   if (!fs.existsSync(rustCli)) {
     throw new Error(`Rust core CLI not found: ${rustCli}; build it before running compare:rust`);
@@ -855,7 +883,15 @@ function main() {
   // so `compare:rust` continues to gate Rust CLI output even after R1.2 Stage B
   // removes the JS analyzer modules (`src/analysisCore.js` etc.).
   let baselineProvider;
-  if (baselinePath) {
+  if (useRuntimeJs && !baselinePath) {
+    baselineProvider = {
+      mode: 'runtime-js',
+      source: 'src/analysisCore.js (live — R1.2 后已删, 会抛 MODULE_NOT_FOUND)',
+      getDiagnostics: text => getJavaScriptDiagnostics(text),
+      getNavigation: (uri, text) => getJavaScriptNavigation(uri, text),
+      getEdit: text => getJavaScriptEdit(text)
+    };
+  } else if (baselinePath) {
     const resolved = path.resolve(baselinePath);
     if (!fs.existsSync(resolved)) {
       throw new Error(`Baseline fixture not found: ${resolved}`);
@@ -890,14 +926,6 @@ function main() {
       }
     };
     console.info(`compare:rust --baseline ${resolved} (schemaVersion ${parsed.schemaVersion}, generatedAt ${parsed.generatedAt})`);
-  } else {
-    baselineProvider = {
-      mode: 'runtime-js',
-      source: 'src/analysisCore.js (live)',
-      getDiagnostics: text => getJavaScriptDiagnostics(text),
-      getNavigation: (uri, text) => getJavaScriptNavigation(uri, text),
-      getEdit: text => getJavaScriptEdit(text)
-    };
   }
 
   for (const testCase of CASES) {

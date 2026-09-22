@@ -17,11 +17,9 @@ function isFeatureEnabled(resource, key) {
   return getConfig(resource).get(key, true);
 }
 
-// P0-C 第 2 项：Worker 端 backend 选择
-const WORKER_BACKEND_DEFAULT = 'javascript';
+// R1.2 Stage B (2026-09-22): backend 仅剩 rust-wasm; javascript / rust-wasm-shadow 已退役.
+const WORKER_BACKEND_DEFAULT = 'rust-wasm';
 const WORKER_BACKEND_OPTIONS = Object.freeze([
-  'javascript',
-  'rust-wasm-shadow',
   'rust-wasm'
 ]);
 

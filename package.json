@@ -95,23 +95,19 @@
         "syntecMacro.analysisBackend": {
           "type": "string",
           "enum": [
-            "javascript",
-            "rust-wasm-shadow",
             "rust-wasm"
           ],
           "default": "rust-wasm",
           "enumDescriptions": [
-            "JavaScript analyzer（fallback 路径；v3.1.0 起让位给 rust-wasm 作默认）",
-            "Shadow 模式：双跑 JS + Rust Wasm，记录差分但不影响最终诊断；Rust 启动失败时静默回退 JS",
-            "Rust/Wasm analyzer（默认，v3.1.0 起生产后端；加载/运行失败显式回退 JavaScript）"
+            "Rust/Wasm analyzer（默认；v4.0.0 起唯一后端，加载/运行失败抛错并提示重装/扩展损坏）"
           ],
-          "description": "分析后端选择（切换后立即重启 worker；默认 rust-wasm，JS 仅作 fallback）"
+          "description": "分析后端选择（v4.0.0 R1.2 Stage B 后唯一后端为 rust-wasm；javascript/rust-wasm-shadow 已退役）"
         }
       }
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/validator.test.js tests/analysisProtocol.test.js tests/analysisBenchmark.test.js tests/parserSpike.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/compareRustCore.test.js tests/checkReleaseReadiness.test.js tests/checkJsBackendRetirement.test.js tests/switchToRustWasmBackend.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/navigationIndex.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/compareRustCore.test.js tests/checkReleaseReadiness.test.js tests/checkJsBackendRetirement.test.js tests/switchToRustWasmBackend.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",

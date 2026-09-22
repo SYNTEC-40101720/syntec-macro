@@ -1,14 +1,16 @@
 // @ts-check
 // M2 开发态容错 Parser 原型：不接入生产 Provider，仅用于比较 IR、错误恢复和性能。
 
-const {
-  stripCommentsAndStringsWithState
-} = require('../src/lexer');
-const { classifyStatement } = require('../src/statementClassifier');
-const {
-  extractNavigationSymbols,
-  extractStaticMacroCalls
-} = require('../src/navigationSymbols');
+// R1.2 Stage B: ../src/lexer removed; stripCommentsAndStringsWithState now throws on call.
+const _r1_2_retired____src_lexer = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/lexer removed)'); };
+const stripCommentsAndStringsWithState = _r1_2_retired____src_lexer('stripCommentsAndStringsWithState');
+// R1.2 Stage B: ../src/statementClassifier removed; classifyStatement now throws on call.
+const _r1_2_retired____src_statementClassifier = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/statementClassifier removed)'); };
+const classifyStatement = _r1_2_retired____src_statementClassifier('classifyStatement');
+// R1.2 Stage B: ../src/navigationSymbols removed; extractNavigationSymbols, extractStaticMacroCalls now throws on call.
+const _r1_2_retired____src_navigationSymbols = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/navigationSymbols removed)'); };
+const extractNavigationSymbols = _r1_2_retired____src_navigationSymbols('extractNavigationSymbols');
+const extractStaticMacroCalls = _r1_2_retired____src_navigationSymbols('extractStaticMacroCalls');
 
 const OPENERS = new Set(['IF', 'FOR', 'WHILE', 'CASE', 'REPEAT']);
 const CLOSER_TO_OPENER = {

@@ -19,14 +19,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const {
-  CASES,
-  NAVIGATION_CASES,
-  FORMAT_CASES,
-  getJavaScriptDiagnostics,
-  getJavaScriptNavigation,
-  getJavaScriptEdit
-} = require('./compareRustCore');
+
+// R1.2 Stage B: JS analyzer 已退役, 不再 require compareRustCore 的 getJavaScript*
+// (它们调用时会抛). buildBaseline() 改为读取 commit 的 fixture 文件.
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_OUTPUT_PATH = path.join(
@@ -38,38 +33,30 @@ const DEFAULT_OUTPUT_PATH = path.join(
 );
 
 /**
- * Build the baseline fixture by running the live JS analyzer over each
- * registered cases. Returns a plain JSON-serializable object.
+ * Build the baseline fixture. R1.2 Stage B (2026-09-22): JS analyzer 已退役,
+ * `getJavaScript*` 现在会抛错 (analysisCore.js 已 git rm). 本函数改为读取已 commit
+ * 的 fixture 文件 (`tests/fixtures/rust-parity-baseline.json`, 由 v3.1.0 JS
+ * analyzer 生成于 2026-09-21) 返回相同 shape, 供契约测试守卫 schema/字段稳定.
+ *
+ * 注意: R1.2 后如需重新生成 baseline, 应改为通过 Rust CLI 生成 (TODO: 后续 PR).
  */
 function buildBaseline() {
-  const cases = CASES.map(testCase => ({
-    name: testCase.name,
-    text: testCase.text,
-    expected: getJavaScriptDiagnostics(testCase.text)
-  }));
-  const navigationCases = NAVIGATION_CASES.map(testCase => ({
-    name: testCase.name,
-    uri: testCase.uri,
-    text: testCase.text,
-    expected: getJavaScriptNavigation(testCase.uri, testCase.text)
-  }));
-  const formatCases = FORMAT_CASES.map(testCase => ({
-    name: testCase.name,
-    text: testCase.text,
-    expected: getJavaScriptEdit(testCase.text)
-  }));
+  const fixtureRaw = fs.readFileSync(DEFAULT_OUTPUT_PATH, 'utf8');
+  const parsed = JSON.parse(fixtureRaw);
   return {
-    schemaVersion: SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    generator: 'scripts/exportRustParityBaseline.js',
-    note: 'Rust/JS parity baseline captured against v3.1.0 JS analyzer. Used by ' +
-      'scripts/compareRustCore.js --baseline <path> after R1.2 JS module removal ' +
-      'so compare:rust continues to gate Rust CLI output without needing runtime JS.',
-    cases,
-    navigationCases,
-    formatCases
+    schemaVersion: parsed.schemaVersion,
+    generatedAt: parsed.generatedAt,
+    generator: parsed.generator,
+    note: parsed.note,
+    cases: parsed.cases,
+    navigationCases: parsed.navigationCases,
+    formatCases: parsed.formatCases
   };
 }
+
+// R1.2 Stage B: buildBaselineFromLiveJs (运行实时 JS 生成 baseline) 已退役 —
+// JS analyzer (src/analysisCore.js) 已 git rm. 旧 buildBaseline() 已改为从
+// commit 的 fixture 文件读取. 后续如需重新生成 baseline 应改为通过 Rust CLI 生成.
 
 function main(argv = process.argv.slice(2)) {
   const outputPath = argv[0] ? path.resolve(argv[0]) : DEFAULT_OUTPUT_PATH;

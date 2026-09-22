@@ -1,5 +1,9 @@
 // @ts-check
-// 纯分析核心基准：测量当前 JavaScript 后端在真实 fixture 与大档案上的延迟。
+// 纯分析核心基准：测量后端在真实 fixture 与大档案上的延迟。
+//
+// R1.2 Stage B (2026-09-22): JS analyzeDocument 路径已退役 (analysisCore.js git rm).
+// `analyzeDocument` 仅在 `--js` flag 触发的 JS baseline 路径下 lazy require;
+// 该 lazy require 会抛 MODULE_NOT_FOUND (R1.2 后无 JS 实体), 由 caller 捕获并提示.
 
 const fs = require('fs');
 const path = require('path');
@@ -8,7 +12,13 @@ const {
   createAnalysisRequest,
   createDocumentSnapshot
 } = require('../src/analysisProtocol');
-const { analyzeDocument } = require('../src/analysisCore');
+
+function loadJavaScriptAnalyzer() {
+  // R1.2 Stage B: src/analysisCore.js 已 git rm; lazy require 抛 MODULE_NOT_FOUND.
+  // @ts-ignore — R1.2 后 analysisCore.js 已删除, 故意保留 require 作 historic reference.
+  const { analyzeDocument } = require('../src/analysisCore');
+  return { analyzeDocument };
+}
 
 const DEFAULT_ITERATIONS = 10;
 const DEFAULT_LARGE_LINE_COUNT = 20000;
@@ -117,6 +127,8 @@ function measureAnalysis(request, iterations = DEFAULT_ITERATIONS) {
     throw new Error('iterations must be a positive integer');
   }
 
+  // R1.2 Stage B: analyzeDocument lazy-loaded (will throw MODULE_NOT_FOUND after §2.12 git rm).
+  const { analyzeDocument } = loadJavaScriptAnalyzer();
   // Warm up module caches and the V8 hot path before recording measurements.
   let lastResult = analyzeDocument(request);
   const durations = [];

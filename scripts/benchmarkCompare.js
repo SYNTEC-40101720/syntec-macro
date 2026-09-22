@@ -25,7 +25,10 @@ const {
   createLargeMacroText,
   createRequest
 } = require('./benchmarkAnalysis');
-const { analyzeDocument, analyzeNavigationDocument } = require('../src/analysisCore');
+// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument, analyzeNavigationDocument now throws on call.
+const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
+const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
+const analyzeNavigationDocument = _r1_2_retired____src_analysisCore('analyzeNavigationDocument');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 
@@ -177,6 +180,10 @@ function computeResultJsonBytes(result) {
  * @returns {object}
  */
 function stableFingerprint(result) {
+  // R1.2 Stage B: JS backend 已退役; null 或 undefined 表示 JS 侧未运行。
+  // 返回 null 以便 runScenarios 比对时正确识别 'rust-only' 场景, 不再
+  // 对 null 解引用导致 TypeError。
+  if (result === null || result === undefined || !result.diagnostics) return null;
   return {
     diagnostics: result.diagnostics.map(d => ({
       line: d.range.start.line + 1,
@@ -236,6 +243,7 @@ async function runScenarios(scenarios, iterations) {
   for (const scenario of scenarios) {
     let jsMeasure = null, rustMeasure = null;
     let jsResultBytes = 0, rustResultBytes = 0;
+    let jsRetired = false;
     try {
       jsMeasure = measure(() => {
         const filePath = scenario.request.document.uri.replace(/^file:\/\/\//, '');
@@ -244,7 +252,9 @@ async function runScenarios(scenarios, iterations) {
         return result;
       }, iterations);
     } catch {
-      fallbackCount++;
+      // R1.2 Stage B: JS 后端已退役 (../src/analysisCore 删除).
+      // 不再计入 fallbackCount —— JS 退役是预期状态, 不是回退故障。
+      jsRetired = true;
       jsMeasure = { firstMs: 0, p50Ms: 0, p95Ms: 0, maxMs: 0, lastResult: null };
     }
     try {
@@ -258,9 +268,9 @@ async function runScenarios(scenarios, iterations) {
       rustMeasure = { firstMs: 0, p50Ms: 0, p95Ms: 0, maxMs: 0, lastResult: null };
     }
 
-    const jsFingerprint = stableFingerprint(jsMeasure.lastResult);
+    const jsFingerprint = jsRetired ? null : stableFingerprint(jsMeasure.lastResult);
     const rustFingerprint = stableFingerprint(rustMeasure.lastResult);
-    const parityEqual = JSON.stringify(jsFingerprint) === JSON.stringify(rustFingerprint);
+    const parityEqual = !jsRetired && JSON.stringify(jsFingerprint) === JSON.stringify(rustFingerprint);
 
     results.push({
       scenario: scenario.name,
@@ -283,7 +293,7 @@ async function runScenarios(scenarios, iterations) {
         p95Ms: rustMeasure.p95Ms,
         maxMs: rustMeasure.maxMs
       },
-      parity: parityEqual ? 'equal' : 'mismatch'
+      parity: jsRetired ? 'rust-only' : (parityEqual ? 'equal' : 'mismatch')
     });
   }
   return { results, fallbackCount };
@@ -325,14 +335,23 @@ async function main(args = process.argv.slice(2)) {
   const { results, fallbackCount: scenarioFallbackCount } = await runScenarios(scenarios, iterations);
 
   // Navigation 500-file batch 耗时（不参与 p50，单独报告）。
-  const navStart = performance.now();
-  const jsNav = navFiles.map(f =>
-    runJavaScriptEquivalent(
-      createRequest(f.text, 'file://' + f.filePath.slice(1)),
-      f.filePath
-    )
-  );
-  const jsNavBatchMs = performance.now() - navStart;
+  // R1.2 Stage B: JS navigation 已退役, 不再执行 JS 批次, jsNavBatchMs 记 0
+  // 仅保留占位与字段形状。
+  const jsStartupStartBatch = performance.now();
+  let jsNav = [];
+  let jsNavRetired = false;
+  try {
+    jsNav = navFiles.map(f =>
+      runJavaScriptEquivalent(
+        createRequest(f.text, 'file://' + f.filePath.slice(1)),
+        f.filePath
+      )
+    );
+  } catch {
+    jsNavRetired = true;
+    jsNav = [];
+  }
+  const jsNavBatchMs = jsNavRetired ? 0 : (performance.now() - jsStartupStartBatch);
 
   const { adapter } = await loadRustAdapter(DEFAULT_MANIFEST_PATH, { navigationFilePath: 'nav-batch' });
   let rustNavFallbackCount = 0;
@@ -347,12 +366,16 @@ async function main(args = process.argv.slice(2)) {
   });
   const rustNavBatchMs = performance.now() - rustNavStart;
 
-  // parity 抽样：全部 500 文件比对 navigation 是否等价。
+  // parity 抽样：JS 已退役时跳过比对, 直接记录 'rust-only'。
   let navMismatchCount = 0;
-  for (let i = 0; i < navFiles.length; i++) {
-    const jsF = stableFingerprint(jsNav[i]);
-    const rustF = stableFingerprint(rustNav[i]);
-    if (JSON.stringify(jsF) !== JSON.stringify(rustF)) navMismatchCount++;
+  let navParity = 'rust-only';
+  if (!jsNavRetired) {
+    for (let i = 0; i < navFiles.length; i++) {
+      const jsF = stableFingerprint(jsNav[i]);
+      const rustF = stableFingerprint(rustNav[i]);
+      if (JSON.stringify(jsF) !== JSON.stringify(rustF)) navMismatchCount++;
+    }
+    navParity = navMismatchCount === 0 ? 'equal' : `mismatch(${navMismatchCount}/${navFiles.length})`;
   }
 
   // JSON 输出体量抽样（取第一个文件作为代表性样本）。
@@ -368,7 +391,7 @@ async function main(args = process.argv.slice(2)) {
     jsResultBytes: jsNavResultBytes,
     rustResultBytes: rustNavResultBytes,
     rustFallbackCount: rustNavFallbackCount,
-    parity: navMismatchCount === 0 ? 'equal' : `mismatch(${navMismatchCount}/${navFiles.length})`,
+    parity: navParity,
     representativeFingerprint: stableFingerprint(jsNav[0])
   };
 
@@ -414,9 +437,11 @@ async function main(args = process.argv.slice(2)) {
     }
   }
 
+  // R1.2 Stage B: JS 后端已退役, 不再计入 fallbackRatio 分母 (JS 路径不产生
+  // fallback)。Rust 回退的合理分母 = scenarios × 1 (Rust) + navFiles × 1 (Rust nav)。
   const totalFallback = scenarioFallbackCount + rustNavFallbackCount;
   const fallbackRatio = scenarios.length + navFiles.length > 0
-    ? totalFallback / (scenarios.length * 2 + navFiles.length)
+    ? totalFallback / (scenarios.length + navFiles.length)
     : 0;
 
   if (jsonOut) {

@@ -94,18 +94,14 @@ test('buildBaseline() produces same shape + counts as fixture file', () => {
   }
 });
 
-test('compareRustCore.js still exports runtime JS helpers for v3.1.x default mode', () => {
+test('R1.2 Stage B: compareRustCore.js runtime JS helpers throw after JS retirement', () => {
+  // R1.2 Stage B (2026-09-22): JS analyzer 已 git rm; getJavaScript* 仍 export 但调用时抛错.
   assert.strictEqual(typeof getJavaScriptDiagnostics, 'function');
   assert.strictEqual(typeof getJavaScriptNavigation, 'function');
   assert.strictEqual(typeof getJavaScriptEdit, 'function');
-  // Sanity: runtime helpers produce non-throwing output for a trivial case.
-  const diagnostics = getJavaScriptDiagnostics('IF #1 = 1 THEN\nEND_IF;');
-  assert.ok(Array.isArray(diagnostics));
-  const nav = getJavaScriptNavigation('file:///G42.nc', '%@MACRO\nN1;\n');
-  assert.ok(nav === null || typeof nav === 'object');
-  const edit = getJavaScriptEdit('');
-  assert.ok(typeof edit === 'object' && edit !== null);
-  assert.ok(Number.isInteger(edit.editsLength));
+  assert.throws(() => getJavaScriptDiagnostics('IF #1 = 1 THEN\nEND_IF;'), /analysisCore|R1\.2/i);
+  assert.throws(() => getJavaScriptNavigation('file:///G42.nc', '%@MACRO\nN1;\n'), /analysisCore|R1\.2/i);
+  assert.throws(() => getJavaScriptEdit(''), /analysisCore|R1\.2/i);
 });
 
 test('DEFAULT_OUTPUT_PATH points to tests/fixtures/rust-parity-baseline.json', () => {

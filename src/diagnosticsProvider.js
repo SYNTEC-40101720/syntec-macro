@@ -3,7 +3,6 @@
 
 const vscode = require('vscode');
 const { Worker } = require('worker_threads');
-const { AnalysisHost } = require('./analysisHost');
 const {
   createAnalysisRequest,
   createDocumentSnapshot,
@@ -33,7 +32,8 @@ const pendingRequests = new Map();
 // 每个文档的最新验证请求 ID，用于竞态取消
 let docRequestId = 0;
 const docRequestIds = new Map();
-const fallbackAnalysisHost = new AnalysisHost();
+// R1.2 Stage B: JS 同步回退后端已退役; worker 不可用时返回 null,
+// 由 refreshDiagnostics 跳过本轮诊断 (result == null → return)。
 
 // Shadow 模式日志 sink：Extension Host 通过 setShadowLogSink 注入
 // OutputChannel；未注入时丢弃日志（不影响用户诊断）。
@@ -106,8 +106,8 @@ function getValidatorWorker() {
 function validateDocumentAsync(request) {
   const worker = getValidatorWorker();
   if (!worker) {
-    // Worker 不可用时回退到同步 JavaScript 分析后端
-    return Promise.resolve(fallbackAnalysisHost.analyze(request));
+    // R1.2 Stage B: JS 同步回退后端已退役; 返回 null 由 refreshDiagnostics 跳过。
+    return Promise.resolve(null);
   }
   const id = ++workerMsgId;
   return new Promise((resolve) => {
@@ -337,7 +337,6 @@ function dispose() {
   for (const timer of diagnosticTimers.values()) clearTimeout(timer);
   diagnosticTimers.clear();
   docRequestIds.clear();
-  fallbackAnalysisHost.clear();
   if (validatorWorker) {
     // 先 resolve 所有 pending，避免 promise 永挂
     for (const resolve of pendingRequests.values()) resolve(null);

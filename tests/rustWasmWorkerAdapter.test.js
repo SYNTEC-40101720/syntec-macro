@@ -9,7 +9,6 @@
 
 const assert = require('node:assert');
 const { test } = require('node:test');
-const { RustWasmAssetError } = require('../src/rustWasmAsset');
 
 const sampleRequest = {
   protocolVersion: 1,
@@ -48,90 +47,6 @@ function makeDiagnostic(line, character, code = 'SYNTEC_TEST') {
   };
 }
 
-test('shadow 模式返回 JS 结果，结果一致不触发 onShadowMismatch', async () => {
-  let mismatchCount = 0;
-  const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
-  const adapter = await createRustWasmWorkerAdapter({
-    manifestPath: '/nonexistent/manifest.json',
-    loadAsset: async () => ({ instance: { exports: {} } }),
-    createAdapter: () => () => makeResult('rust-wasm', [makeDiagnostic(0, 0)]),
-    javascriptAnalyzer: () => makeResult('javascript', [makeDiagnostic(0, 0)]),
-    shadow: { mode: 'shadow', log: () => {} },
-    onShadowMismatch: () => { mismatchCount++; }
-  });
-  const result = await adapter(sampleRequest);
-  assert.strictEqual(result.backend, 'javascript');
-  assert.strictEqual(mismatchCount, 0);
-});
-
-test('shadow 模式差分触发 onShadowMismatch 但仍返回 JS 结果', async () => {
-  let mismatchCount = 0;
-  const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
-  const adapter = await createRustWasmWorkerAdapter({
-    manifestPath: '/nonexistent/manifest.json',
-    loadAsset: async () => ({ instance: { exports: {} } }),
-    createAdapter: () => () => makeResult('rust-wasm', [makeDiagnostic(0, 0)]),
-    javascriptAnalyzer: () => makeResult('javascript', []),
-    shadow: { mode: 'shadow', log: () => {} },
-    onShadowMismatch: () => { mismatchCount++; }
-  });
-  const result = await adapter(sampleRequest);
-  assert.strictEqual(result.backend, 'javascript');
-  assert.strictEqual(mismatchCount, 1);
-});
-
-test('shadow 模式 Rust 运行时抛错时显式 fallback 但仍返回 JS', async () => {
-  let fallbackCount = 0;
-  let mismatchCount = 0;
-  const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
-  const adapter = await createRustWasmWorkerAdapter({
-    manifestPath: '/nonexistent/manifest.json',
-    loadAsset: async () => ({ instance: { exports: {} } }),
-    createAdapter: () => () => { throw new Error('rust run failure'); },
-    javascriptAnalyzer: () => makeResult('javascript', [makeDiagnostic(0, 0)]),
-    shadow: { mode: 'shadow', log: () => {} },
-    onFallback: () => { fallbackCount++; },
-    onShadowMismatch: () => { mismatchCount++; }
-  });
-  const result = await adapter(sampleRequest);
-  assert.strictEqual(result.backend, 'javascript');
-  // 运行时错误时只走 onFallback；rustResult 为空，不进入 resultsEqualShallow 比较，因而不触发 onShadowMismatch
-  assert.strictEqual(fallbackCount, 1);
-  assert.strictEqual(mismatchCount, 0);
-});
-
-test('shadow 模式资产加载失败时优雅回退到 JS，不抛错', async () => {
-  let fallbackCount = 0;
-  const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
-  const adapter = await createRustWasmWorkerAdapter({
-    manifestPath: '/nonexistent/manifest.json',
-    loadAsset: async () => { throw new Error('asset missing'); },
-    javascriptAnalyzer: () => makeResult('javascript', [makeDiagnostic(0, 0)]),
-    shadow: { mode: 'shadow', log: () => {} },
-    onFallback: () => { fallbackCount++; }
-  });
-  const result = await adapter(sampleRequest);
-  assert.strictEqual(result.backend, 'javascript');
-  assert.strictEqual(fallbackCount, 1);
-});
-
-test('shadow 模式资产加载失败为 RustWasmAssetError 时 reason 透传', async () => {
-  let lastReason = null;
-  const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
-  const adapter = await createRustWasmWorkerAdapter({
-    manifestPath: '/nonexistent/manifest.json',
-    loadAsset: async () => {
-      throw new RustWasmAssetError('manifest-missing', 'fake missing');
-    },
-    javascriptAnalyzer: () => makeResult('javascript', [makeDiagnostic(0, 0)]),
-    shadow: { mode: 'shadow', log: () => {} },
-    onFallback: (reason) => { lastReason = reason; }
-  });
-  const result = await adapter(sampleRequest);
-  assert.strictEqual(result.backend, 'javascript');
-  assert.strictEqual(lastReason, 'manifest-missing');
-});
-
 test('primary 模式资产加载失败抛错供上层回退', async () => {
   const { createRustWasmWorkerAdapter } = require('../src/rustWasmWorkerAdapter');
   await assert.rejects(
@@ -153,17 +68,6 @@ test('primary 模式返回 Rust 结果', async () => {
   const result = await adapter(sampleRequest);
   assert.strictEqual(result.backend, 'rust-wasm');
   assert.strictEqual(result.diagnostics.length, 1);
-});
-
-test('resultsEqualShallow 检测字段差异', () => {
-  const { resultsEqualShallow } = require('../src/rustWasmWorkerAdapter');
-  const a = makeResult('javascript', [makeDiagnostic(0, 0)]);
-  const b = makeResult('rust-wasm', [makeDiagnostic(0, 0)]);
-  assert.strictEqual(resultsEqualShallow(a, b), true);
-  const c = makeResult('rust-wasm', [makeDiagnostic(0, 0, 'OTHER')]);
-  assert.strictEqual(resultsEqualShallow(a, c), false);
-  const d = makeResult('rust-wasm', []);
-  assert.strictEqual(resultsEqualShallow(a, d), false);
 });
 
 test('createRustWasmWorkerAdapter 默认 manifestPath 解析到 assets/rust-wasm/manifest.json', () => {

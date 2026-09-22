@@ -10,18 +10,8 @@ const {
   normalizeAnalysisRequest,
   toAnalysisDiagnostic
 } = require('../src/analysisProtocol');
-const {
-  analyzeDocument,
-  analyzeNavigationDocument,
-  formatDocument
-} = require('../src/analysisCore');
-const { DiagnosticCode } = require('../src/diagnosticCodes');
 const { AnalysisHost } = require('../src/analysisHost');
-const {
-  JAVASCRIPT_BACKEND,
-  RUST_WASM_BACKEND,
-  createAnalysisBackend
-} = require('../src/analysisBackend');
+const { RUST_WASM_BACKEND, createAnalysisBackend } = require('../src/analysisBackend');
 
 test('DocumentSnapshot requires stable document identity and text', () => {
   assert.deepStrictEqual(
@@ -86,60 +76,6 @@ test('analysis result converts validator positions to zero-based ranges', () => 
   );
 });
 
-test('current JavaScript backend preserves known diagnostic code and boundary', () => {
-  const request = createAnalysisRequest(createDocumentSnapshot({
-    uri: 'file:///program.nc',
-    version: 3,
-    languageId: 'syntec-macro',
-    text: 'ELSIF #1 = 1 THEN'
-  }), { profile: 'generic' });
-  const result = analyzeDocument(request);
-  const diagnostic = result.diagnostics.find(item => item.code === DiagnosticCode.UNSUPPORTED_ELSIF);
-
-  assert.ok(diagnostic, 'unsupported ELSIF diagnostic should be preserved');
-  assert.strictEqual(diagnostic.range.start.line, 0);
-  assert.strictEqual(diagnostic.severity, 'error');
-  assert.deepStrictEqual(result.document, request.document);
-});
-
-test('analysis facade exposes formatter output as a protocol text edit', () => {
-  const request = createAnalysisRequest(createDocumentSnapshot({
-    uri: 'file:///program.nc',
-    version: 4,
-    languageId: 'syntec-macro',
-    text: 'IF #1 = 1 THEN\n#2 = 2\nEND_IF'
-  }));
-  const result = formatDocument(request, { tabSize: 4, insertSpaces: true });
-
-  assert.strictEqual(result.backend, 'javascript');
-  assert.strictEqual(result.edits.length, 1);
-  assert.deepStrictEqual(result.edits[0].range, {
-    start: { line: 0, character: 0 },
-    end: { line: 2, character: 6 }
-  });
-  assert.strictEqual(result.edits[0].newText, 'IF #1 = 1 THEN\n    #2 := 2;\nEND_IF;');
-});
-
-test('analysis facade routes navigation indexing without changing symbols', () => {
-  const request = createAnalysisRequest(createDocumentSnapshot({
-    uri: 'file:///G1000',
-    version: 1,
-    languageId: 'syntec-macro',
-    text: '%@MACRO\nN10;\nG65 P1000;'
-  }));
-  const result = analyzeNavigationDocument(request, 'G1000');
-  const index = result.navigation;
-
-  assert.ok(index, 'G1000 should be indexed as a macro file');
-  assert.deepStrictEqual(result.symbols, index.symbols);
-  assert.strictEqual(index.programEntryName, 'G1000');
-  assert.deepStrictEqual(
-    index.symbols.map(symbol => [symbol.name, symbol.kind, symbol.line]),
-    [['%@MACRO', 'macroHeader', 0], ['N10', 'label', 1]]
-  );
-  assert.deepStrictEqual(index.calls.map(call => call.targetName), ['G1000']);
-});
-
 test('diagnostic conversion rejects malformed backend output', () => {
   assert.throws(
     () => toAnalysisDiagnostic({
@@ -179,7 +115,7 @@ test('AnalysisHost caches exact snapshots and evicts oldest entries', () => {
     maxEntries: 1,
     analyzer: request => {
       calls++;
-      return analyzeDocument(request);
+      return { protocolVersion: 1, document: request.document, profile: request.profile, backend: 'rust-wasm', diagnostics: [], symbols: [], edits: [], navigation: null };
     }
   });
   const request = createAnalysisRequest(createDocumentSnapshot({
@@ -206,7 +142,13 @@ test('AnalysisHost caches exact snapshots and evicts oldest entries', () => {
 });
 
 test('AnalysisHost invalidates one URI without affecting other documents', () => {
-  const host = new AnalysisHost({ maxEntries: 4 });
+  // R1.2 Stage B: AnalysisHost no longer falls back to createAnalysisBackend
+  // without explicit options; inject a stub analyzer.
+  const stub = request => ({
+    protocolVersion: 1, document: request.document, profile: request.profile,
+    backend: 'rust-wasm', diagnostics: [], symbols: [], edits: [], navigation: null
+  });
+  const host = new AnalysisHost({ maxEntries: 4, analyzer: stub });
   const first = createAnalysisRequest(createDocumentSnapshot({
     uri: 'file:///first.nc',
     version: 1,
@@ -227,20 +169,20 @@ test('AnalysisHost invalidates one URI without affecting other documents', () =>
   assert.strictEqual(host.getStats().hits, 1);
 });
 
-test('analysis backend keeps JavaScript as the default', () => {
-  const request = createAnalysisRequest(createDocumentSnapshot({
-    uri: 'file:///backend.nc',
-    version: 1,
-    languageId: 'syntec-macro',
-    text: '#1 := 1;'
-  }));
-  const backend = createAnalysisBackend();
-  const result = backend(request);
-  assert.strictEqual(backend(request).backend, JAVASCRIPT_BACKEND);
-  assert.strictEqual(result.backend, JAVASCRIPT_BACKEND);
+test('R1.2 Stage B: createAnalysisBackend requires rustAnalyzer + onFallback', () => {
+  // backend default changed from javascript to rust-wasm; missing rustAnalyzer/onFallback throws.
+  assert.throws(() => createAnalysisBackend(), /rustAnalyzer must be a function/);
+  assert.throws(
+    () => createAnalysisBackend({ backend: RUST_WASM_BACKEND, rustAnalyzer: () => null }),
+    /onFallback must be a function/
+  );
+  assert.throws(
+    () => createAnalysisBackend({ backend: 'javascript', rustAnalyzer: () => null, onFallback: () => {} }),
+    /unsupported analysis backend: javascript \(only rust-wasm is available\)/
+  );
 });
 
-test('Rust backend falls back explicitly to JavaScript on failure', () => {
+test('R1.2 Stage B: rust-wasm backend does not fall back to JS on failure', () => {
   const request = createAnalysisRequest(createDocumentSnapshot({
     uri: 'file:///backend.nc',
     version: 1,
@@ -250,21 +192,19 @@ test('Rust backend falls back explicitly to JavaScript on failure', () => {
   const fallbackErrors = [];
   const backend = createAnalysisBackend({
     backend: RUST_WASM_BACKEND,
-    rustAnalyzer: () => {
-      throw new Error('Wasm unavailable');
-    },
+    rustAnalyzer: () => { throw new Error('Wasm unavailable'); },
     onFallback: (error, receivedRequest) => {
       fallbackErrors.push({ error, receivedRequest });
     }
   });
-  const result = backend(request);
-  assert.strictEqual(result.backend, JAVASCRIPT_BACKEND);
+  // R1.2: backend no longer returns a JS result; it rethrows after onFallback.
+  assert.throws(() => backend(request), /Wasm unavailable/);
   assert.strictEqual(fallbackErrors.length, 1);
   assert.strictEqual(fallbackErrors[0].error.message, 'Wasm unavailable');
   assert.strictEqual(fallbackErrors[0].receivedRequest, request);
 });
 
-test('Rust backend rejects invalid results through the same fallback boundary', () => {
+test('R1.2 Stage B: rust-wasm backend rejects invalid results by rethrowing (no JS fallback)', () => {
   const request = createAnalysisRequest(createDocumentSnapshot({
     uri: 'file:///backend.nc',
     version: 1,
@@ -277,6 +217,6 @@ test('Rust backend rejects invalid results through the same fallback boundary', 
     rustAnalyzer: () => ({ backend: 'javascript' }),
     onFallback: error => errors.push(error)
   });
-  assert.strictEqual(backend(request).backend, JAVASCRIPT_BACKEND);
+  assert.throws(() => backend(request), /invalid result/);
   assert.match(errors[0].message, /invalid result/);
 });

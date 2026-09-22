@@ -8,7 +8,9 @@ const {
   createLargeMacroText,
   createRequest
 } = require('./benchmarkAnalysis');
-const { analyzeDocument } = require('../src/analysisCore');
+// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument now throws on call.
+const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
+const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
 const { normalizeRustAnalysisResult } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 

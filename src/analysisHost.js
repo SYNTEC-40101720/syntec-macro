@@ -28,14 +28,12 @@ function getAnalysisCacheKey(request) {
 
 class AnalysisHost {
   /**
-   * @param {{
-   *   maxEntries?: number,
-   *   analyzer?: AnalysisFunction,
-   *   backend?: 'javascript'|'rust-wasm',
-   *   javascriptAnalyzer?: AnalysisFunction,
-   *   rustAnalyzer?: AnalysisFunction,
-   *   onFallback?: (error: Error, request: AnalysisRequest) => void
-   * }} [options]
+   * @param {object} [options]
+   * @param {number} [options.maxEntries]
+   * @param {AnalysisFunction} [options.analyzer]
+   * @param {'rust-wasm'} [options.backend] R1.2 Stage B 后唯一支持.
+   * @param {AnalysisFunction} [options.rustAnalyzer]
+   * @param {(error: Error, request: AnalysisRequest) => void} [options.onFallback]
    */
   constructor(options = {}) {
     const maxEntries = options.maxEntries === undefined
@@ -47,7 +45,6 @@ class AnalysisHost {
     this.maxEntries = maxEntries;
     this.analyzer = options.analyzer || createAnalysisBackend({
       backend: options.backend,
-      javascriptAnalyzer: options.javascriptAnalyzer,
       rustAnalyzer: options.rustAnalyzer,
       onFallback: options.onFallback
     });

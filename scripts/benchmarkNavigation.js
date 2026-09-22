@@ -1,5 +1,7 @@
 const { performance } = require('perf_hooks');
-const { buildNavigationIndexEntry } = require('../src/navigationSymbols');
+// R1.2 Stage B: ../src/navigationSymbols removed; buildNavigationIndexEntry now throws on call.
+const _r1_2_retired____src_navigationSymbols = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/navigationSymbols removed)'); };
+const buildNavigationIndexEntry = _r1_2_retired____src_navigationSymbols('buildNavigationIndexEntry');
 
 const FILE_COUNT = 500;
 const LINES_PER_FILE = 40;

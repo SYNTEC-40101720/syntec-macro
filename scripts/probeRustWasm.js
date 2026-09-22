@@ -2,10 +2,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const {
-  analyzeDocument,
-  analyzeNavigationDocument
-} = require('../src/analysisCore');
+// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument, analyzeNavigationDocument now throws on call.
+const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
+const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
+const analyzeNavigationDocument = _r1_2_retired____src_analysisCore('analyzeNavigationDocument');
 const { createRequest } = require('./benchmarkAnalysis');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');

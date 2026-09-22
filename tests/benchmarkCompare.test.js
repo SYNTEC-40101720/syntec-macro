@@ -17,13 +17,11 @@
 
 const assert = require('node:assert');
 const { test } = require('node:test');
-const path = require('path');
 const {
   REGRESSION_THRESHOLDS,
   buildNavigationFixture,
   computeResultJsonBytes,
   measure,
-  runJavaScriptEquivalent,
   stableFingerprint,
   NAV_FILE_COUNT,
   NAV_LINES_PER_FILE
@@ -31,7 +29,6 @@ const {
 const { createRequest, createLargeMacroText } = require('../scripts/benchmarkAnalysis');
 
 const MACRO_TEXT = '%@MACRO\nN1;\nG65 P1000 A1;\n';
-const NON_MACRO_TEXT = 'G1 X1 Y2;\n';
 
 test('stableFingerprint strips backend/bytes and rounds diagnostic fields', () => {
   const fp = stableFingerprint({
@@ -96,53 +93,6 @@ test('measure captures the first-run latency separately from repeat p50', () => 
   assert.strictEqual(callCount, 6);
 });
 
-test('runJavaScriptEquivalent returns navigation when uri is a macro file', () => {
-  const request = createRequest(MACRO_TEXT, 'file:///workspace/G1000.nc');
-  const result = runJavaScriptEquivalent(request, 'workspace/G1000.nc');
-  assert.strictEqual(result.backend, 'javascript');
-  assert.ok(Array.isArray(result.diagnostics));
-  assert.ok(Array.isArray(result.symbols));
-  assert.notStrictEqual(result.navigation, null);
-});
-
-test('runJavaScriptEquivalent returns navigation null when filePath is undefined', () => {
-  // Non-macro ISO files: Rust returns navigation=null; JS must mirror that.
-  const request = createRequest(NON_MACRO_TEXT, 'file:///iso.nc');
-  const result = runJavaScriptEquivalent(request);
-  assert.strictEqual(result.navigation, null);
-  assert.deepStrictEqual(result.symbols, []);
-});
-
-test('JS vs Rust sport a parity-equal fingerprint on macro snippet', async () => {
-  const { createRustWasmAdapter } = require('../src/rustWasmAdapter');
-  const { loadRustWasmAsset } = require('../src/rustWasmAsset');
-  const manifestPath = path.join(__dirname, '..', 'assets', 'rust-wasm', 'manifest.json');
-  const { instance } = await loadRustWasmAsset(manifestPath);
-  const adapter = createRustWasmAdapter(instance.exports);
-  const uri = 'file:///workspace/G1000.nc';
-  const request = createRequest(MACRO_TEXT, uri);
-  const js = runJavaScriptEquivalent(request, uri.replace(/^file:\/\/\//, ''));
-  const rust = adapter(request);
-  assert.strictEqual(
-    JSON.stringify(stableFingerprint(js)),
-    JSON.stringify(stableFingerprint(rust)),
-    'JS vs Rust fingerprint must be equal on the macro parity snippet'
-  );
-});
-
-test('JS vs Rust fingerprint must mismatch when stripped parity fields differ', () => {
-  const js = stableFingerprint({
-    diagnostics: [], symbols: [], navigation: null
-  });
-  const rust = stableFingerprint({
-    diagnostics: [], symbols: [{
-      name: '%@MACRO', kind: 'macroHeader', line: 0
-    }],
-    navigation: { programEntryName: 'x', macroProgramName: null, symbols: [], calls: [] }
-  });
-  assert.notStrictEqual(JSON.stringify(js), JSON.stringify(rust));
-});
-
 test('createLargeMacroText yields 20000 lines with IF block markers', () => {
   const text = createLargeMacroText(20000);
   assert.strictEqual(text.split(/\r?\n/).length, 20000);
@@ -150,8 +100,9 @@ test('createLargeMacroText yields 20000 lines with IF block markers', () => {
   assert.ok(text.includes('END_IF;'));
 });
 
-test('process.exitCode remains 0 after a parity-equal benchmark run', async () => {
-  // Sanity: the parity check must not set exit code when all scenarios pass.
+test('process.exitCode remains 0 after a rust-only benchmark run', async () => {
+  // R1.2 Stage B: JS 后端退役, runScenarios 返回 parity='rust-only' 且不抛错,
+  // process.exitCode 不被污染。这是新契约 — 不再断言 JS↔Rust parity='equal'。
   const previousExit = process.exitCode;
   process.exitCode = 0;
   const { runScenarios } = require('../scripts/benchmarkCompare');
@@ -161,7 +112,7 @@ test('process.exitCode remains 0 after a parity-equal benchmark run', async () =
   ];
   const { results } = await runScenarios(scenarios, 1);
   for (const r of results) {
-    assert.strictEqual(r.parity, 'equal', `${r.scenario} should match parity`);
+    assert.strictEqual(r.parity, 'rust-only', `${r.scenario} should be 'rust-only' under Stage B`);
   }
   process.exitCode = previousExit || 0;
 });
@@ -190,16 +141,17 @@ test('computeResultJsonBytes counts UTF-8 bytes of the JSON serialization', () =
   assert.ok(expected > 30); // UTF-8 中文多字节确保不是 string.length.
 });
 
-test('runScenarios metadata fallbackCount is 0 when adapter succeeds', async () => {
-  // P1 第 2 项 fallback 比例指标：在正常运行下 fallbackCount 必须 0；
-  // runScenarios 通过 module.exports 暴露入口便于脚本侧下次迭代替换。
+test('runScenarios metadata fallbackCount is 0 when adapter succeeds (R1.2 Stage B)', async () => {
+  // R1.2 Stage B: JS 后端已退役, runScenarios 不再统计 JS 抛错为 fallback。
+  // fallbackCount 仅统计 Rust adapter 的失败; 正常状态下应为 0。
+  // parity 字段现在是 'rust-only' (JS 不存在, 无 JS↔Rust 对比)。
   const mod = require('../scripts/benchmarkCompare');
   const request = createRequest(MACRO_TEXT, 'file:///workspace/G1000.nc');
   const scenarios = [{ name: 'snippet', request, lineCount: 3 }];
   const { results, fallbackCount } = await mod.runScenarios(scenarios, 1);
-  assert.strictEqual(fallbackCount, 0, 'fallbackCount must be 0 when adapter succeeds');
+  assert.strictEqual(fallbackCount, 0, 'fallbackCount must be 0 when Rust adapter succeeds');
   for (const r of results) {
-    assert.strictEqual(r.parity, 'equal');
+    assert.strictEqual(r.parity, 'rust-only');
   }
 });
 

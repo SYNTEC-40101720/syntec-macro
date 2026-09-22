@@ -1,8 +1,9 @@
-// 分析后端选择边界：Rust/Wasm 完成 parity 后可由适配层注入。
+// 分析后端选择边界.
+//
+// R1.2 Stage B (2026-09-22): JAVASCRIPT_BACKEND 分支已删除; createAnalysisBackend
+// 只支持 rust-wasm; fallback 不再回退 JS. analyzeDocument (来自已剔除的
+// analysisCore.js) 已不再 require.
 
-const { analyzeDocument } = require('./analysisCore');
-
-const JAVASCRIPT_BACKEND = 'javascript';
 const RUST_WASM_BACKEND = 'rust-wasm';
 
 /**
@@ -18,14 +19,13 @@ function assertAnalyzer(value, name) {
 }
 
 /**
- * Create an analyzer with an explicit backend and a non-silent JavaScript fallback.
+ * Create an analyzer with an explicit rust-wasm backend.
  *
- * Rust/Wasm is deliberately dependency-injected so the production extension does
- * not load an unverified binary or Wasm asset by accident.
+ * R1.2 后: javascript backend 与 JS fallback 路径已退役; rustAnalyzer 失败
+ * 由 onFallback 上报但不再回退 JS, 上层决定 UI 提示.
  *
  * @param {{
- *   backend?: 'javascript'|'rust-wasm',
- *   javascriptAnalyzer?: AnalysisFunction,
+ *   backend?: 'rust-wasm',
  *   rustAnalyzer?: AnalysisFunction,
  *   onFallback?: (error: Error, request: AnalysisRequest) => void
  * }} [options]
@@ -35,13 +35,9 @@ function createAnalysisBackend(options = {}) {
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     throw new TypeError('options must be an object');
   }
-  const backend = options.backend || JAVASCRIPT_BACKEND;
-  const javascriptAnalyzer = options.javascriptAnalyzer || analyzeDocument;
-  assertAnalyzer(javascriptAnalyzer, 'javascriptAnalyzer');
-
-  if (backend === JAVASCRIPT_BACKEND) return javascriptAnalyzer;
+  const backend = options.backend || RUST_WASM_BACKEND;
   if (backend !== RUST_WASM_BACKEND) {
-    throw new TypeError(`unsupported analysis backend: ${backend}`);
+    throw new TypeError(`unsupported analysis backend: ${backend} (only rust-wasm is available)`);
   }
 
   assertAnalyzer(options.rustAnalyzer, 'rustAnalyzer');
@@ -62,13 +58,13 @@ function createAnalysisBackend(options = {}) {
         ? error
         : new Error(String(error));
       onFallback(normalizedError, request);
-      return javascriptAnalyzer(request);
+      // R1.2: 不再回退 JS, 直接 rethrow 由上层 worker 决定 UI.
+      throw normalizedError;
     }
   };
 }
 
 module.exports = {
-  JAVASCRIPT_BACKEND,
   RUST_WASM_BACKEND,
   createAnalysisBackend
 };
