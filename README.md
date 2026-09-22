@@ -118,18 +118,13 @@ END_IF;
 }
 ```
 
-## 3.x Rust/Wasm 后端路径
+## 架构现状（v4.0.0 起）
 
-`v2.15.0` 起默认分析后端为 JavaScript；3.x 路径已在 GitHub Releases 与 CI 矩阵上 ready，但默认切换由 user 决定。如果启用可选的 Rust/Wasm 实验通道：
+v4.0.0 起插件分析后端已硬切为 **Rust/Wasm 唯一后端**：原 12 个 JS 分析器模块（`analysisCore.js` / `lexer.js` / `validator.js` / `robotValidator.js` / `controlFlowValidator.js` / `functionArgumentValidator.js` / `diagnosticRules.js` / `diagnosticFactory.js` / `formatter.js` / `navigationSymbols.js` / `navigationIndex.js` / `statementClassifier.js`）已从仓库删除（净减约 4218 行）。`syntecMacro.analysisBackend` 配置收敛为单值 `['rust-wasm']`。
 
-```json
-{
-  "syntecMacro.analysisBackend": "rust-wasm-shadow"
-}
-```
+- **唯一后端**：`rust-wasm`（默认且唯一）。Rust wasm asset 经 `scripts/buildRustWasmAsset.js` bundle 进 VSIX (`assets/rust-wasm/manifest.json` + `syntec_core.wasm`)，加载/运行失败提示重装扩展，不再回退 JS。
+- **已退役**：`javascript` 与 `rust-wasm-shadow` 配置值在 v4.0.0 后不再可用。旧用户配置会被 VS Code 枚举校验拒绝并提示重设为 `rust-wasm`。
+- **Host 层**：补全、悬停、跳转、定义、格式化、诊断、code action 等 VS Code 提供器入口保留在 host-only JS 文件；它们只负责 VS Code API 对接与数据查询，分析逻辑全部走 Rust/Wasm。
+- **剩余依赖**：数据表（`keywords.js` / `codeDocs.js` / `functions.js` / `systemVariables.js` / `completionSnippets.js`）仍是 JS 源文件，是数据而不是分析逻辑，留给 Phase R2 迁移到 host 共享层。
 
-- `javascript`（默认）：当前生产后端（v2.15.0 起）。
-- `rust-wasm-shadow`：双跑 JS + Rust Wasm，仅记录差分，不影响最终诊断；Rust 启动失败静默回退 JS。
-- `rust-wasm`：Rust Wasm 为主要后端，加载/运行失败显式回退 JS（仅在确认生产 wasm asset 已 bundle 进 VSIX 后启用）。
-
-完整发布门禁、3.x.x 版本切换流程、回滚步骤见 [docs/3.x-Release-Runbook.md](docs/3.x-Release-Runbook.md) 与 [docs/3.x-Rust-Wasm切换剩余任务规划.md](docs/3.x-Rust-Wasm切换剩余任务规划.md)。
+发布门禁、3.x 版本切换流程与回滚步骤见 [docs/3.x-Release-Runbook.md](docs/3.x-Release-Runbook.md) 与 [docs/迭代优化计划.md](docs/迭代优化计划.md)。
