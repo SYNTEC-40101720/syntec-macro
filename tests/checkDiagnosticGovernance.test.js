@@ -43,14 +43,13 @@ test('readDiagnosticHelpCodes returns DIAGNOSTIC_HELP key set', () => {
   assert.ok(help.has('SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE'));
 });
 
-test('buildChecks default mode: HARD = 0 (四件套已登记), SOFT = 27 (DIAGNOSTIC_HELP 文案缺口)', () => {
+test('buildChecks default mode: HARD = 0 (四件套已登记), SOFT = 0 (DIAGNOSTIC_HELP 文案已补齐)', () => {
   const r = buildChecks(false);
   assert.strictEqual(r.hard.length, 0,
     `HARD should be 0 in current state, got: ${JSON.stringify(r.hard.slice(0, 3))}`);
-  // SOFT 缺口存在但不阻塞
-  assert.ok(r.soft.length > 0, 'SOFT should have some missing DIAGNOSTIC_HELP codes');
-  assert.ok(r.soft.length < r.jsCount,
-    'SOFT count should be smaller than total JS code count');
+  // SOFT 缺口已全部补齐，不再阻塞且不产生 warning
+  assert.strictEqual(r.soft.length, 0,
+    `SOFT should be 0 after DIAGNOSTIC_HELP gap filling, got: ${JSON.stringify(r.soft.slice(0, 3))}`);
 });
 
 test('buildChecks --strict 与默认模式 hard/soft 数量一致 (strict 只影响 exit 不影响数量)', () => {
@@ -87,11 +86,14 @@ test('formatResult 生成 markdown 报告含关键段', () => {
 });
 
 test('formatResult --strict 模式无 SOFT 缺口时 PASS, 有 SOFT 缺口时不输出 PASS', () => {
-  // 当前实际有 27 个 SOFT 缺口
+  // SOFT 缺口已全部补齐，当前 strict 模式应输出 PASS
   const r = buildChecks(true);
   const md = formatResult(r);
-  // strict 模式下 SOFT 缺口存在 -> 结论段不输出 PASS
-  if (r.soft.length > 0) {
+  // strict 模式下无 SOFT 缺口 -> 输出 PASS
+  if (r.soft.length === 0) {
+    assert.ok(md.includes('PASS — 四件套'),
+      'strict mode with no SOFT gaps should print PASS');
+  } else {
     assert.ok(!md.includes('PASS — 四件套'),
       'strict mode with SOFT gaps should NOT print PASS');
     assert.ok(md.includes('SOFT 缺口'));

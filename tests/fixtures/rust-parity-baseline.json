@@ -1007,6 +1007,34 @@
       "expected": []
     },
     {
+      "name": "robot-mov-movc-intermediate-g10-l1000-eleventh",
+      "text": "MOVC X10. Y10.;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nMOVC X20. Y20.;\nM30;",
+      "expected": [
+        {
+          "line": 12,
+          "col": 0,
+          "endCol": 16,
+          "severity": "error",
+          "code": "SYNTEC_ROBOT_MOVC_INTERMEDIATE_LIMIT"
+        }
+      ]
+    },
+    {
+      "name": "robot-mov-movc-intermediate-g10-l1000-ten-pair-completes",
+      "text": "MOVC X10. Y10.;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nMOVC X20. Y20.;\nM30;",
+      "expected": []
+    },
+    {
+      "name": "robot-mov-movc-intermediate-single-line-x1x2-exempt",
+      "text": "MOVC X1=10. X2=20.;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nG10 L1000 P1 R1;\nM30;",
+      "expected": []
+    },
+    {
+      "name": "robot-mov-movc-intermediate-macro-assignment-exempt",
+      "text": "MOVC X10. Y10.;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\n#1 := 5;\nMOVC X20. Y20.;\nM30;",
+      "expected": []
+    },
+    {
       "name": "robot-mov-coordinate-syntactics",
       "text": "USERCOR P1 F100.;\nTOOLCOR P1 G01 X10.;\nG68.18 P1 MOVJ;",
       "expected": [
@@ -1347,7 +1375,7 @@
           "col": 0,
           "endCol": 11,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1360,7 +1388,7 @@
           "col": 0,
           "endCol": 22,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1391,7 +1419,7 @@
           "col": 0,
           "endCol": 11,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WEAVEON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1404,7 +1432,7 @@
           "col": 0,
           "endCol": 20,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WEAVEON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1422,7 +1450,7 @@
           "col": 0,
           "endCol": 11,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WAITSYNC_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1435,7 +1463,7 @@
           "col": 0,
           "endCol": 4,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WAITSYNC_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1453,7 +1481,7 @@
           "col": 0,
           "endCol": 16,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_G192_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1527,7 +1555,7 @@
           "col": 0,
           "endCol": 15,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1545,14 +1573,14 @@
           "col": 0,
           "endCol": 20,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WEAVEON_FORBIDDEN_COMMAND"
         },
         {
           "line": 3,
           "col": 0,
           "endCol": 10,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_WEAVEON_FORBIDDEN_COMMAND"
         }
       ]
     },
@@ -1565,14 +1593,14 @@
           "col": 0,
           "endCol": 22,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND"
         },
         {
           "line": 3,
           "col": 0,
           "endCol": 9,
           "severity": "error",
-          "code": "SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND"
+          "code": "SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND"
         }
       ]
     },

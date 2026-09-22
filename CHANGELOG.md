@@ -45,6 +45,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 4.1.0 - 2026-09-22
+
+### Added — 27 个 SOFT governance 缺口 DIAGNOSTIC_HELP 用户文案补齐（2026-09-22）
+
+- **背景**: `scripts/checkDiagnosticGovernance.js` 的 SOFT 门禁（`src/diagnosticActions.js` `DIAGNOSTIC_HELP` 用户文案）历来是 informational warning，不阻塞发布; `npm run check:diagnostic-governance` 此前报告 HARD=0 PASS / SOFT=27（27 个稳定诊断 code 缺 hover/codeAction 用户文案，派生层 `docs/诊断规则与修复动作.md` fallback 显示 `-`）。本批为 27 个缺文案的 code 全部补 `DIAGNOSTIC_HELP[code] = { title, message }`，让 hover/codeAction 在 editor 内能显示明确说明，并为把 governance 检查升级为发布硬门禁铺路。
+- **补齐 27 项**:
+  - **基础语法与赋值 (4 项)**: `SYNTEC_MISSING_SEMICOLON` (分号闭合) / `SYNTEC_CONTROL_STRUCTURE_TRAILING_SEMICOLON` (流程控制关键字行不需要分号) / `SYNTEC_ASSIGNMENT_STYLE_EQUALS` (`:=` 而非 `=`) / `SYNTEC_UNSUPPORTED_LOGICAL_NOT_OPERATOR` (`NOT` 而非 `!`)。
+  - **Fanuc/不支持运算符 (11 项)**: `SYNTEC_UNSUPPORTED_ELSIF` (改 ELSEIF) / `SYNTEC_UNSUPPORTED_DEFAULT` (改 ELSE) / `SYNTEC_UNSUPPORTED_DIV` (改 `/`) / `SYNTEC_UNSUPPORTED_EQUALITY_OPERATOR` (改 `=`) / `SYNTEC_UNSUPPORTED_INEQUALITY_OPERATOR` (改 `<>`) / `SYNTEC_UNSUPPORTED_LOGICAL_AND_OPERATOR` (改 AND) / `SYNTEC_UNSUPPORTED_LOGICAL_OR_OPERATOR` (改 OR) / `SYNTEC_UNSUPPORTED_PERCENT_OPERATOR` (改 MOD) / `SYNTEC_UNSUPPORTED_COMPOUND_ASSIGNMENT` (展开 `+=` 等) / `SYNTEC_UNSUPPORTED_INCREMENT` (展开 `++`) / `SYNTEC_UNSUPPORTED_FANUC_COMPARISON` (`EQ/NE/GT/GE/LT/LE` → `= / <> / > / >= / < / <=`)。
+  - **控制流配对与未闭合 (7 项)**: `SYNTEC_CONTROL_UNMATCHED_END` / `SYNTEC_CONTROL_NESTING_ORDER` / `SYNTEC_CONTROL_UNMATCHED_ELSE` / `SYNTEC_CONTROL_UNMATCHED_ELSEIF` / `SYNTEC_CONTROL_ELSEIF_AFTER_ELSE` / `SYNTEC_CONTROL_UNMATCHED_UNTIL` / `SYNTEC_CONTROL_UNCLOSED_BLOCK`。
+  - **机器人 TOOLCOR/MOVJ/直接引数 (5 项)**: `SYNTEC_ROBOT_DEPRECATED_MOVJ_II` (MOVJ II 弃用) / `SYNTEC_ROBOT_DIRECT_ARG_EQUALS` (直接引数用 `=` 而非 `:=`) / `SYNTEC_ROBOT_TOOLCOR_T_ARG` (T 引数弃用改 P) / `SYNTEC_ROBOT_TOOLCORON_DEPRECATED` (TOOLCORON 弃用) / `SYNTEC_ROBOT_TOOLCOR_CLEAR` (TOOLCOR 清除)。
+- **每项文案结构**: 遵循既有 `{ title: '查看/改为 <主题>', message: '<新代 MACRO 规则 + 规避策略>' }` 形状; `title` 用作 hover 标题，`message` 用作 hover 主体或 codeAction 详细说明。`ASSIGNMENT_STYLE_EQUALS` 等 5 个原有 `DIAGNOSTIC_REPLACEMENTS` 已有 Quick Fix 的 code，文案主要补充"为什么"段的 hover 体验。
+- **`tests/checkDiagnosticGovernance.test.js` 契约更新**: 原 `buildChecks default mode` 测试断言 `r.soft.length > 0`（SOFT 缺口存在）改 `r.soft.length === 0`（SOFT 已补齐）；原 `formatResult --strict` 测试的 if 分支翻转：`soft.length === 0` 验证 strict 模式输出 PASS，`else` 分支保留 SOFT 缺口时不应 PASS 的反向断言作未来回退守卫。
+- **`docs/诊断规则与修复动作.md` 派生层刷新**: 经 `npm run docs:diagnostics` 自动重生成，27 个原本 fallback 显示 `-` 的行改为实际文案。
+- **`.github/workflows/release.yml` 发布门禁升级**: `诊断规则科学化治理` step 从默认模式升到 `-- --strict`（HARD + SOFT 任一缺失即 fail job），正式作发布硬门禁；PR 阶段 `ci.yml` 仍 `continue-on-error: true` informational review 保持开发宽松。
+- 验收: `npm test` 293/293 PASS / `lint` 0 / `typecheck:analysis` 0 / `check:diagnostic-governance` HARD=0 PASS / SOFT=0 PASS（70/70 DIAGNOSTIC_HELP 全覆盖） / `docs:diagnostics:check` 通过 / `check:release` 一致。
+
+### Changed — Phase 5.4-5.6 文档收口（2026-09-22）
+
+- **Phase 5.3 第 4 项 + Phase 5.4-5.6 收口**：本批不是新增 code 或 emit 路径，是对已落地代码的文档状态收口，反映 `crates/syntec-core/src/lib.rs` 现状已在 `analyze_request` 主循环内逐行调用 `validate_robot_line_state`（即时 emit 入口由 Phase 5.3 第 1-2 项落地），文件尾内联段处理 `SYNTEC_ROBOT_MOVC_PAIR_REQUIRED` 未配对收尾，`result_to_json` 已完整序列化 `diagnostics` 数组。
+  - **Phase 5.3 第 4 项 (已完成 2026-09-22)**：`analyze_request` 主循环验放收口。8 项 RBT 全部覆盖 emit（RBT-124/127/115/322/154-2/110/257/123）；`RBT-118` 决策不 emit；dead code `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE` / `SKIPCOND_Q_RANGE` 在 Phase 5.3 路径 A 已退役。
+  - **Phase 5.4 (已完成 2026-09-22)**：`compare:rust` parity 验证。差分基线 139 类（135 + 4 个 RBT-127 中间点超限）+ navigation 10/10 + edits 17/17 全等价；`tests/fixtures/rust-parity-baseline.json` 已含 Phase 5.3 第 1/2 项全部 case。
+  - **Phase 5.5 (已完成 2026-09-22)**：接入 `analyze_request` 主循环。`validate_robot_line_state` 已在主循环内逐行调用，所有 Phase 5.3 emit 即时产生并通过 `result_to_json` 输出；MOVC pending pair 文件尾 emit 由主循环后的内联段处理。STITCHON/WEAVEON/WAITSYNC/G192 区间未关闭的收尾 emit 属新规则（JS 端原无此诊断），不在 Phase 5.3 范围内，留作未来 follow-up。
+  - **Phase 5.6 (已完成 2026-09-22)**：`docs/Rust诊断parity清单.md` 顶部状态段已含 Phase 5.3 第 1/2/3 项里程碑记录（73/73 Rust parity code 全覆盖）；`docs/macro-knowledge/MACRO能力矩阵.md` ROB-001 状态维持 «实测复核（CF + B 级双轨对齐）»，段内已说明 23 个 `SYNTEC_ROBOT_*` 稳定诊断 code 全覆盖 + 3 个 dead code 已退役。
+  - **文档同步**：`docs/迭代优化计划.md` §3 Phase 5 节点收口（5.3 第 4 项及后续 + 5.4-5.6 标记「已完成 2026-09-22」）；`docs/macro-knowledge/Phase5-控制器证据采集清单.md` §D 接续表加「状态」列，5.2 / 5.3 / 5.4 / 5.5 / 5.6 各项标 ✅ 已完成。
+  - 验收: `npm test` 293/293 PASS / `lint` 0 / `typecheck:analysis` 0 / `check:rust:wasm:asset` PASS (322575 B / SHA-256 `02bcb398...`) / `check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL / `check:js-backend-retirement --strict` 6 PASS+0 SKIP+0 FAIL / `check:diagnostic-governance` 治理门禁 PASS / `compare:rust` 139/139+10/10+17/17。
+
+### Fixed — Phase 5.3 第 3 项 cargo test --lib 既有破损修复（2026-09-22）
+
+- **背景**: Phase 5.3 第 1-2 项 task_complete 时确认 `cargo test --lib` 有 4 个 navigation 测试破损（CI 仅跑 `cargo build --lib` 不阻塞 CI）。Phase 5.3 第 3 项顺势收口。
+- **navigation 测试 `result.calls` → `result.navigation.as_ref().expect(...).calls`**: `crates/syntec-core/src/lib.rs` `tests` mod 内 4 个测试 (`extracts_macro_symbols_and_static_calls` / `normalizes_numeric_and_named_navigation_calls` / `navigation_ignores_strings_and_comments` / `navigation_positions_use_utf16_offsets`) 在 P0-B 重构后仍断言旧版顶层 `result.calls` 字段，但 `AnalysisResult` 早已把 `calls` 移入 `navigation: Option<AnalysisNavigation>` 之下，编译失败。
+- **新增测试辅助 `analyze_macro_document`**: 走 `analyze_request(AnalysisRequest { uri: "file:///test/macro.nc", ... })` 触发 `is_macro_file_content` 经 `MACRO_FILE_EXTENSIONS` 路径命中让 `navigation = Some`, 然后 `result.navigation.as_ref().expect("navigation must be present for MACRO document").calls` 取 calls。`mod tests` 顶部 `use` 加 `analyze_request` / `AnalysisRequest` / `DocumentSnapshot` / `PROTOCOL_VERSION`。
+- **同并修 `is_g10_l_line` 单测断言错误**: 上次会话误写 `assert!(!is_g10_l_line("G10 L0;"))`, 但 `is_g10_l_line` 按 `^\s*G10\s+L\d+\b` 实现, `L0` 仍满足 `\d+` 且现场 `G10 L0` 也占用 LTP 解译器单节队列应计入 MOVC 中间单节, 故应判 `true`. 改为断言 `G10 L;` (L 后无 digit) 返回 `false` 与实现一致。
+- **wasm 资产不变**: lib.rs 改动仅在 `#[cfg(test)]` 模块, 不进 wasm 二进制. `check:rust:wasm:asset` 仍 322575 B / SHA-256 `02bcb398d87a41e3...` PASS.
+- 验收: `cargo test --lib` 37/37 PASS / `npm test` 293/293 / `lint` 0 / `typecheck:analysis` 0 / `check:diagnostic-governance` HARD=0 PASS / `check:rust:wasm:asset` PASS / `check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL / `check:js-backend-retirement --strict` 6 PASS+0 SKIP+0 FAIL / `compare:rust` 139/139+10/10+17/17 / `probe:rust:wasm` counts=0/1。
+
+### Added — Phase 5.3 第 2 项 ROB-LTP-03/04/07/08 区间禁忌独立 code 化（2026-09-22）
+
+- **按第一性原理拆分通用区间禁用 code**: 现场使用者看到 editor 报 `SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND` 时无法精确定位是 RBT-115 / RBT-322 / RBT-257 / RBT-123 中哪一个 RBT 出问题；按「每 RBT → 独立 code」的项目既有路线，把 4 个运动辅助区间（STITCHON / WEAVEON / WAITSYNC / G192.1）的 error emit 从通用 `SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND` 拆分为 4 个按区间式独立 code：
+  - `SYNTEC_ROBOT_STITCHON_FORBIDDEN_COMMAND` — STITCHON 连续脉冲输出区间禁忌，对应 RBT-115 连续脉冲输出不支援此指令（ROB-LTP-03，CF 实测 `STITCHON_active=1`）。
+  - `SYNTEC_ROBOT_WEAVEON_FORBIDDEN_COMMAND` — WEAVEON 摆动作用区间禁忌，对应 RBT-322 摆动不支援此指令（ROB-LTP-04，CF 实测 `WEAVEON_active=1`）。
+  - `SYNTEC_ROBOT_WAITSYNC_FORBIDDEN_COMMAND` — WAITSYNC 履带追踪同动区间禁忌，对应 RBT-257 履带追踪不支援此指令（ROB-LTP-07，CF 实测 `WAITSYNC_active=1`；RBT-118 点位偏移侧 CF 优先报 RBT-257 故暂不 emit）。
+  - `SYNTEC_ROBOT_G192_FORBIDDEN_COMMAND` — G192.1 末端跟踪区间禁忌，对应 RBT-123 末端跟踪不支援此指令（ROB-LTP-08，CF 实测 `G192_scope_active=1`）。
+- **保留 `SYNTEC_ROBOT_RANGE_FORBIDDEN_COMMAND` 兜底**: M96 中断型副程序 warning 不区分 RBT 编号（CF 在多个区间都发 M96 等价的"无效"警告），仍走通用 `push_range_forbidden` helper。`push_range_forbidden` 保留在 `lib.rs`，4 个区间 error emit 改为直接 `push_diagnostic` literal。
+- **RBT-110 / RBT-154-2 编号关联收口**: 既有 `SYNTEC_ROBOT_SYNCOUT_LIMIT`（同一运动单节最多 10 个 SYNCOUT，对应 RBT-110）和 `SYNTEC_ROBOT_SWAITSIG_LIMIT`（运动单节后只能下 1 个 SWAITSIG，对应 RBT-154-2）的 emit 逻辑已就位且语义等价 CF 描述，无需代码变更，仅在 `docs/Rust诊断parity清单.md` §交叉引用表上明确编号关联收口。
+- **四件套登记完成**:
+  - JS `src/diagnosticCodes.js` 新增 4 个 key（JS 总 code 65 → 69；Rust stable code 66 → 70；parity 文档 69/69 → 73/73）。
+  - `src/diagnosticActions.js` `DIAGNOSTIC_HELP` 新增 4 项文案，每项含对应 RBT 编号 + 区间界限 + 规避策略（关闭区间指令 + 改用 MOVL/MOVC 等）。
+  - Rust `crates/syntec-core/src/lib.rs` 4 处 `push_range_forbidden` Error 调用改为直接 `push_diagnostic` literal；2 处 M96 Warning 保留 `push_range_forbidden`。
+  - `docs/Rust诊断parity清单.md` 顶部「Phase 5.3 第 2 项...」状态段 + §已覆盖列表加 4 code + §交叉引用表 ROB-001 行追加 4 code。
+- **Compare:rust parity 不变**: 既有 12 个区间禁用 case (`robot-signal-stitchon-forbids-movj` / `...-stitchon-forbids-weaveon` / `...-stitchon-movl-skip-forbidden` / `...-weaveon-forbids-movj` / `...-weaveon-forbids-stitchon` / `...-waitsync-forbids-movj` / `...-waitsync-forbids-mcode` / `...-g192-forbids-swaitsig` / `...-mutual-exclusion-stitch-in-weave` / `...-mutual-exclusion-weave-in-stitch` 各 1 项；`...-stitchon-m96-warning` 1 项保 RANGE_FORBIDDEN) 仅更新 `tests/fixtures/rust-parity-baseline.json` 中 `expected.code` 字段，`text / line / col / endCol / severity` 完全保留。139/139 + 10/10 + 17/17 等价不变。
+- **wasm 资产重打包**: `assets/rust-wasm/syntec_core.wasm` byteLength 322188 → 322575（+387 B，含 4 个新 literal emit 路径与 message 字符串）；SHA-256 `8a6ac9012471d763...` → `02bcb398d87a41e3...`。`probe:rust:wasm` counts=0/1 通过；`check:rust:wasm:asset` PASS。
+- **文档同步**: `docs/Rust诊断parity清单.md` 顶部状态段 + §已覆盖列表 + §交叉引用表 + 文档总数 69 → 73；`docs/迭代优化计划.md` §3 Phase 5 节点刷新（Phase 5.3 第 1-2 项已落地）+ §4 文档总数 69 → 73；`docs/诊断规则与修复动作.md` 经 `npm run docs:diagnostics` 自动重生成。
+- 验收: `npm test` 293/293 PASS / `lint` 0 / `typecheck:analysis` 0 / `docs:diagnostics:check` 通过 / `check:diagnostic-governance` HARD=0 PASS / `check:rust:wasm:asset` PASS / `check:vsix` 39 文件一致 / `check:data` 一致 / `check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL / `check:js-backend-retirement --strict` 6 PASS+0 SKIP+0 FAIL / `compare:rust` 139/139+10/10+17/17。
+
+### Added — Phase 5.3 第 1 项 ROB-LTP-02 / RBT-127 emit 落地（2026-09-22）
+
+- **第一笔 Phase 5.3 跨行 emit 入口完成**: `crates/syntec-core/src/lib.rs` `validate_robot_line_state` 在 `pending_movc_line > 0` 期间对四类「计入中间单节」的指令推进 `movc_pair_count`（阈值 10），第 11 笔即时在本行 emit `SYNTEC_ROBOT_MOVC_INTERMEDIATE_LIMIT`（severity=error），对应控制器 [RBT-127 圆弧运动单节间的指令数量已超过上限]（ROB-LTP-02，源自现场实测记录单 §C-02 / `movc_pair_count=11`）。
+  - **新增辅助函数 `is_g10_l_line`**: 按 `^\s*G10\s+L\d+\b` (case-insensitive) 识别 G10 L1000/L1810/L1820/L1900/L1901 等工件/IO/通讯参数写入行，作「计入」第一类（占用 LTP 解译器中间单节缓冲队列）。
+  - **计入四类**: `G10 L*` 行 (新辅助识别) / `SYNCOUT` (非运动辅助) / 非运动辅助 M 码 (`M<num>` 形态) / 非运动辅助 G 码。MOVC 自身不计数（作配对成员）。
+  - **豁免三类**: （1）单行 X1=/X2= 写法不设置 `pending_movc_line`，自然不进入计数路径；（2）Macro 变量赋值 / 流程控制 / 注释 `get_command` 返回 `None` 在 `validate_robot_line_state` 顶部 early return，不计数；（3）条件分支内指令（`in_conditional_branch=true`）与 MOVC pair 规则一致豁免。
+  - **触发时机（push-time bounds check）**: 第 11 笔中间指令入栈时在本行即时 emit error，行起始 col..clean_end；不延迟到下一个结束 MOVC。
+  - **配对完成时重置**: MOVC 配对完成（第二笔双行写法 MOVC 到达）或运动指令截断圆弧对时 `movc_pair_count` 与 `pending_movc_line` 同步归零，避免污染下一对 MOVC。
+  - **计入逻辑依据**: user 2026-09-22 CF 复核 + Phase5-控制器实测现场记录单 §C-02 「插入 11 笔 `G10 L1000 P1 R1` 触发 RBT-127，计数器 `movc_pair_count=11`」。CF 原文「中间点与结束点间允许的指令数上限为 10 个（Macro 标准语法与模态指令除外），否则触发 `RBT-127`」。
+- **四件套登记完成**: JS 端 `src/diagnosticCodes.js` 加 `ROBOT_MOVC_INTERMEDIATE_LIMIT: 'SYNTEC_ROBOT_MOVC_INTERMEDIATE_LIMIT'` key + `src/diagnosticActions.js` `DIAGNOSTIC_HELP` 用户文案；Rust 端 `lib.rs` literal emit；`docs/Rust诊断parity清单.md` §已覆盖列表新增 code + §交叉引用表增至 69 项 + 顶部「Phase 5.3 第 1 项...」状态段。
+- **新增 Rust 单测**: `is_g10_l_line_matches_l1000_l1802_l1810_l1820_l1900_l1901` (1 + 6 + 5 边界) + `phase5_3_movc_intermediate_limit_emits_on_eleventh_g10_l1000` (11 笔累计 + 第 11 笔即时 emit + 第 12 笔配对 MOVC 重置计数) + `phase5_3_movc_intermediate_limit_豁免_单行_x1x2_与_macro_赋值` (单行 MOVC 与 Macro 赋值豁免路径)。`cargo test --lib` 因既有 `result.calls` 测试破损未跑（Phase 5.3 修复区域无 npm test 影响路径）。
+- **Compare:rust 差分扩展 + wasm 资产重打包**:
+  - `scripts/compareRustCore.js` 新增 4 个 CASES 与对应 `tests/fixtures/rust-parity-baseline.json` 基线条目：
+    - `robot-mov-movc-intermediate-g10-l1000-eleventh` → expect 1 RBT-127 emit (line=12, col=0, endCol=16)
+    - `robot-mov-movc-intermediate-g10-l1000-ten-pair-completes` → expect 0（10 笔中间 + 配对 MOVC 收尾不触发）
+    - `robot-mov-movc-intermediate-single-line-x1x2-exempt` → expect 0（单行 MOVC 已配对，后续多笔 G10 不计数）
+    - `robot-mov-movc-intermediate-macro-assignment-exempt` → expect 0（Macro 变量赋值豁免，11 笔 `#1 := 5;` 不计数）
+  - `compare:rust` P0-B request parity 135 → 139（139/139 等价），navigation 10/10、edits 17/17 维持等价。
+  - `assets/rust-wasm/{manifest.json, syntec_core.wasm}` 重打包：byteLength 318040 → 322188（+4148 B，含新 RBT-127 emit 路径）；SHA-256 `88ddaeacf0aae64641a0f1b848bb637cd7a5bdd7be47f425f998b4e5dc7d8f5f` → `8a6ac9012471d763...`。`probe:rust:wasm` counts=0/1 通过；`benchmark:rust:wasm --iterations 10` fixture p50 14.89/16.66ms、large p50 489ms 量级稳。
+- **文档同步**: `docs/Rust诊断parity清单.md` 顶部状态段 + §已覆盖列表 + §交叉引用表；`docs/迭代优化计划.md` §3 Phase 5 段刷新节点；`docs/诊断规则与修复动作.md` 经 `npm run docs:diagnostics` 自动重生成新 code 派生行。
+- 验收: `npm test` 293/293 PASS / `lint` 0 / `typecheck:analysis` 0 / `docs:diagnostics:check` 通过 / `check:rust:wasm:asset` PASS / `check:vsix` 39 文件一致 / `check:data` 一致 / `check:diagnostic-governance` HARD=0 PASS / `check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL / `check:js-backend-retirement --strict` 6 PASS+0 SKIP+0 FAIL / `compare:rust` 139/139+10/10+17/17。
+
 ### Added — Phase 5.1 控制器实测复核回填（2026-09-22）
 
 - **Phase 5.1 B 级证据采集完成 (user 张颖, Syntec 81RA / 11MA, 10.120.44C / 10.120.52, 2026-09-20~22)**: user 上控制器把 `docs/macro-knowledge/Phase5-控制器实测现场记录单.md` 23 个采集块全部填完回传（§A 9 + §B 6 + §C 8），agent 按回传工作流把数据分别导入到对应资料包，能力矩阵与 parity 清单状态同步升级，本批未新增 `SYNTEC_*` 诊断 code（Phase 5.1 仅复核 + 资料回填）。Phase 5.2-5.3 Rust 端跨行 emit 入口已解锁，后续新增 code 时按 [诊断规则科学化工作流](docs/macro-knowledge/诊断规则科学化工作流.md) 8 步骤走四件套登记。

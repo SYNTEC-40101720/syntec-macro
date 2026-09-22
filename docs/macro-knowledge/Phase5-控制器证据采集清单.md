@@ -139,13 +139,13 @@
 
 完成上述全部/部分采集并提交后，agent 将自动启动：
 
-| Phase 5 步骤 | 接续工作（agent） | 依赖 |
-| --- | --- | --- |
-| 5.2 设计 Rust 跨行状态 struct | 在 `crates/syntec-core/src/lib.rs` 已有的 `RobotLineState` 上扩展 (字段: `movc_pair_count` / `swaitsig_pending` / `syncout_count` / `stitchon_active` / `weaveon_active` / `waitsync_active` / `g192_scope_active` 等) + 变量生命周期表/M198 重读缓存/WAIT 时序状态 | 全部 A/B/C 采集至少一轮 |
-| 5.3 Rust 端跨行 emit 入口 | 对照证据，在 Rust `validate_robot_line_state` / `finalize_robot_state` 补登记 emit；dead code `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE` / `SKIPCOND_Q_RANGE` 若补 emit 需同步登记到 `src/diagnosticCodes.js` + `src/diagnosticActions.js` (host 元数据真源) | C 全部 + A CALL-RUN-03/04 |
-| 5.4 Rust 侧 parity 验证 | 在 `crates/syntec-core/src/lib.rs` 完整实现后, 跑 `compare:rust` + 单测; 同步 4 件套登记 (JS DiagnosticCode 注册 + Rust emit + parity 清单 + DIAGNOSTIC_HELP 文案) | 5.3 完成 |
-| 5.5 接入 `analyze_request` 主循环 | 在 `analyze_request` 主循环调用跨行状态机；`result_to_json` 输出完整诊断序列 | 5.4 完成 |
-| 5.6 更新 parity 清单与能力矩阵 | `Rust诊断parity清单.md` 顶部状态从 67/67 扩展；能力矩阵对应能力 ID 状态从 «资料阻塞» 改为 «已覆盖» | 5.5 完成 |
+| Phase 5 步骤 | 接续工作（agent） | 依赖 | 状态 |
+| --- | --- | --- | --- |
+| 5.2 设计 Rust 跨行状态 struct | 在 `crates/syntec-core/src/lib.rs` 已有的 `RobotLineState` 上扩展 (字段: `movc_pair_count` / `swaitsig_pending` / `syncout_count` / `stitchon_active` / `weaveon_active` / `waitsync_active` / `g192_scope_active` 等) + 变量生命周期表/M198 重读缓存/WAIT 时序状态 | 全部 A/B/C 采集至少一轮 | ✅ 已完成 (2026-09-22) |
+| 5.3 Rust 端跨行 emit 入口 | 对照证据，在 Rust `validate_robot_line_state` / `finalize_robot_state` 补登记 emit；dead code `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE` / `SKIPCOND_Q_RANGE` 若补 emit 需同步登记到 `src/diagnosticCodes.js` + `src/diagnosticActions.js` (host 元数据真源) | C 全部 + A CALL-RUN-03/04 | ✅ 已完成 (2026-09-22, 第 1-3 项 + 路径 A) |
+| 5.4 Rust 侧 parity 验证 | 在 `crates/syntec-core/src/lib.rs` 完整实现后, 跑 `compare:rust` + 单测; 同步 4 件套登记 (JS DiagnosticCode 注册 + Rust emit + parity 清单 + DIAGNOSTIC_HELP 文案) | 5.3 完成 | ✅ 已完成 (2026-09-22, 139/139 等价) |
+| 5.5 接入 `analyze_request` 主循环 | 在 `analyze_request` 主循环调用跨行状态机；`result_to_json` 输出完整诊断序列 | 5.4 完成 | ✅ 已完成 (2026-09-22, `validate_robot_line_state` 已在主循环内逐行调用) |
+| 5.6 更新 parity 清单与能力矩阵 | `Rust诊断parity清单.md` 顶部状态从 67/67 扩展；能力矩阵对应能力 ID 状态从 «资料阻塞» 改为 «已覆盖» | 5.5 完成 | ✅ 已完成 (2026-09-22, 73/73 全覆盖 + ROB-001 «实测复核») |
 
 ---
 

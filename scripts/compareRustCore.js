@@ -305,6 +305,52 @@ const CASES = [
     text: 'MOVC X1=10. X2=20.;'
   },
   {
+    name: 'robot-mov-movc-intermediate-g10-l1000-eleventh',
+    text: [
+      'MOVC X10. Y10.;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'MOVC X20. Y20.;',
+      'M30;'
+    ].join('\n')
+  },
+  {
+    name: 'robot-mov-movc-intermediate-g10-l1000-ten-pair-completes',
+    text: [
+      'MOVC X10. Y10.;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'MOVC X20. Y20.;',
+      'M30;'
+    ].join('\n')
+  },
+  {
+    name: 'robot-mov-movc-intermediate-single-line-x1x2-exempt',
+    text: [
+      'MOVC X1=10. X2=20.;',
+      // 单行 MOVC 已自行配对完成, 之后任意多笔 G10 L1000 都不进入中间单节计数.
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;', 'G10 L1000 P1 R1;',
+      'M30;'
+    ].join('\n')
+  },
+  {
+    name: 'robot-mov-movc-intermediate-macro-assignment-exempt',
+    text: [
+      'MOVC X10. Y10.;',
+      // Macro 变量赋值由 get_command 解为 None, 在 validate_robot_line_state 顶部 early return, 不计入计数.
+      '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;',
+      '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;', '#1 := 5;',
+      'MOVC X20. Y20.;',
+      'M30;'
+    ].join('\n')
+  },
+  {
     name: 'robot-mov-coordinate-syntactics',
     text: 'USERCOR P1 F100.;\nTOOLCOR P1 G01 X10.;\nG68.18 P1 MOVJ;'
   },
