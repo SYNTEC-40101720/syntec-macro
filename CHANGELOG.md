@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 4.0.0 - 2026-09-22
+
+### Changed — Breaking (R1.2 Stage B: JS 后端退役)
+
+- **Major 版本升级 3.1.0 → 4.0.0**: R1.2 Stage B 把 JS 分析后端彻底退役, backend 硬切为只支持 `rust-wasm`. `syntecMacro.analysisBackend` enum 收敛为 `['rust-wasm']` 单值, `javascript` 与 `rust-wasm-shadow` 配置项不再可用 (graceful upgrade: 旧值会被 VS Code 校验拒绝并提示用户重设为 `rust-wasm`). `src/analysisCore.js`/`lexer.js`/`validator.js`/`robotValidator.js`/`controlFlowValidator.js`/`functionArgumentValidator.js`/`diagnosticRules.js`/`diagnosticFactory.js`/`formatter.js`/`navigationSymbols.js`/`navigationIndex.js`/`statementClassifier.js` 共 12 个 JS 分析器源文件删除, 净减 ~4218 行. Host provider (`formattingProvider`/`navigationProvider`/`definitionProvider`) 现全部走 `hostRustAnalyzer` 同步路径, worker (`validatorWorker`) 默认与唯一 backend 为 `rust-wasm`.
+- **R1.2 Stage B §2.x host provider 同步路径重写**: `formattingProvider` 不再 `require('./analysisCore').formatDocument`, 格式化 100% 走 Rust (未就绪时返回 `[]`). `navigationProvider` 同步路径不再 `require('analysisCore'/'navigationIndex'/'navigationSymbols')`, 改由 `pathResolver` 提供 `collectNavigationIndexEntries`/`isPotentialNavigationFile`/`getProgramEntryName`/`getMacroProgramName`/`isMacroFileContent`/`extractNavigationSymbolsMetaOnly` 等 host-only 函数; `loadIndex` 在 host 未就绪时返回 `null`, 上层降级为延迟响应.
+- **R1.2 Stage B §2.1 hostRustAnalyzer policy 'empty'**: `extension.js` activate 中显式调用 `setHostAnalyzerPolicy('empty')`, host 未就绪时 `getHostRustAnalyzer()` 返回 `null`, 所有 host provider 返回空结果而非试图加载 `analysisCore` 的 JS fallback.
+- **R1.2 Stage B §2.9-§2.10 worker 与 adapter 重写**: `validatorWorker.js` 的 `DEFAULT_BACKEND` 改为 `rust-wasm`; 移除 `javascript`/`shadow`/`unknown` 分支, 未知 backend 退化为 `rust-wasm` 并记录 unknown 日志; `rustWasmWorkerAdapter.js` 删除 shadow mode、`resultsEqualShallow`、`javascriptAnalyzer` option、`onShadowMismatch`, 只保留主路径.
+- **R1.2 Stage B §2.11 analysisBackend**: `createAnalysisBackend` 只接受 `backend='rust-wasm'`, 要求 `rustAnalyzer`/`onFallback` 为函数; JS fallback 路径删除, `onFallback` 仅上报且 rethrow 由 worker 决定 UI 提示.
+- **R1.2 Stage B §2.12 diagnosticsProvider**: 移除 `fallbackAnalysisHost = new AnalysisHost()` (Stage B 下会触发 createAnalysisBackend 抛错); worker 不可用时 `validateDocumentAsync` 返回 `Promise.resolve(null)`, `refreshDiagnostics` 跳过本轮.
+- **R1.2 Stage B 测试与脚本改动**: 删除 4 个仅测 JS 单元的测试 (`validator.test.js`/`navigationIndex.test.js`/`parserSpike.test.js`/`analysisBenchmark.test.js`); `workerLifecycle.test.js` 重写为 8 项全 `rust-wasm` 契约; `rustWasmWorkerAdapter.test.js` 重写为 3 项纯 primary mode; `extension.test.js` 删除 25 项 JS-unit tests 保留 41 项; `analysisProtocol.test.js` 删 6 项 JS backend 测试 + 新增 3 项 R1.2 契约断言; `formattingProvider.test.js` 改为 async host-Rust 路径; `compareRustCore.test.js` 断言已退役 JS helpers 抛 MODULE_NOT_FOUND; `benchmarkCompare.test.js` 删 4 项 `runJavaScriptEquivalent` 测试, 重写 parity 契约为 'rust-only'. `scripts/compareRustCore.js` 默认基线改为 `tests/fixtures/rust-parity-baseline.json`, JS helper 改为 lazy require 在 R1.2 后抛 MODULE_NOT_FOUND.
+
+### Migration
+
+- **从 3.1.0 升级**: 用户配置若设过 `syntecMacro.analysisBackend = "javascript"` 或 `"rust-wasm-shadow"`, 升级到 4.0.0 后该值不在 enum 中, VS Code 会拒绝该值并回退到 `rust-wasm` 默认. 无任何用户数据迁移; Rust/Wasm 资产 `assets/rust-wasm/` 已 bundle 进 VSIX.
+- **回滚**: 如需回到 3.1.0, 按 `docs/R1.2-实施方案.md` §6 Rollback 步骤 (撤销 R1.2 PR + 重装 `syntec-macro@3.1.0` 或 `v3.1.0` tag). 不提供运行时 JS 分级回退.
+
+### Validation (R1.2 Stage B 提交 commit 02ae430)
+
+- `npm test`: 236/236 PASS, 0 fail / 0 skip / 0 cancelled
+- `npm run lint`: clean
+- `npm run compare:rust` (`SYNTEC_RUST_CLI`): 135 cases + 10 nav + 17 format parity 全等价
+- `npm run check:js-backend-retirement`: 6 PASS / 0 SKIP / 0 FAIL
+- `npm run check:release:readiness`: 6 PASS / 1 SKIP / 0 FAIL
+- `npm run check:vsix`: 35 files valid
+- `npm run smoke:installed`: extension 激活 + rust-wasm worker 正常加载
+
 ## 3.1.0 - 2026-09-21
 
 ### Changed
