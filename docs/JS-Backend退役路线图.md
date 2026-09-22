@@ -163,13 +163,13 @@ JS 行为不变、Rust 已不 emit —— 直接剔除三项保留但未启用�
 - 数据表迁出不影响 hover/completion 行为（`hoverProvider.test.js` / `completionProvider.test.js` 仍全 pass）。
 - JSON 数据接口在 host 层包装为只读缓存。
 
-## Phase R3 — Agent 不擅自做的事
+## Phase R3 — Agent 可执行但需用户认可顺序的动作
 
-以下动作涉及 release workflow / credential / 跨平台构建，**完全由 user 决策**：
+以下动作涉及 release workflow / credential / 跨平台构建。agent 按 `docs/3.x-Release-Runbook.md` 走 v4.0.0 Major 切版与 GitHub Release 只走项目自带 CI 主路径 (`push tag v*.*.*` 触发 `.github/workflows/release.yml` 自动打包 + 上传 VSIX), 不走 `scripts/createGitHubRelease.js` 备路径。每步输出当前进度与下一个准备动作由用户认可:
 
-1. v4.0.0 版本号切换（Major：剔除 JS）
-2. GitHub Release + tag + VSIX 上传
-3. R1.1 + R1.2 PR review + 合并
+1. v4.0.0 版本号切换 (Major: 剔除 JS)
+2. GitHub Release + tag + VSIX 上传 (主路径: `git push origin v4.0.0`)
+3. R1.1 + R1.2 PR 合并 + tag
 4. v4.0.0 上线后用户问题观察期 ≥1 release cycle
 
 ## Agent 现在能做的简单部分

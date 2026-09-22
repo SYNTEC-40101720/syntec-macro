@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `npm run check:vsix`: 35 files valid
 - `npm run smoke:installed`: extension 激活 + rust-wasm worker 正常加载
 
+### Changed — Document ownership boundary for `release:create`
+
+- **Open the v4.0 release workflow as agent-runnable**: `docs/R1.2-实施方案.md` 前置条款 3 与 `docs/JS-Backend退役路线图.md` §Phase R3 的 "Agent 不擅自做的事 / 完全由 user 决策" 措辞改为 "Agent 按 `docs/3.x-Release-Runbook.md` 走完整 tag/发版流程，每步输出当前进度与下一个准备动作由用户认可；只走 CI 主路径（`git push origin v*.*.*` 触发 `.github/workflows/release.yml`），不保留 `scripts/createGitHubRelease.js` 备路径以外的最高权限凭证操作". 此处的范围调整只覆盖 v4.0；后续 Major 版本（v5.0+）默认回到原 user 决策边界。
+
 ## 3.1.0 - 2026-09-21
 
 ### Changed
