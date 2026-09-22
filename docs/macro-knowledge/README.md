@@ -4,7 +4,7 @@
 
 当前工作区的未提交改动、验证基线与后续接续顺序见 [开发交接说明](../开发交接说明.md)。
 
-> 四层职责边界核对结论（2026-09-20）：本目录 10 个文档全部遵循 README §「文档分层与职责边界」定义的四层职责（真源/索引/派生/审计证据）。真源层 5 个文档（语法规范手册、知识与验证规划、3.x Rust/Wasm 切换规划、Rust 诊断 parity 清单、开发交接说明）只指向其他文档，不重复登记能力 ID 状态；[MACRO能力矩阵](MACRO能力矩阵.md) 是唯一能力级状态登记点，[Rust诊断parity清单](../Rust诊断parity清单.md) 含 `SYNTEC_*` code 到能力 ID 的交叉引用表；其余审计证据层 8 个资料包通过顶部`> 插件状态`与 `> 能力 ID` 指针指向能力矩阵，不重复登记状态。
+> 四层职责边界核对结论（2026-09-20，2026-09-22 更新）：本目录 12 个文档全部遵循 README §「文档分层与职责边界」定义的四层职责（真源/索引/派生/审计证据）。真源层 5 个文档（语法规范手册、知识与验证规划、3.x Rust/Wasm 切换规划、Rust 诊断 parity 清单、开发交接说明）只指向其他文档，不重复登记能力 ID 状态；[MACRO能力矩阵](MACRO能力矩阵.md) 是唯一能力级状态登记点，[Rust诊断parity清单](../Rust诊断parity清单.md) 含 `SYNTEC_*` code 到能力 ID 的交叉引用表，[诊断规则科学化工作流](诊断规则科学化工作流.md) 是新增/修改诊断规则的四件套登记流程入口（v4.0.0+ 起）；其余审计证据层 9 个资料包通过顶部`> 插件状态`与 `> 能力 ID` 指针指向能力矩阵，不重复登记状态。
 
 职责边界： [MACRO 知识与验证规划](MACRO知识与验证规划.md) 是阶段、任务、证据和验收的唯一真源；[开发交接说明](../开发交接说明.md) 只维护当前工作区的开发、验证和 GitHub 同步流程，两者不物理合并，也不重复维护同一份计划。
 
@@ -17,7 +17,7 @@
 - [新代 MACRO 语法规范手册](../新代MACRO语法规范手册.md):语法/函数/规则的**知识真源**。
 - [MACRO 知识与验证规划](MACRO知识与验证规划.md):阶段门禁/证据字段/迭代记录的**计划真源**。
 - [3.x Rust/Wasm 切换剩余任务规划](../3.x-Rust-Wasm切换剩余任务规划.md):Rust/Wasm 正式导入、生产切换和 3.x 发布的执行清单。
-- [Rust 诊断 parity 清单](../Rust诊断parity清单.md):对照 `src/diagnosticCodes.js` 全部 67 个 code 的 Rust 覆盖状态、未覆盖项与迁移批次。
+- [Rust 诊断 parity 清单](../Rust诊断parity清单.md):对照 `src/diagnosticCodes.js` 全部 65 个稳定 code 的 Rust 覆盖状态、未覆盖项与迁移批次。
 - [开发交接说明](../开发交接说明.md):工作区/验证命令/发布的**运行真源**。
 
 ### 索引层(只读导航)
@@ -33,6 +33,7 @@
 
 - [Atlassian MACRO 知识记录](Atlassian-MACRO知识记录.md):来源分级 A–D / 五层认知 / 工作流(方法学)。
 - [MACRO 能力矩阵](MACRO能力矩阵.md):能力 ID 状态总览(**唯一状态登记点**)。
+- [诊断规则科学化工作流](诊断规则科学化工作流.md):新增/修改诊断规则的"四件套登记 + 工具守卫"流程,`scripts/checkDiagnosticGovernance.js` 守卫 HARD/SOFT 门槛。
 - [MACRO 调用语义资料包](MACRO调用语义资料包.md):CALL-* + 81RA 运行时记录。
 - [MACRO LTP 专项资料包](MACRO-LTP专项资料包.md):ROB-001 + LTP 版本基线。
 - [MACRO 函数审计资料包](MACRO函数审计资料包.md):FUN-A(GETARG/PARAM/SYSVAR/SYSDATA/DRVDATA/GETPR/SETPR)。
@@ -41,6 +42,7 @@
 - [MACRO Cycle 资料库函数资料包](MACRO-Cycle资料库函数资料包.md):FUN-D。
 - [MACRO 图形模拟函数资料包](MACRO图形模拟函数资料包.md):FUN-F。
 - [Phase 5 控制器证据采集清单](Phase5-控制器证据采集清单.md):Phase 5.1 跨行状态 parity 的控制器实测指引、记录模板与 agent 接续触发表（CALL-RUN-01..07 CNC 复核、GETPR/SETPR 签名采集、ROB-LTP-01..08 跨行警报复核）。
+- [Phase 5 控制器实测现场记录单](Phase5-控制器实测现场记录单.md):上控制器时的现场记录单, 每项验证一个空表块, 填完回传后 agent 自动导入到对应资料包 + 能力矩阵 + parity 清单。
 
 ### 治理原则
 

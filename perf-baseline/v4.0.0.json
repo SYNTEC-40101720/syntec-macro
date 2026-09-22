@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "tag": "v4.0.0",
+  "collectedAt": "2026-09-22T00:00:00Z",
+  "platform": "windows-dev-machine",
+  "nodeVersion": "v24.15.0",
+  "gitCommit": "886891a",
+  "postReleaseHead": "4c786bd",
+  "wasmArtifact": {
+    "path": "assets/rust-wasm/syntec_core.wasm",
+    "byteLength": 320312,
+    "sha256": "b60d854cae9ec3a596c62dc9409a349e7e439c48b6cf56c04613eb510e819c94"
+  },
+  "iterations": 10,
+  "results": [
+    {
+      "scenario": "fixture",
+      "lineCount": 394,
+      "iterations": 10,
+      "rustWasmBytes": 320312,
+      "jsStartupMs": 0,
+      "rustStartupMs": 8.0933,
+      "js": {
+        "firstMs": null,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": 0
+      },
+      "rust": {
+        "firstMs": 45.2157,
+        "p50Ms": 12.841799999999978,
+        "p95Ms": 24.396199999999993,
+        "maxMs": 24.396199999999993,
+        "resultBytes": 21906
+      },
+      "parity": "rust-only"
+    },
+    {
+      "scenario": "large-20k",
+      "lineCount": 20000,
+      "iterations": 10,
+      "rustWasmBytes": 320312,
+      "jsStartupMs": 0,
+      "rustStartupMs": 8.0933,
+      "js": {
+        "firstMs": null,
+        "p50Ms": null,
+        "p95Ms": null,
+        "maxMs": null,
+        "resultBytes": 0
+      },
+      "rust": {
+        "firstMs": 384.0894,
+        "p50Ms": 370.1190999999999,
+        "p95Ms": 495.16689999999926,
+        "maxMs": 495.16689999999926,
+        "resultBytes": 717838
+      },
+      "parity": "rust-only"
+    }
+  ],
+  "nav": {
+    "scenario": "nav-500-files",
+    "fileCount": 500,
+    "linesPerFile": 40,
+    "iterations": 10,
+    "jsBatchMs": 0,
+    "rustBatchMs": 109.77159999999913,
+    "rustFallbackCount": 0,
+    "parity": "rust-only"
+  },
+  "fallback": {
+    "total": 0,
+    "ratio": 0
+  },
+  "regressions": [],
+  "summary": {
+    "jsFasterIn": "n/a (JS analyzer retired in v4.0.0 R1.2 Stage B)",
+    "rustFasterIn": "fixture?large-20k?nav-500-files (rust-only benchmark post R1.2)",
+    "allParityEqual": true,
+    "canSwitchDefaultBackend": true,
+    "switchBlockers": [],
+    "notes": [
+      "R1.3 baseline: JS analyzer core 已在 v4.0.0 R1.2 Stage B 退役, benchmark 输出 parity=rust-only, JS 字段全 0.",
+      "本 baseline 作后续 v4.x 回归对照: Rust p50 fixture 12.84ms / large-20k 370.12ms / nav-500-files 109.77ms.",
+      "Phase R2 数据表迁移不应影响 benchmark (host provider 不在 benchmark 热路径); 若 R2 后 benchmark 出现 p50 偏移 > 10% 视为回归需排查."
+    ]
+  }
+}

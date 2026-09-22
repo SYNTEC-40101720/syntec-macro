@@ -17,7 +17,13 @@ const REQUIRED_STATIC_FILES = [
   // can ship a fixed-version, SHA-256-audited wasm artifact with the
   // extension. Asset bundle is gated by `check:rust:wasm:asset`.
   'assets/rust-wasm/manifest.json',
-  'assets/rust-wasm/syntec_core.wasm'
+  'assets/rust-wasm/syntec_core.wasm',
+  // Phase R2 (v4.x): 数据真源迁到 src/data/*.json；host provider 通过
+  // thin loader 加载，JSON 必须随 VSIX 分发。
+  'src/data/systemVariables.json',
+  'src/data/functions.json',
+  'src/data/hoverDocs.json',
+  'src/data/keywords.json'
 ];
 
 function normalizeFiles(files) {

@@ -155,7 +155,7 @@ function main() {
   lines.push('');
   lines.push(`> 生成日期: ${new Date().toISOString()}`);
   lines.push('> 仅基于源码文本静态扫描（regex literal 命中）；非运行时 emit 验证。');
-  lines.push('> 准入门槛见 docs/JS-Backend退役路线图.md §成熟条件。');
+  lines.push('> 准入门槛见 docs/迭代优化计划.md §「后续计划 (v4.x+)」Phase R2 不变约束 (源自已合并的 JS-Backend 退役路线图).');
   lines.push('');
   lines.push('## 1. 诊断 code parity 缺口');
   lines.push('');

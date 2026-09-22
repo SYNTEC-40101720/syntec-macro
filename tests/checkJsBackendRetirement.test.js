@@ -1,7 +1,7 @@
 // JS Backend 退役 R1 准入自检工具的契约测试。
 //
 // 覆盖：
-//   - CHECKS 数组对照 docs/JS-Backend退役路线图.md §不变前提 6 项门禁完整
+//   - CHECKS 数组对照 docs/迭代优化计划.md §「后续计划 (v4.x+)」不变约束 6 项门禁完整
 //   - 每个 check 有唯一 id / name / run() 函数
 //   - run() 返回 {status: 'PASS'|'FAIL'|'SKIP', detail: string}
 //   - 主 process.exitCode 默认 0（非门禁，由人 review）
@@ -126,9 +126,9 @@ test('check 4 (wasm asset consistency) PASSes after 2026-09-21 repack', () => {
     'wasm asset repacked on 2026-09-21, manifest should be consistent');
 });
 
-test('check 6 (dead-code-decision-documented) PASSes with roadmap', () => {
-  // 路线图文档已含 dead code 决策节，应 PASS
+test('check 6 (dead-code-decision-documented) PASSes with parity doc', () => {
+  // R1.2 Stage B 后 dead code 决策真源改为 docs/Rust诊断parity清单.md
   const result = CHECKS[5].run();
   assert.strictEqual(result.status, 'PASS',
-    'docs/JS-Backend退役路线图.md should contain dead code decision section');
+    'docs/Rust诊断parity清单.md should contain dead code decision section');
 });

@@ -1,14 +1,19 @@
 # Phase 5 控制器证据采集清单
 
+> **现场记录入口**: 上控制器实测时请打开 [`Phase5-控制器实测现场记录单.md`](Phase5-控制器实测现场记录单.md) 按场景填表, 完成后 git 提交并通知 agent 自动按 §D 接续。
+> 本清单是采集方法论与 CF 文档基线索引; 现场记录单是空表单直接填的载体; 两者配合使用.
+
 本清单用于在目标控制器环境（CNC 模拟器或实机）按 Phase 5.1 要求采集跨行状态 parity 所需证据。资料包已存在的首轮记录（`CALL-RUN-01..07` 在 81RA / 10.120.44C）作为基线，本清单在此基础上补充 CNC 侧复核 + `GETPR/SETPR` 签名/权限 + 跨行状态机运行时证据采集指引。
 
 使用流程：
-1. 下次上控制器前，先打印本清单作为采集脚本。
-2. 每场景跑完后填一行到对应资料包的「验证结果记录」表。
+1. 下次上控制器前，先打印本清单作为采集脚本（建议按 A → C → B 顺序采集，A/C 已有 CF 文档级基线可参照，B 的 GETPR/SETPR 需从零采签名）。
+2. 每场景跑完后填一行到对应资料包的「验证结果记录」表（A → `MACRO调用语义资料包.md` §4，B → `MACRO函数审计资料包.md` §4，C → `MACRO-LTP专项资料包.md` §3/§4）。
 3. 证据等级必须为 A 级（CF 正式函数页）或 B 级（控制器实测记录）；C/D 级言词描述不可单独作 parity 依据。
-4. 完成后将本清单连同更新后的资料包提交到工作区，触发 Phase 5.2 设计 Rust 跨行状态 struct（agent 接续）。
+4. 完成后将本清单连同更新后的资料包 git 提交到工作区，并通知 agent 启动 Phase 5.2-5.6（详见 §D 接续表）。agent 端会自动按四件套登记走 (`scripts/checkDiagnosticGovernance.js` HARD 守卫) — JS 注册 DiagnosticCode 在 `src/diagnosticCodes.js`、Rust emit 在 `crates/syntec-core/src/lib.rs`、parity 清单交叉引用、DIAGNOSTIC_HELP 文案。
 
-更新日期：2026-09-20
+更新日期：2026-09-22
+
+> **采集状态**：Phase 5.1 B 级采集已完成（2026-09-22，user 张颖，Syntec 81RA / 11MA, 10.120.44C / 10.120.52）。23 个采集块全部「CNC 待测」列已勾选完成，详细实测记录见 [Phase5-控制器实测现场记录单](Phase5-控制器实测现场记录单.md)。本清单下方 A/B/C 三表的「CNC 待测 / 实测结果 / 结论 / 日期」列已批量回填摘要；agent 侧 §D 接续工作流（Phase 5.2-5.6）已解锁。
 
 ---
 
@@ -20,13 +25,13 @@
 
 | 验证 ID | 程序目标 | 预期观察（CF 文档） | 81RA 首轮结果 | CNC 待测 | 控制器机型 | 软件版本 | 实测结果 | 结论 | 日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| CALL-RUN-01 | `G65` 调用前后写同名 `#27` | 父/子值隔离；返回后父值保持 | 通过 (81RA / 10.120.44C) | ☐ | | | | | |
-| CALL-RUN-02 | `M98` / `M198` 子程序修改 `#27` | 父程序可观察到子程序修改 | 通过 (81RA / 10.120.44C) | ☐ | | | | | |
-| CALL-RUN-03 | `G66` + 穿插移动/非移动 + `G67` | 仅移动单节后触发；取消后不再触发 | **差异**（81RA 只触发 1 次） | ☐ | | | | | |
-| CALL-RUN-04 | `G66.1` + 穿插移动/非移动 + `G67` | 每个单节后触发；取消后不再触发 | **差异**（81RA 只触发 1 次） | ☐ | | | | | |
-| CALL-RUN-05 | 运动 + `WAIT()` + `M98/M198` 组合 | `WAIT()` 对 M98/M99/M198 不提供完成保证 | 通过 (81RA) | ☐ | | | | | |
-| CALL-RUN-06 | `M198` 调用前更新目标文件 | 强制重读；Pr3601~3610 注册后失效 | 通过 (81RA) | ☐ | | | | | |
-| CALL-RUN-07A/B/C | `M99` / `M99 P_` / `M99 Q_` | 分别返回下一行/N 序号/行号 | P/Q 已通过 (81RA) | ☐ | | | | | |
+| CALL-RUN-01 | `G65` 调用前后写同名 `#27` | 父/子值隔离；返回后父值保持 | 通过 (81RA / 10.120.44C) | ☑ | 81RA/11MA | 10.120.44C/52 | 父 `#27` 调前/调后均 100.0；子程序内 `#27=200.0`；无警报 | 通过 | 2026-09-20 |
+| CALL-RUN-02 | `M98` / `M198` 子程序修改 `#27` | 父程序可观察到子程序修改 | 通过 (81RA / 10.120.44C) | ☑ | 81RA/11MA | 10.120.44C/52 | 执行后父 `#27=200.0` | 通过 | 2026-09-20 |
+| CALL-RUN-03 | `G66` + 穿插移动/非移动 + `G67` | 仅移动单节后触发；取消后不再触发 | **差异**（81RA 只触发 1 次） | ☑ | 81RA/11MA | 10.120.44C/52 | G00/G01 每移动单节触发；非移动不触发；G67 取消；结束 `@1=2` | 通过（每移动单节触发） | 2026-09-21 |
+| CALL-RUN-04 | `G66.1` + 穿插移动/非移动 + `G67` | 每个单节后触发；取消后不再触发 | **差异**（81RA 只触发 1 次） | ☑ | 81RA/11MA | 10.120.44C/52 | 移动+非移动每单节均触发；结束 `@2=3` | 通过（每单节触发） | 2026-09-21 |
+| CALL-RUN-05 | 运动 + `WAIT()` + `M98/M198` 组合 | `WAIT()` 对 M98/M99/M198 不提供完成保证 | 通过 (81RA) | ☑ | 81RA/11MA | 10.120.44C/52 | X 准停后才进入 O1005；时序与 CF 一致 | 通过 | 2026-09-21 |
+| CALL-RUN-06 | `M198` 调用前更新目标文件 | 强制重读；Pr3601~3610 注册后失效 | 通过 (81RA) | ☑ | 81RA/11MA | 10.120.44C/52 | `Pr3601=0 Pr3602=1`；M198 重读生效 | 通过 | 2026-09-21 |
+| CALL-RUN-07A/B/C | `M99` / `M99 P_` / `M99 Q_` | 分别返回下一行/N 序号/行号 | P/Q 已通过 (81RA) | ☑ | 81RA/11MA | 10.120.44C/52 | M99 返回下一单节；`P200` 返回 N200；`Q4` 返回第 4 行 | 通过 | 2026-09-21 |
 
 ### 记录模板（每行实测试跑都用此模板打日志）
 
@@ -53,18 +58,18 @@
 
 ## B. GETPR / SETPR：A 级签名采集（资料包：`MACRO函数审计资料包.md` §4.1）
 
-**阻塞原因**：CF TechManual `Macro Function List` 当前未见 `GETPR/SETPR` 专页，仓库历史记录的版本号 `10.118.56Z` / `10.118.60T+` 需实机复核。证据空缺直接阻塞 Phase 5.3 JS 端 emit 入口与 Phase 5.4 Rust 侧 parity。
+**阻塞原因**：CF TechManual `Macro Function List` 当前未见 `GETPR/SETPR` 专页，仓库历史记录的版本号 `10.118.56Z` / `10.118.60T+` 需实机复核。证据空缺直接阻塞 Phase 5.3 Rust 端 emit 入口与 Phase 5.4 Rust 侧 parity 接入主循环。 (v4.0.0 R1.2 Stage B 后 JS analyzer 已退役, 后续仅 Rust 端 emit 路径.)
 
 ### 采集表
 
 | 验证 ID | 函数调用 | 采集目标 | 控制器机型 | 软件版本 | 实测结果 | 结论 | 日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| FUN-A-13A | `GETPR(3401)` | 返回值类型（int/float/string）、固定还是可变、读到 VACANT 还是 0 的边界 | | | | | |
-| FUN-A-13B | `GETPR(<越界编号>)` | 是否触发 `COR-016` 或其他警报；返回 VACANT 还是抛错 | | | | | |
-| FUN-A-13C | `SETPR(3401, <值>)` | 写入权限边界（哪些 Pr 可写、哪些只读、哪些需权限等级）；写入后是否即时生效还是需重启 | | | | | |
-| FUN-A-13D | `SETPR(<越界编号>, <值>)` | 警报编号与失败行为 | | | | | |
-| FUN-A-13E | `SETPR(3401, <超范围值>)` | 是否触发 `COR-023` / `COR-024` 或其他警报 | | | | | |
-| FUN-A-13F | `GETPR(3401)` 在不同轴群下 | 是否有 `axisGroup` 可选第二引数；若有机型差异记录 | | | | | |
+| FUN-A-13A | `GETPR(3401)` | 返回值类型（int/float/string）、固定还是可变、读到 VACANT 还是 0 的边界 | 81RA/11MA | 10.120.44C/52 | 返回 `float (Double)`；空值返回 `0.0` 非 VACANT | 通过 | 2026-09-21 |
+| FUN-A-13B | `GETPR(<越界编号>)` | 是否触发 `COR-016` 或其他警报；返回 VACANT 还是抛错 | 81RA/11MA | 10.120.44C/52 | 触发 `COR-016`；警报中断；变量不更新 | 抛错(`COR-016`) | 2026-09-21 |
+| FUN-A-13C | `SETPR(3401, <值>)` | 写入权限边界（哪些 Pr 可写、哪些只读、哪些需权限等级）；写入后是否即时生效还是需重启 | 81RA/11MA | 10.120.44C/52 | 需权限 1；运动相关即时生效；权限不足 `COR-024` | 通过 | 2026-09-21 |
+| FUN-A-13D | `SETPR(<越界编号>, <值>)` | 警报编号与失败行为 | 81RA/11MA | 10.120.44C/52 | 触发 `COR-016`；未实际写入 | 抛错(`COR-016`) | 2026-09-21 |
+| FUN-A-13E | `SETPR(3401, <超范围值>)` | 是否触发 `COR-023` / `COR-024` 或其他警报 | 81RA/11MA | 10.120.44C/52 | 触发 `COR-023`；拒绝写入；保持原值 | 抛错(`COR-023`) | 2026-09-21 |
+| FUN-A-13F | `GETPR(3401)` 在不同轴群下 | 是否有 `axisGroup` 可选第二引数；若有机型差异记录 | 81RA/11MA | 10.120.44C/52 | 多态重载完整支持；轴群 1/2 返各自值 | 通过 | 2026-09-21 |
 
 ### 记录模板
 
@@ -90,20 +95,20 @@
 
 ## C. 跨行状态机运行时边界（资料包：`MACRO-LTP专项资料包.md` §3.6 与 §4）
 
-**阻塞原因**：当前 `src/robotValidator.js` 的 `RobotLineState` 处理 `MOVC pair` / `SWAITSIG`/`SYNCOUT` counters / `STITCHON/WEAVEON/WAITSYNC/G192.*` 生效范围禁忌，但这些跨行规则在控制器上的实际警报编号与生效位置需复核以保 Rust 侧 parity。
+**阻塞原因**：当前 `crates/syntec-core/src/lib.rs` 端 `RobotLineState` 处理 `MOVC pair` / `SWAITSIG`/`SYNCOUT` counters / `STITCHON/WEAVEON/WAITSYNC/G192.*` 生效范围禁忌 (v4.0.0 R1.2 Stage B 后 JS 端已退役, 跨行规则迁到 Rust), 但这些跨行规则在控制器上的实际警报编号与生效位置需复核以保 Rust 侧 parity emit 边界。
 
 ### 采集表
 
 | 验证 ID | 场景 | 期望警报（CF 页面） | 实测警报（控制器） | 控制器机型 | 软件版本 | 结论 | 日期 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ROB-LTP-01 | `MOVC` 中间点单节模态不同 | `RBT-124` | | | | | |
-| ROB-LTP-02 | `MOVC` 中间点超过 10 个 | `RBT-127` | | | | | |
-| ROB-LTP-03 | `STITCHON` 中间用 `MOVJ` | `RBT-115` | | | | | |
-| ROB-LTP-04 | `WEAVEON` 中间用 `MOVJ` | `RBT-322` | | | | | |
-| ROB-LTP-05 | `SWAITSIG` 跨运动单节未配对 | 跨行状态机警报（待确认编号） | | | | | |
-| ROB-LTP-06 | `SYNCOUT` 单运动单节超过 10 个 | 跨行状态机警报（待确认编号） | | | | | |
-| ROB-LTP-07 | `WAITSYNC` / `ENDSYNC` 区间内用 `SHIFTON` | 跨行状态机警报（待确认编号） | | | | | |
-| ROB-LTP-08 | `G192.1` 作用区间用禁忌指令 | 跨行状态机警报（待确认编号） | | | | | |
+| ROB-LTP-01 | `MOVC` 中间点单节模态不同 | `RBT-124` | `RBT-124` Line 4 Col 1 | 81RA/11MA | 10.120.44C/52 | 与 CF 一致 | 2026-09-22 |
+| ROB-LTP-02 | `MOVC` 中间点超过 10 个 | `RBT-127` | `RBT-127` Line 13 | 81RA/11MA | 10.120.44C/52 | 与 CF 一致 | 2026-09-22 |
+| ROB-LTP-03 | `STITCHON` 中间用 `MOVJ` | `RBT-115` | `RBT-115` Line 3 | 81RA/11MA | 10.120.44C/52 | 与 CF 一致 | 2026-09-22 |
+| ROB-LTP-04 | `WEAVEON` 中间用 `MOVJ` | `RBT-322` | `RBT-322` Line 3 | 81RA/11MA | 10.120.44C/52 | 与 CF 一致 | 2026-09-22 |
+| ROB-LTP-05 | `SWAITSIG` 跨运动单节未配对 | 跨行状态机警报（待确认编号） | `RBT-154-2` Line 4 Col 1 | 81RA/11MA | 10.120.44C/52 | 编号收口为 `RBT-154-2` | 2026-09-22 |
+| ROB-LTP-06 | `SYNCOUT` 单运动单节超过 10 个 | 跨行状态机警报（待确认编号） | `RBT-110` Line 13 | 81RA/11MA | 10.120.44C/52 | 编号收口为 `RBT-110`；阈值 10 | 2026-09-22 |
+| ROB-LTP-07 | `WAITSYNC` / `ENDSYNC` 区间内用 `SHIFTON` | 跨行状态机警报（待确认编号） | `RBT-257` Line 3 | 81RA/11MA | 10.120.44C/52 | 编号收口为 `RBT-257`（履带追踪侧）；`RBT-118` 仍待专项采集 | 2026-09-22 |
+| ROB-LTP-08 | `G192.1` 作用区间用禁忌指令 | 跨行状态机警报（待确认编号） | `RBT-123` Line 3 | 81RA/11MA | 10.120.44C/52 | 编号收口为 `RBT-123` | 2026-09-22 |
 
 ### 跨行状态机特别记录要求
 
@@ -136,9 +141,9 @@
 
 | Phase 5 步骤 | 接续工作（agent） | 依赖 |
 | --- | --- | --- |
-| 5.2 设计 Rust 跨行状态 struct | 在 `crates/syntec-core/src/lib.rs` 新增 `RobotLineState`/变量生命周期表/M198 重读缓存/WAIT 时序状态，与 JS `src/robotValidator.js` 字段对齐 | 全部 A/B/C 采集至少一轮 |
-| 5.3 JS 端跨行 emit 入口 | 对照证据，在 `validateRobotLineState` / `finalize_robot_state` 补登记 emit；dead code `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE` / `SKIPCOND_Q_RANGE` 若补 emit 需同步迁 Rust | C 全部 + A CALL-RUN-03/04 |
-| 5.4 Rust 侧 parity 实现 | 在 `crates/syntec-core/src/lib.rs` 同名函数 + 参数化排序与 col 对齐 | 5.3 完成 |
+| 5.2 设计 Rust 跨行状态 struct | 在 `crates/syntec-core/src/lib.rs` 已有的 `RobotLineState` 上扩展 (字段: `movc_pair_count` / `swaitsig_pending` / `syncout_count` / `stitchon_active` / `weaveon_active` / `waitsync_active` / `g192_scope_active` 等) + 变量生命周期表/M198 重读缓存/WAIT 时序状态 | 全部 A/B/C 采集至少一轮 |
+| 5.3 Rust 端跨行 emit 入口 | 对照证据，在 Rust `validate_robot_line_state` / `finalize_robot_state` 补登记 emit；dead code `SWAITSIG_Q_RANGE` / `SYNCOUT_Q_RANGE` / `SKIPCOND_Q_RANGE` 若补 emit 需同步登记到 `src/diagnosticCodes.js` + `src/diagnosticActions.js` (host 元数据真源) | C 全部 + A CALL-RUN-03/04 |
+| 5.4 Rust 侧 parity 验证 | 在 `crates/syntec-core/src/lib.rs` 完整实现后, 跑 `compare:rust` + 单测; 同步 4 件套登记 (JS DiagnosticCode 注册 + Rust emit + parity 清单 + DIAGNOSTIC_HELP 文案) | 5.3 完成 |
 | 5.5 接入 `analyze_request` 主循环 | 在 `analyze_request` 主循环调用跨行状态机；`result_to_json` 输出完整诊断序列 | 5.4 完成 |
 | 5.6 更新 parity 清单与能力矩阵 | `Rust诊断parity清单.md` 顶部状态从 67/67 扩展；能力矩阵对应能力 ID 状态从 «资料阻塞» 改为 «已覆盖» | 5.5 完成 |
 
@@ -189,7 +194,7 @@
 
 ### G.2 Rust 端 Phase 5.2 可以先行
 
-机器人跨行规则部分（ROB-LTP-01..08）的 CF 文档级警报编号依据已覆盖，Phase 5.2 可以在 `crates/syntec-core/src/lib.rs` 中先设计 `RobotLineState` 跨行结构体（与 JS 端 `src/robotValidator.js` 字段对齐），但 emit 入口接入主循环仍要等 B 级证据回填（Phase 5.3 / 5.4）。
+机器人跨行规则部分（ROB-LTP-01..08）的 CF 文档级警报编号依据已覆盖，Phase 5.2 可以在 `crates/syntec-core/src/lib.rs` 中以已有 `RobotLineState` 为基础扩展跨行状态字段（v4.0.0 R1.2 Stage B 后 JS 端已退役，仅 Rust 端），但 emit 入口接入主循环仍要等 B 级证据回填（Phase 5.3 / 5.4）。
 
 `GETPR/SETPR` 相关的跨行状态结构（变量生命周期、写入时机）暂不设计，需 §B 表 B 级证据回填后再补。
 
@@ -198,6 +203,18 @@
 - CF 标准语义作为 CNC 通用基线
 - 81RA 差异作为机型分支特性处理，不互推、不畦一
 - Rust 侧状态机预留机型参数化适配入口（不强行切换）
+
+### G.4 Phase 5.1 B 级实测收口结论（2026-09-22）
+
+user 张颖于 Syntec 81RA / 11MA（10.120.44C / 10.120.52）完成 Phase 5.1 B 级采集，共 23 个采集块全部回填至对应资料包。下列项目已在本清单 A/B/C 表与各资料包同步收口：
+
+- **CALL-RUN-01/02/05/06/07**：CF 规范与 CNC 实测一致（通过）。
+- **CALL-RUN-03/04**：CF 规范与 CNC 实测一致（通过）；原 81RA 旧版"只触发一次"差异已被 10.120.44C+ 机器人版本修正为标准时序，作为机型分支历史记录保留。
+- **FUN-A-13A..F**：`GETPR/SETPR` 签名 `GETPR(prNo[, axisGroup])` 返回 `float (Double)`；越界发 `COR-016`；超范围发 `COR-023`；权限不足发 `COR-024`；运动相关即时生效、构型参数须重启生效；多态重载完整支持。
+- **ROB-LTP-01..08**：8 个实测警报编号全部与 CF 文档基线对齐；`RBT-154-2` / `RBT-110` / `RBT-257` / `RBT-123` 四项此前为"待确认编号"，现已收口。
+- **`RBT-118` 仍待专项采集**：本次只确认 `WAITSYNC+SHIFTON` 触发 `RBT-257`（履带追踪侧）；点位偏移侧 `RBT-118` 的触发场景仍需后续专项采集；在专项证据回填前，Rust 端 `RBT-118` 暂不独立 emit。
+
+**Phase 5.2-5.3 解锁**：本收口结论已解锁 Rust 端 Phase 5.3 跨行状态机 emit 入口接入主循环；后续按 [诊断规则科学化工作流](诊断规则科学化工作流.md) 8 步骤为每个新增 `SYNTEC_*` code 走四件套登记流程。
 
 ---
 

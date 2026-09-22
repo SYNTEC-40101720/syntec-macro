@@ -2,9 +2,11 @@
 
 本清单对照 [`src/diagnosticCodes.js`](../src/diagnosticCodes.js) 中登记的全部诊断 code，记录 Rust 核心（`crates/syntec-core/src/lib.rs`）的覆盖状态、迁移批次和验证入口。它是 [3.x Rust/Wasm 切换剩余任务规划](3.x-Rust-Wasm切换剩余任务规划.md) P0-A.1 "诊断 code 收口" 的执行依据；每次迁移批次必须同步更新本清单、差分样例和对应单测。
 
-更新日期：2026-09-21
+更新日期：2026-09-22
 当前 Rust 覆盖：68 / 68（按 code 字符串去重后为 65 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。
 未覆盖：0 个 code。本批新增 `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`（资料补章 → 程序匹配 Phase β.1 → γ.2 同步），已在 `crates/syntec-core/src/lib.rs` `validate_robot_line_state` 落地，并新增 5 个 `compare:rust` 差分样例（`robot-g10-l1802-silent-after-1500` / `...after-1820` / `...no-silent-assignment` / `...reset-by-zero` / `...multiple-in-silent-mode`），P0-B request parity 130 → 135，navigation 10/10、edits 17/17 维持等价。本机 wasm32 target 未安装，`assets/rust-wasm/` 旧 wasm 暂未重打包（P0-C 仍是 JS fallback 评估期），manifest/check 不变。
+
+**Phase 5.1 控制器实测复核已落地（2026-09-22，user 张颖，Syntec 81RA / 11MA, 10.120.44C / 10.120.52）**：CALL-RUN-01..07 / FUN-A-13A..F / ROB-LTP-01..08 共 23 个采集块全部回填至对应资料包（详见 [调用语义资料包 §3.3/§4.1](macro-knowledge/MACRO调用语义资料包.md#33-phase-51-控制器实测复核结论2026-09-22) / [函数审计资料包 §4.2](macro-knowledge/MACRO函数审计资料包.md#42-phase-51-控制器实测复核结论2026-09-22) / [LTP 专项资料包 §4.2](macro-knowledge/MACRO-LTP专项资料包.md#42-phase-51-控制器实测复核结论2026-09-22)）。能力矩阵 CALL-001 / CALL-002 / FUN-001 / ROB-001 状态升级为 «实测复核»。本批未新增诊断 code（Phase 5.1 仅复核 + 资料回填），Phase 5.2-5.3 Rust 端跨行 emit 入口已解锁，后续新增 `SYNTEC_*` code 时按四件套登记同步更新本清单。
 
 `SYNTEC_ROBOT_SWAITSIG_Q_RANGE` / `SYNTEC_ROBOT_SYNCOUT_Q_RANGE` / `SYNTEC_ROBOT_SKIPCOND_Q_RANGE` 在 JS `diagnosticActions.js` 注册了 code action 但 `robotValidator.js` 实际从未 emit，属 dead code——**Phase 5.3 路径 A 已于 2026-09-21 落地**：JS+Rust 两端共同剔除上述三项 dead code 与对应 code action，JS 端 `src/diagnosticCodes.js` 与 `src/diagnosticActions.js` 已移除三项 key 与 code action；Rust 端本就无 literal 无需动；JS 总 code 数 67→64；既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖三 command 的 Q range 警报）。至此 P0-A.1 "诊断 code 收口" 全部稳定诊断 code 完成迁移，P0-A.2 调用与引用边界 parity 已合上，P0-B 第 1 项「真实 request 传输」已合上（`parse_analysis_request`/`analyze_request_json`/CLI `--request`/Wasm `syntec_core_analyze_request_json`/`createRustWasmAdapter` 切换 + P0-B 135/135 等价），P0-B 第 2 项「完整结果」已合上：navigation parity 10/10 等价（`portable_file_name`/`get_program_entry_name`/`is_macro_file_content`/`get_macro_program_name` 依据 `document.uri` 完整计算）+ edits/TextEdit parity 17/17 等价（`format_document` 完整移植 `formatter.js`，整文档 `TextEdit` 契约一致）+ profile 协商透传非空字符串与 JS 一致；下一步进入 P0-C 生产 Wasm 资产与 Worker 接入。
 
@@ -123,7 +125,7 @@
 - ~~`SYNTEC_ROBOT_SYNCOUT_Q_RANGE`~~
 - ~~`SYNTEC_ROBOT_SKIPCOND_Q_RANGE`~~
 
-JS DiagnosticCode 全集由 67 → 64 项，与 Rust lib.rs literal 集合完全等价。既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三 command 的 Q range 警报）。若未来 user 上 CNC 拿到 B 级证据需重新加回独立 code，可按 `docs/JS-Backend退役路线图.md` §Phase 5.3 路径 B 重新落回。
+JS DiagnosticCode 全集由 67 → 64 项，与 Rust lib.rs literal 集合完全等价。既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三 command 的 Q range 警报）。若未来 user 取得 CNC B 级证据需重新加回独立 code，可按本档 §Dead code 路径 B 重新落回 (三项 code 名称 + 版本门控记录已于 2026-09-21 Phase 5.3 路径 A 共同剔除)。
 
 ## 无 code warning（待逐项收口）
 

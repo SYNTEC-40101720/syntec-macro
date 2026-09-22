@@ -45,6 +45,12 @@ jobs:
         # release 流程本身跑完后由 check:release 验证。
         run: npm run check:release:readiness -- --strict
 
+      - name: 诊断规则科学化治理 (HARD 阻塞, SOFT informational)
+        # 对照 docs/迭代优化计划.md §4 + docs/macro-knowledge/诊断规则科学化工作流.md。
+        # 默认模式: HARD (JS+Rust+parity 文档) 任一缺失即 fail; SOFT (DIAGNOSTIC_HELP 文案) 缺口仍存在, 只作 informational warning 不阻塞发布, 由 user 单独推进补文案。
+        # 等 SOFT 全部补齐 (SOFT=0) 后再把 mode 升到 --strict 作 strict 发布门禁。
+        run: npm run check:diagnostic-governance
+
       - name: Run tests
         run: npm test
 

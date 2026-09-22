@@ -17,6 +17,7 @@
 ## 已有 baseline
 
 - `v3.0.0.json` — 2026-09-20 dev machine (Windows) 单次 10 iterations 采集：fixture JS p50 9.84ms / Rust p50 10.77ms parity=equal；large-20k JS p50 383.6ms / Rust p50 278ms parity=equal；nav-500-files JS batch 396ms / Rust batch 379ms parity=equal；fallback 0/0;样本量不足（仅 1 次），不可切换默认 backend。
+- `v4.0.0.json` — 2026-09-22 dev machine (Windows) 10 iterations 采集，**R1.3 baseline**：v4.0.0 R1.2 Stage B 退役 JS analyzer 后 benchmark 输出 `parity=rust-only`，JS 字段全 0；Rust p50 fixture 12.84ms / large-20k 370.12ms / nav-500-files 109.77ms；wasm 320312 B / SHA-256 `b60d854c...`；fallback 0/0；作 v4.x+ 后续回归对照（Phase R2 数据表迁移后若 p50 偏移 > 10% 视为回归）。
 
 ## 后续采集清单
 

@@ -107,7 +107,7 @@
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/compareRustCore.test.js tests/checkReleaseReadiness.test.js tests/checkJsBackendRetirement.test.js tests/switchToRustWasmBackend.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/compareRustCore.test.js tests/checkReleaseReadiness.test.js tests/checkJsBackendRetirement.test.js tests/switchToRustWasmBackend.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/systemVariables.test.js tests/functions.test.js tests/hoverDocs.test.js tests/keywords.test.js tests/checkDiagnosticGovernance.test.js",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
@@ -128,6 +128,7 @@
     "check:release": "node scripts/checkReleaseConsistency.js",
     "check:release:readiness": "node scripts/checkReleaseReadiness.js",
     "audit:js-backend": "node scripts/auditJsBackend.js",
+    "check:diagnostic-governance": "node scripts/checkDiagnosticGovernance.js",
     "check:js-backend-retirement": "node scripts/checkJsBackendRetirement.js",
     "switch:to-rust-wasm-backend": "node scripts/switchToRustWasmBackend.js",
     "check:vsix": "node scripts/checkVsixContents.js",

@@ -42,6 +42,13 @@ jobs:
         run: npm run check:release:readiness
         continue-on-error: true
 
+      - name: 诊断规则科学化治理 (informational)
+        # 对照 docs/迭代优化计划.md §4 + docs/macro-knowledge/诊断规则科学化工作流.md。
+        # PR 阶段非门禁 (informational only)：HARD 缺口仅打 warning 不 fail job。
+        # 发布收口由 release.yml 的 --strict 跑; SOFT 缺口 (DIAGNOSTIC_HELP 文案) 不阻塞。
+        run: npm run check:diagnostic-governance
+        continue-on-error: true
+
   integration:
     name: VS Code integration
     runs-on: ubuntu-latest

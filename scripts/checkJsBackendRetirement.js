@@ -1,4 +1,4 @@
-// JS Backend 退役 R1 准入自检工具：对照 docs/JS-Backend退役路线图.md
+// JS Backend 退役 R1 准入自检工具：对照 docs/Rust诊断parity清单.md §Dead code
 // Phase R1 的 6 个不变前提做一次 review，输出 PASS/SKIP/FAIL 总览。
 //
 // 输出与 checkReleaseReadiness.js 一致风格；默认 exitCode=0（review 用），
@@ -159,19 +159,21 @@ const CHECKS = [
     }
   },
   // 6. dead code 三项决策文档化
+  // R1.2 Stage B 后 docs/JS-Backend退役路线图.md 已合并入 docs/迭代优化计划.md;
+  // dead code 决策真源改为 docs/Rust诊断parity清单.md (含三项 code 与 Phase 5.3 标记)。
   {
     id: '6-dead-code-decision-documented',
     name: 'dead code 三项决策已文档化',
     run: () => {
-      const roadmap = path.join(ROOT, 'docs', 'JS-Backend退役路线图.md');
-      if (!fs.existsSync(roadmap)) return { status: 'FAIL', detail: 'docs/JS-Backend退役路线图.md missing' };
-      const src = fs.readFileSync(roadmap, 'utf8');
-      const hasDecisionSection = /Phase\s*5\.3|dead\s*code.*决策|SKIPCOND_Q_RANGE.*SWAITSIG_Q_RANGE.*SYNCOUT_Q_RANGE/.test(src);
+      const parityDoc = path.join(ROOT, 'docs', 'Rust诊断parity清单.md');
+      if (!fs.existsSync(parityDoc)) return { status: 'FAIL', detail: 'docs/Rust诊断parity清单.md missing' };
+      const src = fs.readFileSync(parityDoc, 'utf8');
+      const hasDecisionSection = /Phase\s*5\.3.*路径\s*A|SKIPCOND_Q_RANGE[\s\S]{0,400}SWAITSIG_Q_RANGE[\s\S]{0,400}SYNCOUT_Q_RANGE/.test(src);
       return {
         status: hasDecisionSection ? 'PASS' : 'FAIL',
         detail: hasDecisionSection
-          ? '路线图 §不变前提 2 / Phase R1 描述含 dead code 决策'
-          : '路线图未充分描述 dead code 决策路径'
+          ? 'docs/Rust诊断parity清单.md §Dead code 段含三项 code 与 Phase 5.3 路径 A 共同剔除记录'
+          : 'docs/Rust诊断parity清单.md 未充分记录 dead code 三项决策路径'
       };
     }
   }
@@ -183,7 +185,7 @@ const CHECKS = [
  */
 function main(args = process.argv.slice(2)) {
   const strict = args.includes('--strict');
-  console.info('JS Backend 退役 R1 准入自检（对照 docs/JS-Backend退役路线图.md §不变前提）：\n');
+  console.info('JS Backend 退役 R1 准入自检（对照 docs/Rust诊断parity清单.md §Dead code + docs/迭代优化计划.md §不变约束）：\n');
   let passCount = 0, skipCount = 0, failCount = 0;
   for (const check of CHECKS) {
     let result;

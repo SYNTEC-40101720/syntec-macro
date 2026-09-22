@@ -45,9 +45,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Phase 5.1 控制器实测复核回填（2026-09-22）
+
+- **Phase 5.1 B 级证据采集完成 (user 张颖, Syntec 81RA / 11MA, 10.120.44C / 10.120.52, 2026-09-20~22)**: user 上控制器把 `docs/macro-knowledge/Phase5-控制器实测现场记录单.md` 23 个采集块全部填完回传（§A 9 + §B 6 + §C 8），agent 按回传工作流把数据分别导入到对应资料包，能力矩阵与 parity 清单状态同步升级，本批未新增 `SYNTEC_*` 诊断 code（Phase 5.1 仅复核 + 资料回填）。Phase 5.2-5.3 Rust 端跨行 emit 入口已解锁，后续新增 code 时按 [诊断规则科学化工作流](docs/macro-knowledge/诊断规则科学化工作流.md) 8 步骤走四件套登记。
+  - **A 组（CALL-RUN-01..07）→ `MACRO调用语义资料包.md`**: §3.3 追加 Phase 5.1 控制器实测复核结论表（与 CF 规范逐项对齐 + CALL-RUN-03/04 实测差异收敛说明），§4.1 追加 CNC 实测结果记录表（9 行 + 警报/证据列）。CALL-RUN-03/04 旧版 81RA"只触发一次"差异已被 10.120.44C+ 机器人版本修正为标准时序（每移动单节 / 每单节触发），不再单独保留 81RA 旧版分支适配。
+  - **B 组（FUN-A-13A..F）→ `MACRO函数审计资料包.md`**: §1 函数矩阵 FUN-A-07/08 状态升级为 B 级已采，§4 表的 FUN-A-13 项状态从"证据阻塞"改为"已完成"，§4.2 追加 Phase 5.1 控制器实测复核结论（6 项摘要表 + 6 项核心结论收口 + Rust parity emit 入口解锁 + 风险边界）。`GETPR(prNo[, axisGroup])` 返回 `float (Double)`，空值返回 `0.0` 非 VACANT；越界发 `COR-016`，超范围发 `COR-023`，权限不足发 `COR-024`；运动相关即时生效、构型参数须重启生效；多态重载完整支持。
+  - **C 组（ROB-LTP-01..08）→ `MACRO-LTP专项资料包.md`**: §4.2 追加 Phase 5.1 控制器实测复核结论（8 项实测警报编号对齐表 + 关键实测量化阈值收口 + Parity 接入解锁与边界 + Rust 状态机现有字段确认）。8 个实测警报编号全部与 CF 文档基线对齐：`RBT-124/127/115/322/154-2/110/257/123`；其中 `RBT-154-2` / `RBT-110` / `RBT-257` / `RBT-123` 四项此前为"待确认编号"，现已收口；`RBT-118` 点位偏移侧编号仍待后续专项采集。Rust `RobotLineState` 现有 7 个字段已覆盖 Phase 5.1 实测所需跟踪的跨行状态，无需在 Phase 5.2 新增字段。
+  - **能力矩阵与 parity 同步**: `MACRO能力矩阵.md` 顶部状态升级，能力总览 CALL-001 / CALL-002 状态从 «部分核实» 升级为 «实测复核»，FUN-001 状态升级为 «实测复核（FUN-A-13 已解锁）»，ROB-001 状态升级为 «实测复核（CF + B 级双轨对齐）»。`Rust诊断parity清单.md` 顶部追加 Phase 5.1 控制器实测复核已落地段，对 4 个能力矩阵段与 3 个资料包段加反向指针。
+  - **`Phase5-控制器证据采集清单.md` 收口**: A/B/C 三表的「CNC 待测 / 实测结果 / 结论 / 日期」列批量回填摘要，§G.4 追加 Phase 5.1 B 级实测收口结论段（含 RBT-118 仍待采集说明 + Phase 5.2-5.3 解锁结论）。
+
 ### Added
 
-- 
+- **Phase 5 控制器实测现场记录单就位**: 新增独立 `docs/macro-knowledge/Phase5-控制器实测现场记录单.md` 作为上控制器时的现场记录载体（区别于现有的 `Phase5-控制器证据采集清单.md` 后者偏采编方法学与 CF 基线索引，前者是直接填表的空表单）。结构特点：
+  - 顶部「采集环境」段：控制器机型 / 软件版本 / LTP 模式 / 采集人 / 日期范围，所有记录共用
+  - §A CALL-RUN-01..07：每项独立表块（9 项），CALL-RUN-03/04 P0 必测项加触发频率观察枚举（仅 1 次 / 每移动单节 / 每单节 / 其他）
+  - §B FUN-A-13A..F：每项独立表块（6 项），含返回类型 / 签名 / 越界 / 权限 / 重启生效 / axisGroup 6 个关键字段
+  - §C ROB-LTP-01..08：每项独立表块（8 项），含期望警报 vs 实测警报对照 + 跨行状态机内部计数器字段（MOVC_pair_count / SWAITSIG_pending / SYNCOUT_count / STITCHON_active / WEAVEON_active / WAITSYNC_active / G192_scope_active）
+  - §D 采集完成后 agent 接续工作表：5.2 → 5.6 完整接续路径，含「若 dead code 重新加回需按四件套登记工作流全套」指针
+  - §E 阻塞风险与最低证据门槛（A/B 级 vs C/D 级不可单独作 parity 依据 / 81RA ↔ CNC 不可外推）
+  - §F 提交检查清单（自查 7 项）
+- **回传流程明确**: 填完后 git 提交本文件 → 通知 agent 「Phase 5 §A/B/C 已完成实测记录单回填」→ agent 自动把数据分别导入 `MACRO调用语义资料包.md` §4 / `MACRO函数审计资料包.md` §4 / `MACRO-LTP专项资料包.md` §3/§4 / `MACRO能力矩阵.md` / `Rust诊断parity清单.md`（若新规则需补 code），然后按 [诊断规则科学化工作流](docs/macro-knowledge/诊断规则科学化工作流.md) 走四件套登记 + `check:diagnostic-governance` HARD 守卫。
+- **入口与同步**: `Phase5-控制器证据采集清单.md` 顶部加双向指针指向现场记录单; `README.md` 文档分层段补入口（11→12 个文档），并把原先过时的「JS `src/robotValidator.js`」描述全部同步为 v4.0.0 R1.2 Stage B 后的 Rust 唯一架构描述。
+- 验收: `docs:diagnostics:check` 通过; `check:release:readiness --strict` 6 PASS+1 SKIP+0 FAIL。
+
+### Changed
+
+- **文档治理 — `docs/开发交接说明.md` 与 `docs/3.x-Rust-Wasm切换剩余任务规划.md` 同步 v4.0.0 + R2 状态**: 把过时停留在 v2.14.0 / v3.0.0 视角的段落刷新到 v4.0.0+ R2 收口状态：
+  - `开发交接说明.md` §「后续计划与接续工作」: R1.3 / Phase R2 标 ✅ 已完成 (2026-09-22)，Phase 5 控制器证据与新诊断科学化为剩余可选；关键词新增指向 `src/data/keywords.json` (经 thin loader)。
+  - `开发交接说明.md` §「确认版本」: 期望 `package.json` 4.0.0 + `v4.0.0` tag (旧 2.14.0)。
+  - `开发交接说明.md` §「本地验证命令」: `check:release --tag v4.0.0` (旧 v2.14.0), 删除引用 `src/validator.js` 的 `validateDocument` 补充检查 (模块已在 v4.0.0 退役), 补一句 `npm test` 已涵盖 check:vsix/check:data/check:js-backend-retirement/check:rust:wasm:asset/typecheck:analysis 子项。
+  - `开发交接说明.md` §「当前架构入口」: 重写为 v4.0.0 视角 (扩展入口 / Host-only helpers / Phase R2 数据真源 + thin loader / Rust/Wasm 核心 / 文档与生成 5 段), 删除对 12 个已退役 JS 模块的引用。
+  - `开发交接说明.md` §「已发布里程碑」: 删除 v2.10 Milestone 1/2/3 与 v3.0.0「下一步建议」段，替换为简洁 4 行版本节点列表 (v4.0.0 / v3.1.0 / v3.0.0 / v2.13~v2.15)，删除重复的历史里程碑段。
+  - `3.x-Rust-Wasm切换剩余任务规划.md` §1「当前架构 (v4.0.0 起)」: 数据真源段从「5 个 JS 表保留作 JS 数据表, 留给 Phase R2 迁到 JSON」改为「Phase R2 已完成 (2026-09-22): 4 表数据已迁到 `src/data/*.json` + thin JSON loader, completionSnippets 不迁」, 指向 `docs/迭代优化计划.md` §1。
+  - `Phase5-控制器证据采集清单.md` §B/C/D/G 同步 v4.0.0 R1.2 Stage B 后的 Rust 唯一架构描述（删除已退役 JS analyzer 引用，全部改为 Rust `RobotLineState` / `crates/syntec-core/src/lib.rs`）；§「使用流程」增加 A→C→B 采集顺序建议 + 四件套登记工作流指针。
+- 验收: `docs:diagnostics:check` 通过, `check:release --tag v4.0.0` 一致, `check:release:readiness -- --strict` 6 PASS+1 SKIP+0 FAIL.
+
+### Added
+
+- **Phase R2.2–R2.4 收口 — 数据真源全表迁出完成**: 在 R2.1 试点模板 (systemVariables) 上一次推进剩余 3 张 JS 数据真源表迁到 `src/data/*.json`，按相同步骤建 JSON → 写 thin JSON loader (mtime-aware 进程内只读缓存) → 加契约测试 → 更新 `checkVsixContents.js` 必填清单 → 全量门禁 green：
+  - **R2.2 `functions`**: `src/functions.js` 内嵌的 62 项内置函数数组 (name/sig/doc) 迁到 `src/data/functions.json`；JS 模块保留运行时函数 `buildFunctionIndex()` / `getFunctions()` 与 `functions` getter 兼容解构用法；新增 `tests/functions.test.js` 9 项契约测试（条目计数快照 / 字段完整 / 大写命名 / 无重名 / 索引构建 / 缓存对象身份 / 反向断言无 JS literal / 导出接口）。
+  - **R2.3 `codeDocs`**: `src/codeDocs.js` 内嵌 3 张 hover 文档表 (gCodeDocs 47/G10LCodeDocs 13/mCodeDocs 17) 迁到 `src/data/hoverDocs.json`（g10LCodeDocs 的 doc 数组在源里以 `join('\n')` 输出，JSON 直接存字符串保持运行时一致）；JS 模块保留 `getCodeDoc` / `getG10LCodeDoc` / `getCodeShortDescription` 3 个查询函数 + 3 个表 getter；新增 `tests/hoverDocs.test.js` 15 项契约测试（3 表条目计数 / 字段完整 / 大小写归一 / L 码多行字符串 / 反向断言无 JS literal / 导出接口）。
+  - **R2.4 `keywords`**: `src/keywords.js` 内嵌 2 张表 (keywords 10 组 + keywordDocs 72 项) 迁到 `src/data/keywords.json`；JS 模块保留 `getAllKeywords` (cache) / `getMCodeDesc` / `getKeywordDoc` 运行时函数；新增 `tests/keywords.test.js` 14 项契约测试（10 组完整 + 72 条目计数 / 字段完整 / getAllKeywords 不含 gcodes/mcodes / 缓存身份 / 控制流 + 运算符 + 机器人关键字覆盖 / 反向断言无 JS literal / 导出接口）。
+  - **R2.5 `completionSnippets` 评估**: 该模块仅含 1 个纯函数 `buildFunctionSnippet` 无数据真源；R2.5 判定不在数据迁移范围。表格中 `snippets/syntec-macro.json` 是 VSCode snippet 注册表，本身已是 JSON，无需再迁。Phase R2 标完成。
+  - `scripts/checkVsixContents.js` `REQUIRED_STATIC_FILES` 在 R2.1 基础上再追加 3 个 JSON 路径，VSIX 内容校验由 36 → 39 文件。`package.json` `test` 命令追加 3 个测试文件路径。
+  - 全量验收：`npm test` 281/281 (含 4 个 R2 契约测试合计 39 项) / `lint` 0 / `typecheck:analysis` 0 / `check:vsix` 39 文件 / `check:release` OK / `check:release:readiness --strict` 6 PASS + 1 SKIP + 0 FAIL / `check:js-backend-retirement --strict` 6 PASS + 0 SKIP + 0 FAIL / `benchmark:compare` 无回归（fixture p50 12.01ms vs v4.0.0 baseline 12.84ms / large-20k 323.71ms vs 370.12ms / nav-500-files 67.29ms vs 109.77ms，Rust-only benchmark 热路径不在 host JSON loader 路径上，符合预期零回归）。
+- **Phase R2.1 试点 — systemVariables 数据真源迁出**: 作为 v4.0.0 R1.2 Stage B JS analyzer 退役后的数据表迁移路线起点（`docs/迭代优化计划.md` §1），把 `src/systemVariables.js` 内嵌的 `SYSTEM_VARIABLE_DOCS` literal（13 个系统变数编号语义表）迁出到 `src/data/systemVariables.json` 作为唯一数据真源（含 `source` / `maintenanceRule` 元字段）；`src/systemVariables.js` 改写为 thin JSON loader，提供 `getSystemVariableDocs()` / `getSystemVariableDoc(variable)` 两个接口、内部维护 mtime-aware 进程内只读缓存，host provider 通过原接口透明访问；`src/hoverProvider.js` `#` 变量分支无需修改。新增 `tests/systemVariables.test.js` 7 项契约测试覆盖 known-doc 查询 / 大小写归一化 / 未知变量返回 null / 完整 docs 对象 / JS 模块不残留 literal 反向断言 / mtime 缓存对象身份 / 模块导出仅 thin 接口。`scripts/checkVsixContents.js` `REQUIRED_STATIC_FILES` 追加 `src/data/systemVariables.json`，VSIX 内容校验由 35→36 文件。本批为试点：选定 systemVariables 因其数据形态最简单（纯字符串 map）、单一消费方 (`hoverProvider`)、check 脚本无引用，端到端跑通整个"数据真源唯一化"模板（建 JSON → 写 thin loader → 加契约测试 → 更新 VSIX 内容清单 → 全量门禁 green）；后续 3 张表 (`keywords` / `functions` / `codeDocs`) 按本模板分批推进。
+- **R1.3 VSIX 体积与启动基线刷新 — v4.0.0 baseline 落库**: 采集 `perf-baseline/v4.0.0.json` 作 v4.0.0 R1.2 Stage B 退役后节点基线（gitCommit `886891a` = v4.0.0 tag / postReleaseHead `4c786bd`），含三场景 10 iterations Rust-only 数据：fixture p50 12.84ms / p95 24.40ms / first 45.22ms；large-20k p50 370.12ms / p95 495.17ms / first 384.09ms；nav-500-files batch 109.77ms / fallback 0/0；wasm artifact 320312 B / SHA-256 `b60d854c...`；parity 标 `rust-only`（JS analyzer 已退役，JS 字段全 0，benchmarkCompare 输出形态变化）。`perf-baseline/README.md` 同步追加 v4.0.0 baseline 入口 + 用途说明（作后续 v4.x 回归对照：Phase R2 数据表迁移不应影响 benchmark，若 p50 偏移 > 10% 视为回归需排查）。本 baseline 不是切默认 backend 的决策依据（切默认已在 v3.1.0 完成），仅作 v4.x+ 回归对照基线。
+
+ 
 
 ### Added
 
