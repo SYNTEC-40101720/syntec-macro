@@ -57,7 +57,7 @@ npm.cmd run smoke:installed
 
 - 主线索引: `docs/迭代优化计划.md` §「后续计划 (v4.x+)」
 - 开发交接 (每次新会话先读): `docs/开发交接说明.md`
-- 发布 Runbook: `docs/3.x-Release-Runbook.md`
+- 发布 Runbook: `docs/Release-Runbook.md`
 - Rust 诊断 parity 清单: `docs/Rust诊断parity清单.md`
 - MACRO 知识 / 能力矩阵: `docs/macro-knowledge/README.md`
 - 语法与诊断手册: `docs/新代MACRO语法规范手册.md` / `docs/诊断规则与修复动作.md`

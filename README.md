@@ -127,4 +127,4 @@ v4.0.0 起插件分析后端已硬切为 **Rust/Wasm 唯一后端**：原 12 个
 - **Host 层**：补全、悬停、跳转、定义、格式化、诊断、code action 等 VS Code 提供器入口保留在 host-only JS 文件；它们只负责 VS Code API 对接与数据查询，分析逻辑全部走 Rust/Wasm。
 - **剩余依赖**：数据表（`keywords.js` / `codeDocs.js` / `functions.js` / `systemVariables.js` / `completionSnippets.js`）仍是 JS 源文件，是数据而不是分析逻辑，留给 Phase R2 迁移到 host 共享层。
 
-发布门禁、3.x 版本切换流程与回滚步骤见 [docs/3.x-Release-Runbook.md](docs/3.x-Release-Runbook.md) 与 [docs/迭代优化计划.md](docs/迭代优化计划.md)。
+发布门禁、版本切换流程与回滚步骤见 [docs/Release-Runbook.md](docs/Release-Runbook.md) 与 [docs/迭代优化计划.md](docs/迭代优化计划.md)。

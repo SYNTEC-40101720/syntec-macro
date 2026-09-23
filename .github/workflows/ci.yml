@@ -34,7 +34,7 @@ jobs:
         run: npm run lint
 
       - name: 3.x release readiness gate (informational)
-        # 对照 docs/3.x-Rust-Wasm切换剩余任务规划.md §5「完成定义」7 项门禁。
+        # 对照 docs/Rust-Wasm切换验收门禁.md §5「完成定义」7 项门禁。
         # PR 阶段非门禁 (informational only)：任一 FAIL 仅在 actions log 打印
         # warning，不 fail job，便于及早发现 parity 文档 marker 漂移、资产
         # 完整性失败、CI 矩阵缺失等发布阻塞项。release.yml 中的 --strict

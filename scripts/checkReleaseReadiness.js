@@ -1,4 +1,4 @@
-// 3.x 发布前 readiness 自检工具：对照 docs/3.x-Rust-Wasm切换剩余任务规划.md §5
+// 发布前 readiness 自检工具：对照 docs/Rust-Wasm切换验收门禁.md §5
 // 「完成定义」7 项门禁一次性自动化 review，输出 PASS/SKIP/FAIL 总览，
 // 不阻塞 CI（exitCode 始终 0）；任何 FAIL 由人 review 决定是否升级版本号。
 //

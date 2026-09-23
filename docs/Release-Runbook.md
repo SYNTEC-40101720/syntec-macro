@@ -1,6 +1,6 @@
-# 3.x 发布收口 Runbook
+# 发布收口 Runbook
 
-> 通用发布流程，对应 `docs/3.x-Rust-Wasm切换剩余任务规划.md` §「3.x 发布收口」第 1–6 步。
+> 通用发布流程，对应 `docs/Rust-Wasm切换验收门禁.md` §「发布收口」第 1–6 步。
 > 仅在 `npm.cmd run check:release:readiness -- --strict` 全 PASS（除 SKIP）后启动；任一 FAIL 不许发布。
 > 具体版本号由 user 选定；agent 不擅自选定。
 > 执行过程中如需回滚（restoring 旧标签和 VSIX），按 §「Rollback」操作。
@@ -35,7 +35,7 @@ npm.cmd run check:release:readiness -- --strict
 # 期望：6 PASS + 1 SKIP + 0 FAIL；任一 FAIL 不许继续发布。
 ```
 
-如果任一项 FAIL：先回到 `docs/3.x-Rust-Wasm切换剩余任务规划.md` 对应小节修复，不允许「先发后补」。
+如果任一项 FAIL：先回到 `docs/Rust-Wasm切换验收门禁.md` 对应小节修复，不允许「先发后补」。
 
 ---
 
@@ -52,7 +52,7 @@ npm.cmd run check:release:readiness -- --strict
 3. 修改 `package-lock.json` 的 `version` 与 `packages[""].version`。
 4. 修改 `README.md` 中 `version-2.15.0-blue` 徽章。
 5. 在 `CHANGELOG.md` 中把 `## [Unreleased]` 段落改为 `## 3.0.0 - YYYY-MM-DD`（用当日日期），并在上方再开一个新的 `## [Unreleased]` 空段落，保持后续 iteration 入口。
-6. 同步更新 `docs/开发交接说明.md`、`docs/macro-knowledge/MACRO知识与验证规划.md` 与 `docs/3.x-Rust-Wasm切换剩余任务规划.md`「### P1 §1 状态」转为「### 3.x 发布收口状态」。
+6. 同步更新 `docs/开发交接说明.md`、`docs/macro-knowledge/MACRO知识与验证规划.md` 与 `docs/Rust-Wasm切换验收门禁.md`「### P1 §1 状态」转为「### 发布收口状态」。
 7. 重新运行 release 一致性检查：
    ```powershell
    npm.cmd run check:release -- --tag v3.0.0

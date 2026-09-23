@@ -2,7 +2,7 @@
 // 同步测量 JavaScript 与 Rust/Wasm 的 p50/p95/max/resultBytes/startupMs，
 // 并对每个场景产出 parity 校验（diagnostics/symbols 序列必须等价）。
 //
-// 设计目标（来自 docs/3.x-Rust-Wasm切换剩余任务规划.md §P1）：
+// 设计目标（来自 docs/Rust-Wasm切换验收门禁.md §P1）：
 //   - 真实 fixture、20,000 行档案、500 文件 navigation 分别记录
 //     JS/Rust/Wasm 的启动时间、p50/p95 分析延迟、JSON/内存占用、首次与重复查询、
 //     fallback 比例。

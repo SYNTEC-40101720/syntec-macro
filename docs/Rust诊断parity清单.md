@@ -1,6 +1,6 @@
 # Rust 诊断 parity 清单
 
-本清单对照 [`src/diagnosticCodes.js`](../src/diagnosticCodes.js) 中登记的全部诊断 code，记录 Rust 核心（`crates/syntec-core/src/lib.rs`）的覆盖状态、迁移批次和验证入口。它是 [3.x Rust/Wasm 切换剩余任务规划](3.x-Rust-Wasm切换剩余任务规划.md) P0-A.1 "诊断 code 收口" 的执行依据；每次迁移批次必须同步更新本清单、差分样例和对应单测。
+本清单对照 [`src/diagnosticCodes.js`](../src/diagnosticCodes.js) 中登记的全部诊断 code，记录 Rust 核心（`crates/syntec-core/src/lib.rs`）的覆盖状态、迁移批次和验证入口。它是 [Rust/Wasm 切换验收门禁](Rust-Wasm切换验收门禁.md) P0-A.1 "诊断 code 收口" 的执行依据；每次迁移批次必须同步更新本清单、差分样例和对应单测。
 
 更新日期：2026-09-22
 当前 Rust 覆盖：73 / 73（按 code 字符串去重后为 70 个稳定 code；`SYNTEC_CORE_*` 为 ABI 符号，不计入诊断 code）。

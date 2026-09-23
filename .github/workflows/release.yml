@@ -40,7 +40,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
       - name: 3.x release-readiness gate (--strict)
-        # 对照 docs/3.x-Rust-Wasm切换剩余任务规划.md §5「完成定义」7 项门禁。
+        # 对照 docs/Rust-Wasm切换验收门禁.md §5「完成定义」7 项门禁。
         # 任一 FAIL 即 fail release workflow；SKIP（tag/asset 一致性）等待
         # release 流程本身跑完后由 check:release 验证。
         run: npm run check:release:readiness -- --strict
