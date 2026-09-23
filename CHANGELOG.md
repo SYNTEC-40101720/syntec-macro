@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Migration
 
 - **从 3.1.0 升级**: 用户配置若设过 `syntecMacro.analysisBackend = "javascript"` 或 `"rust-wasm-shadow"`, 升级到 4.0.0 后该值不在 enum 中, VS Code 会拒绝该值并回退到 `rust-wasm` 默认. 无任何用户数据迁移; Rust/Wasm 资产 `assets/rust-wasm/` 已 bundle 进 VSIX.
-- **回滚**: 如需回到 3.1.0, 按 `docs/R1.2-实施方案.md` §6 Rollback 步骤 (撤销 R1.2 PR + 重装 `syntec-macro@3.1.0` 或 `v3.1.0` tag). 不提供运行时 JS 分级回退.
+- **回滚**: 如需回到 3.1.0, 按 `docs/3.x-Release-Runbook.md` §Rollback 步骤 (撤销 R1.2 PR + 重装 `syntec-macro@3.1.0` 或 `v3.1.0` tag). 不提供运行时 JS 分级回退.
 
 ### Validation (R1.2 Stage B 提交 commit 02ae430)
 
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed — Document ownership boundary for `release:create`
 
-- **Open the v4.0 release workflow as agent-runnable**: `docs/R1.2-实施方案.md` 前置条款 3 与 `docs/JS-Backend退役路线图.md` §Phase R3 的 "Agent 不擅自做的事 / 完全由 user 决策" 措辞改为 "Agent 按 `docs/3.x-Release-Runbook.md` 走完整 tag/发版流程，每步输出当前进度与下一个准备动作由用户认可；只走 CI 主路径（`git push origin v*.*.*` 触发 `.github/workflows/release.yml`），不保留 `scripts/createGitHubRelease.js` 备路径以外的最高权限凭证操作". 此处的范围调整只覆盖 v4.0；后续 Major 版本（v5.0+）默认回到原 user 决策边界。
+- **Open the v4.0 release workflow as agent-runnable**: R1.2 实施方案前置条款 3 (该方案文件已于后续清理删除) 与 `docs/JS-Backend退役路线图.md` §Phase R3 的 "Agent 不擅自做的事 / 完全由 user 决策" 措辞改为 "Agent 按 `docs/3.x-Release-Runbook.md` 走完整 tag/发版流程，每步输出当前进度与下一个准备动作由用户认可；只走 CI 主路径（`git push origin v*.*.*` 触发 `.github/workflows/release.yml`），不保留 `scripts/createGitHubRelease.js` 备路径以外的最高权限凭证操作". 此处的范围调整只覆盖 v4.0；后续 Major 版本（v5.0+）默认回到原 user 决策边界。
 
 ## 3.1.0 - 2026-09-21
 

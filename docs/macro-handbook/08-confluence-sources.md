@@ -3,7 +3,7 @@
 
 ## 附录 A. Confluence 参考索引
 
-> 本附录列出项目维护期间沉淀的 Confluence 权威页面索引，便于追溯官方最新规格。完整证据采集进度见 [`../macro-knowledge/资料补章-程序匹配-步骤级清单.md`](../macro-knowledge/资料补章-程序匹配-步骤级清单.md)。
+> 本附录列出项目维护期间沉淀的 Confluence 权威页面索引，便于追溯官方最新规格。
 > cloudId: `b5edbc26-4a0e-47be-a50c-f9c38bf43165`（syntecclub.atlassian.net）。
 
 ### A.1 核心规范
