@@ -46,7 +46,7 @@ jobs:
         run: npm run check:release:readiness -- --strict
 
       - name: 诊断规则科学化治理 (HARD + SOFT strict)
-        # 对照 docs/迭代优化计划.md §4 + docs/macro-knowledge/诊断规则科学化工作流.md。
+        # 对照 docs/开发交接说明.md「文档地图」四件套说明。
         # strict 模式: HARD (JS+Rust+parity 文档) 与 SOFT (DIAGNOSTIC_HELP 文案) 任一缺失即 fail 作发布硬门禁。
         # SOFT=0 已于 2026-09-22 补齐全部 27 项 DIAGNOSTIC_HELP 用户文案，CI 可升 --strict。
         run: npm run check:diagnostic-governance -- --strict

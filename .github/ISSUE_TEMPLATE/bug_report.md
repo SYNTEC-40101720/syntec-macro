@@ -26,6 +26,7 @@ assignees: ''
 <!-- If applicable, add screenshots to help explain your problem. -->
 
 ## Environment
+
 - **Extension Version**: <!-- e.g. v2.0.0 -->
 - **VS Code Version**: <!-- e.g. 1.90.0 -->
 - **OS**: <!-- e.g. Windows 11, macOS 14, Ubuntu 22.04 -->

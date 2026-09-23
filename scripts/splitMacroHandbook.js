@@ -134,8 +134,10 @@ function main() {
   // 3) Write each themed file: every heading + body verbatim.
   for (const [file, secs] of Object.entries(fileSections)) {
     const out = [];
+    out.push(`# 新代 MACRO 语法规范手册 · ${FILE_TITLE[file]}`);
+    out.push('');
     out.push(`> 本文件为 [新代 MACRO 语法规范手册](../新代MACRO语法规范手册.md) 的拆分子主题（${FILE_TITLE[file]}）。`);
-    out.push('> 状态标记规则与维护流程见 [原手册索引 §0](../新代MACRO语法规范手册.md#0-状态标记) 与 [macro-knowledge/README](../macro-knowledge/README.md#文档分层与职责边界)。');
+    out.push('> 状态标记规则与维护流程见 [原手册索引 §0](../新代MACRO语法规范手册.md#0-状态标记)。');
     out.push('');
     for (const sec of secs) {
       out.push(sec.heading);

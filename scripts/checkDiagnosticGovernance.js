@@ -1,7 +1,7 @@
 // scripts/checkDiagnosticGovernance.js
 //
 // 「新诊断规则科学化」治理守卫（v4.0.0+ 起）。
-// 把 docs/迭代优化计划.md §4「新诊断规则科学化」描述的"四件套"流程落到工具层：
+// 把 docs/开发交接说明.md「诊断/规则变更的四件套」流程落到工具层：
 // 每个稳定 DiagnosticCode 必须在 4 个登记点同步登记，CI 守卫缺一不可。
 //
 // 四件套登记点 (per code):
@@ -10,7 +10,7 @@
 //   (3) docs/Rust诊断parity清单.md          — 「诊断 code ↔ 能力矩阵交叉引用」表登记 (code → 能力 ID)
 //   (4) src/diagnosticActions.js           — DIAGNOSTIC_HELP 用户文案 (actionable) 或在 docs/诊断规则与修复动作.md 派生层有 fallback '-' (informational)
 //
-// 能力矩阵 (docs/macro-knowledge/MACRO能力矩阵.md) 通过能力 ID 间接登记所有 code (parity 清单 §交叉引用表是唯一 code→能力 ID 指针), 不要求能力矩阵本身含 code literal 字符串. 本脚本只报能力矩阵当前直接引用的 code 数量, 不作 HARD 强制.
+// 能力矩阵 (docs/MACRO能力矩阵.md) 通过能力 ID 间接登记所有 code (parity 清单 §交叉引用表是唯一 code→能力 ID 指针), 不要求能力矩阵本身含 code literal 字符串. 本脚本只报能力矩阵当前直接引用的 code 数量, 不作 HARD 强制.
 //
 // 门槛分级:
 //   - HARD (FAIL): (1)+(2)+(3) 必须登记, 缺一则科学化四件套未完成, 阻塞 PR
@@ -31,7 +31,7 @@ const DIAGNOSTIC_CODES_PATH = path.join(ROOT, 'src', 'diagnosticCodes.js');
 const DIAGNOSTIC_ACTIONS_PATH = path.join(ROOT, 'src', 'diagnosticActions.js');
 const RUST_LIB_PATH = path.join(ROOT, 'crates', 'syntec-core', 'src', 'lib.rs');
 const PARITY_DOC_PATH = path.join(ROOT, 'docs', 'Rust诊断parity清单.md');
-const CAPABILITY_MATRIX_PATH = path.join(ROOT, 'docs', 'macro-knowledge', 'MACRO能力矩阵.md');
+const CAPABILITY_MATRIX_PATH = path.join(ROOT, 'docs', 'MACRO能力矩阵.md');
 
 // === 1. JS DiagnosticCode 注册表 ===
 function readJsDiagnosticCodes() {
@@ -161,9 +161,9 @@ function formatResult(report) {
   lines.push('# 诊断规则科学化治理 (Diagnostic Governance Audit)');
   lines.push('');
   lines.push('> 生成: ' + new Date().toISOString());
-  lines.push('> 门槛: HARD (1) JS DiagnosticCode 注册 + (2) Rust literal + (3) `docs/Rust诊断parity清单.md` 交叉引用 + (4) `docs/macro-knowledge/MACRO能力矩阵.md` 能力登记.');
+  lines.push('> 门槛: HARD (1) JS DiagnosticCode 注册 + (2) Rust literal + (3) `docs/Rust诊断parity清单.md` 交叉引用 + (4) `docs/MACRO能力矩阵.md` 能力登记.');
   lines.push('> SOFT (warning, --strict 才算 FAIL): `src/diagnosticActions.js` `DIAGNOSTIC_HELP` 用户文案.');
-  lines.push('> 文档入口: `docs/迭代优化计划.md` §4 + `docs/macro-knowledge/诊断规则科学化工作流.md`.');
+  lines.push('> 文档入口: `docs/开发交接说明.md` 文档地图 + `docs/README.md` 四件套说明.');
   lines.push('');
   lines.push('## 汇总');
   lines.push('');
@@ -172,7 +172,7 @@ function formatResult(report) {
   lines.push(`| JS DiagnosticCode | ${report.jsCount} | src/diagnosticCodes.js |`);
   lines.push(`| Rust literal (non-CORE) | ${report.rustCount} | crates/syntec-core/src/lib.rs |`);
   lines.push(`| parity 清单登记 | ${report.parityDocCount} | docs/Rust诊断parity清单.md |`);
-  lines.push(`| 能力矩阵登记 | ${report.capabilityMatrixCount} | docs/macro-knowledge/MACRO能力矩阵.md |`);
+  lines.push(`| 能力矩阵登记 | ${report.capabilityMatrixCount} | docs/MACRO能力矩阵.md |`);
   lines.push(`| DIAGNOSTIC_HELP 文案 | ${report.helpCount} / ${report.jsCount} | src/diagnosticActions.js |`);
   lines.push('');
   lines.push(`**HARD FAIL**: ${report.hard.length}`);

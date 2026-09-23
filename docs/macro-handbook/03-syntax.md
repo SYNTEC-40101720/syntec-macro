@@ -1,5 +1,7 @@
+# 新代 MACRO 语法规范手册 · MACRO 语法指令
+
 > 本文件为 [新代 MACRO 语法规范手册](../新代MACRO语法规范手册.md) 的拆分子主题（MACRO 语法指令）。
-> 状态标记规则与维护流程见 [原手册索引 §0](../新代MACRO语法规范手册.md#0-状态标记) 与 [macro-knowledge/README](../macro-knowledge/README.md#文档分层与职责边界)。
+> 状态标记规则与维护流程见 [原手册索引 §0](../新代MACRO语法规范手册.md#0-状态标记)。
 
 ## 4. MACRO 语法指令
 

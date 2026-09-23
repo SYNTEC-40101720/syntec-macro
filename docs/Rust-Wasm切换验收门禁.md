@@ -7,7 +7,7 @@
 - **唯一分析后端**: `rust-wasm`. `syntecMacro.analysisBackend` enum = `['rust-wasm']`, `javascript`/`rust-wasm-shadow` 已退役.
 - **Wasm asset**: `assets/rust-wasm/{manifest.json, syntec_core.wasm}` 经 `scripts/buildRustWasmAsset.js` 全链校验 (manifest 形状 + 字节长度 + SHA-256 + `WebAssembly.instantiate` + 必需 exports), bundle 进 VSIX.
 - **Host Provider** (completion/hover/definition/navigation/formatting/diagnostics/code-actions) 走 `src/hostRustAnalyzer.js` 同步路径; Worker (`src/validatorWorker.js`) 硬切 `rust-wasm` backend.
-- **数据真源** (Phase R2 已完成 2026-09-22): `src/systemVariables.js` / `src/functions.js` / `src/codeDocs.js` / `src/keywords.js` 四表数据已迁到 `src/data/*.json`, JS 模块改 thin JSON loader (mtime-aware 进程内只读缓存); `src/completionSnippets.js` 评估为纯函数无数据真源不迁. 详见 `docs/迭代优化计划.md` §1.
+- **数据真源** (Phase R2 已完成 2026-09-22): `src/systemVariables.js` / `src/functions.js` / `src/codeDocs.js` / `src/keywords.js` 四表数据已迁到 `src/data/*.json`, JS 模块改 thin JSON loader (mtime-aware 进程内只读缓存); `src/completionSnippets.js` 评估为纯函数无数据真源不迁. 详见 `docs/开发交接说明.md`.
 
 ## 2. 验收门禁 (每次发布前后必跑)
 
@@ -35,8 +35,8 @@ npm.cmd run smoke:installed
 
 1. **Rust/Wasm 是唯一后端**: 不得引入任何 JS 分析器 fallback 路径. v4.0.0 后 `analysisCore.js` 等 12 模块已删, 重引入需经 R2 主线讨论.
 2. **Wasm asset bundled 进 VSIX**: 不得把开发态 `crates/syntec-core/target/` 复制进 VSIX; 必经 `scripts/buildRustWasmAsset.js` 写 manifest + SHA-256 + exports 子集断言.
-3. **数据真源单一登记**: MACRO 规则的状态只在 `docs/macro-knowledge/MACRO能力矩阵.md` 登记一次; 诊断 code ↔ 能力 ID 交叉引用在 `docs/Rust诊断parity清单.md`.
-4. **不泛化运行时现象**: LTP/机器人/Modbus 跨行状态与运行时差异继续只记录证据不静态强制 (详见 `docs/macro-knowledge/MACRO-LTP专项资料包.md`).
+3. **数据真源单一登记**: MACRO 规则的状态只在 `docs/MACRO能力矩阵.md` 登记一次; 诊断 code ↔ 能力 ID 交叉引用在 `docs/Rust诊断parity清单.md`.
+4. **不泛化运行时现象**: LTP/机器人/Modbus 跨行状态与运行时差异继续只记录证据不静态强制 (证据原文可从 Confluence SYNTech 手册查询).
 5. **测试集守卫**: `tests/workerLifecycle.test.js` / `tests/rustWasmAsset.test.js` / `tests/rustWasmWorkerAdapter.test.js` 等是 fallback / ABI 守卫, 不得删除.
 
 ## 4. check:release:readiness -- --strict 7 项门禁
@@ -44,7 +44,7 @@ npm.cmd run smoke:installed
 每次发版必须全 PASS (item 7 SKIP 由 release workflow 跑完后再核).
 
 | # | 门禁 | 说明 |
-|---|------|------|
+| --- | ------ | ------ |
 | 1 | Rust/Wasm 完整 `AnalysisResult` parity | `compare:rust` 测 |
 | 2 | 稳定诊断 + navigation + format parity (68/68) | `compare:rust` 测 |
 | 3 | 生产 Wasm 资产 + 加载器 + Worker + fallback | `check:rust:wasm:asset` + `workerLifecycle.test.js` |
@@ -55,9 +55,8 @@ npm.cmd run smoke:installed
 
 ## 5. 文档入口
 
-- 主线索引: `docs/迭代优化计划.md` §「后续计划 (v4.x+)」
-- 开发交接 (每次新会话先读): `docs/开发交接说明.md`
+- 主线索引 (每次新会话先读): `docs/开发交接说明.md`
 - 发布 Runbook: `docs/Release-Runbook.md`
 - Rust 诊断 parity 清单: `docs/Rust诊断parity清单.md`
-- MACRO 知识 / 能力矩阵: `docs/macro-knowledge/README.md`
+- MACRO 能力矩阵: `docs/MACRO能力矩阵.md`
 - 语法与诊断手册: `docs/新代MACRO语法规范手册.md` / `docs/诊断规则与修复动作.md`

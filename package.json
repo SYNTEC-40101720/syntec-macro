@@ -129,7 +129,7 @@
     "check:diagnostic-governance": "node scripts/checkDiagnosticGovernance.js",
     "check:vsix": "node scripts/checkVsixContents.js",
     "check:data": "node scripts/checkLanguageDataConsistency.js",
-    "package": "npm run check:rust:wasm:asset && npm run check:vsix && vsce package --allow-star-activation && node scripts/reportVsixArtifact.js",
+    "package": "npm run check:rust:wasm:asset && npm run check:vsix && vsce package --allow-star-activation --no-gitHubIssueLinking && node scripts/reportVsixArtifact.js",
     "release:create": "node scripts/createGitHubRelease.js",
     "lint": "npx eslint eslint.config.js src/ scripts/ tests/"
   },

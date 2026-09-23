@@ -55,6 +55,15 @@ function escapeCell(value) {
     .replace(/\n/g, '<br>');
 }
 
+// MD037: 单元格文本中的裸 `_`（如 macro 引数 I_ A_）会被 markdownlint
+// 判成强调标记，需要转义；但反引号行内代码中的 `_` 不需要也不能转义。
+function escapeEmphasis(value) {
+  return String(value)
+    .replace(/(`[^`]*`)/g, '\u0000$1\u0000')
+    .replace(/_/g, '\\_')
+    .replace(/\u0000/g, '');
+}
+
 function quickFixFor(code) {
   if (code === DiagnosticCode.MISSING_SEMICOLON) return '补上行尾 ;';
   if (code === DiagnosticCode.CONTROL_STRUCTURE_TRAILING_SEMICOLON) return '移除控制结构行尾 ;';
@@ -97,8 +106,8 @@ function rowFor(code) {
     `\`${code}\``,
     categoryFor(code),
     severityFor(code),
-    quickFixFor(code),
-    noteFor(code)
+    escapeEmphasis(quickFixFor(code)),
+    escapeEmphasis(noteFor(code))
   ].map(escapeCell);
   return `| ${cells.join(' | ')} |`;
 }

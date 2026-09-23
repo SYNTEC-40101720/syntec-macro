@@ -3682,9 +3682,9 @@ fn validate_static_argument_ranges(clean: &str, line: usize, diagnostics: &mut V
 // flags required by the ROBOT-SIGNAL末批 (`SWAITSIG_LIMIT` / `SYNCOUT_LIMIT`
 // / `RANGE_FORBIDDEN_COMMAND`).
 //
-// Phase 5.2 扩展 (2026-09-22, 证据 §A/B/C 已 B 级采集): 按
-// `docs/macro-knowledge/Phase5-控制器证据采集清单.md` §D 表追加跨行状态
-// 字段。本阶段仅扩 struct, 不接入 emit; emit 入口由 Phase 5.3 在
+// Phase 5.2 扩展 (2026-09-22, 证据 §A/B/C 已 B 级采集): 增补跨行状态
+// 字段（证据清单原文可从 Confluence SYNTech 手册查询）。本阶段仅扩
+// struct, 不接入 emit; emit 入口由 Phase 5.3 在
 // `validate_robot_line_state` / `finalize_robot_state` 增量补登记, 并走
 // 四件套登记 (`src/diagnosticCodes.js` + Rust emit + `Rust诊断parity清单.md`
 // + DIAGNOSTIC_HELP 文案)。在 5.3 emit 落地前字段消费路径缺失, 暂挂
@@ -3713,7 +3713,7 @@ struct RobotLineState {
     movc_pair_count: usize,
     /// CALL-RUN-05: WAIT() 对 M98/M99/M198 不提供完成保证. 标记进入
     /// WAIT 等待未完成的运动单节, 用于 5.3 在 M98/M198 调用前检测时序
-    /// 不一致. (资料包 MACRO调用语义 §3 / CALL-RUN-05).
+    /// 不一致. (Confluence SYNTech 手册调用语义 / CALL-RUN-05).
     wait_pending: bool,
     /// CALL-RUN-06: M198 调用前目标文件已被修改 (Pr3601~3610 注册后
     /// 失效, 强制重读). 5.3 在 M198 调用 emit 时消费此标志.
@@ -3934,8 +3934,7 @@ fn detect_g10_l1802_span(chars: &[char]) -> Option<(usize, usize)> {
 //
 // Phase 5.3 (2026-09-22, ROB-LTP-02 / RBT-127): 「MOVC 中间点与结束点之间允许的指令数上限为
 // 10 笔」由 `movc_pair_count` 在 `pending_movc_line > 0` 期间累计。 计入规则（基于 user 的 CF
-// 复核 + §C-02 现场实测 protease 解译器底层设计，参考 docs/macro-knowledge/MACRO-LTP专项资料包.md
-// §4.2.3):
+// 复核 + §C-02 现场实测 protease 解译器底层设计，LTP 证据原文可从 Confluence SYNTech 手册查询）:
 //   - 计入（超过 10 即发 RBT-127, 即时在第 11 笔行 emit）：
 //     · `G10 L*` 行（L1000/L1810/L1820/L1900/L1901 等同类 IO/通讯/系统参数写入，但 L1802
 //       静音门控的同一行本规则依然计入中间单节——两者正交）

@@ -4,15 +4,14 @@
 > 仅在 `npm.cmd run check:release:readiness -- --strict` 全 PASS（除 SKIP）后启动；任一 FAIL 不许发布。
 > 具体版本号由 user 选定；agent 不擅自选定。
 > 执行过程中如需回滚（restoring 旧标签和 VSIX），按 §「Rollback」操作。
-
-> **历史示例（2026-09-20 v3.0.0）**: §0 readiness `6 PASS + 1 SKIP + 0 FAIL`；§1 版本号 `3.0.0`；§2 全量验收 `npm test 367/367`、`check:release --tag v3.0.0` 一致、`benchmark:compare` 三场景 parity=equal、`compare:rust 130+10+17`、`probe:rust:wasm` ok、`test:integration`+`test:integration:navigation` exit 0、`npm run package` 产 `syntec-macro-3.0.0.vsix` (246275 bytes, SHA-256 `97cb18c2...`)、`smoke:installed` 通过；§3 `check:vsix` 44 文件含 `assets/rust-wasm/{manifest.json, syntec_core.wasm}`；§4 commit `dea6439 Release v3.0.0` + tag `v3.0.0` 已 push；§5 `gh release upload v3.0.0 syntec-macro-3.0.0.vsix --clobber` 完成。Release URL: https://github.com/SYNTEC-40101720/syntec-macro/releases/tag/v3.0.0
+> **历史示例（2026-09-20 v3.0.0）**: §0 readiness `6 PASS + 1 SKIP + 0 FAIL`；§1 版本号 `3.0.0`；§2 全量验收 `npm test 367/367`、`check:release --tag v3.0.0` 一致、`benchmark:compare` 三场景 parity=equal、`compare:rust 130+10+17`、`probe:rust:wasm` ok、`test:integration`+`test:integration:navigation` exit 0、`npm run package` 产 `syntec-macro-3.0.0.vsix` (246275 bytes, SHA-256 `97cb18c2...`)、`smoke:installed` 通过；§3 `check:vsix` 44 文件含 `assets/rust-wasm/{manifest.json, syntec_core.wasm}`；§4 commit `dea6439 Release v3.0.0` + tag `v3.0.0` 已 push；§5 `gh release upload v3.0.0 syntec-macro-3.0.0.vsix --clobber` 完成。Release URL: <https://github.com/SYNTEC-40101720/syntec-macro/releases/tag/v3.0.0>
 
 ## Release 路径选择（主备关系）
 
 本 Runbook 对应两条发布路径，**CI 路径为主、本机脚本为域控离线 fallback**，产物 SHA 一致：
 
 | 维度 | 主路径 (CI) | 备路径 (域控离线) |
-|------|-------------|-------------------|
+| ------ | ------------- | ------------------- |
 | 触发方式 | `git push origin v3.x.x` 触发 `.github/workflows/release.yml` + `workflow_dispatch` 手动调起 | 本机 PowerShell 跑 `npm.cmd run release:create -- v3.x.x` |
 | Release 创建 | `softprops/action-gh-release@v2` | `scripts/createGitHubRelease.js` 走 `git credential fill` + `curl.exe` |
 | 门禁 | `check:release --tag` + `check:release:readiness -- --strict` + `npm test` + `lint` + `test:integration` + `package` 全跑 | 发布前 user 本机先跑 `check:release:readiness -- --strict`，agent 不替 user 跑 `release:create` |
@@ -20,6 +19,7 @@
 | 适用场景 | 远程 push tag 即可自动完成全链 | 域控 WDAC 环境 `gh` CLI 被拦截时用本地 `git credential fill + curl.exe` fallback |
 
 选择规则：
+
 - 能 push tag 且 GitHub Actions 可跑 → 用主路径 (release.yml)。
 - 域控环境 `gh` 被拦截且无法走 Actions → 用备路径 (`npm.cmd run release:create -- v3.x.x`)。
 - 两条路径都依赖 §0 前置门禁与 §1 版本号切换；任一 FAIL 不许发。
@@ -52,11 +52,13 @@ npm.cmd run check:release:readiness -- --strict
 3. 修改 `package-lock.json` 的 `version` 与 `packages[""].version`。
 4. 修改 `README.md` 中 `version-2.15.0-blue` 徽章。
 5. 在 `CHANGELOG.md` 中把 `## [Unreleased]` 段落改为 `## 3.0.0 - YYYY-MM-DD`（用当日日期），并在上方再开一个新的 `## [Unreleased]` 空段落，保持后续 iteration 入口。
-6. 同步更新 `docs/开发交接说明.md`、`docs/macro-knowledge/MACRO知识与验证规划.md` 与 `docs/Rust-Wasm切换验收门禁.md`「### P1 §1 状态」转为「### 发布收口状态」。
+6. 同步更新 `docs/开发交接说明.md` 与 `docs/Rust-Wasm切换验收门禁.md`「### P1 §1 状态」转为「### 发布收口状态」。
 7. 重新运行 release 一致性检查：
+
    ```powershell
    npm.cmd run check:release -- --tag v3.0.0
    ```
+
    PASS 才能继续第 2 步。
 
 ## 2. 全量验收命令
@@ -85,11 +87,12 @@ npm.cmd run check:vsix
 ```
 
 验收点（对照规划 §3 第 3 项）：
+
 - ✅ 生产 src/代码、grammar、snippet、CHANGELOG、images/icon.png、language-configuration 全部进 VSIX；
 - ✅ 是否包含 `assets/rust-wasm/manifest.json` + `syntec_core.wasm` 由 user 决定：
 
   | 选项 | `.vscodeignore` 改动 | source 组件 |
-  |------|----------------------|-------------|
+  | ------ | ---------------------- | ------------- |
   | 进 VSIX（推荐 3.0） | 移除 `assets/` 行，`scripts/buildRustWasmAsset.js` 自动包括 manifest+wasm | `rustWasmAsset.js` 已在 `src/` |
   | 不进 VSIX（保守 2.x → 3.x 分两次） | 保持 `assets/` 排除 | 用户首次启动时按 manifest 拉 wasm asset（当前尚未实现） |
 
@@ -121,6 +124,7 @@ npm.cmd run release:create -- v3.0.0
 ```
 
 该脚本流程详见 `scripts/createGitHubRelease.js` 顶部注释：
+
 1. 校验 tag 与 package.json version 一致
 2. 从 CHANGELOG.md 解析 v3.0.0 段落作 body
 3. `git credential fill` 取 github.com token
@@ -131,7 +135,7 @@ npm.cmd run release:create -- v3.0.0
 ## 6. 发布后核对（对照规划 §「3.x 发布收口」第 6 项）
 
 | 项目 | 核对方式 | 期望结果 |
-|------|----------|----------|
+| ------ | ---------- | ---------- |
 | git tag `v3.0.0` 已推送 | `git ls-remote --tags origin v3.0.0` | 列出 `v3.0.0` |
 | GitHub Release URL 可访问 | 在浏览器访问 release HTML URL | 可见 Release 页面与 CHANGELOG body |
 | VSIX 资产已上传 | `gh release view v3.0.0 --repo ...`（如可用）或浏览器 asset section | `syntec-macro-3.0.0.vsix` 已列出 |
