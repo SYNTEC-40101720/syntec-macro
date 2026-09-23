@@ -45,6 +45,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 4.2.0 - 2026-09-23
+
+### Changed — compare:rust baseline 重建为 Rust 自洽 golden file
+
+- **背景**: R1.2 Stage B (v4.0.0) 退役 JS analyzer 后, 原 `scripts/exportRustParityBaseline.js`(读已删 fixture 返回) 与 `tests/fixtures/rust-parity-baseline.json`(v3.1.0 JS 生成) 在 v4.x 清理时一并删除, 导致 `npm run compare:rust` 无 `--baseline` 时直接抛错, CI 靠 `continue-on-error` 兜底, `docs/3.x-Release-Runbook.md` 的 `compare:rust` 发布硬门禁失效。
+- **重建为 Rust golden file**: 新增 `scripts/exportRustBaseline.js`——跑 **Rust CLI 自身** 生成 golden file fixture(139 cases + 10 navigation + 17 format), `compare:rust` 默认指向 `tests/fixtures/rust-parity-baseline.json`; 新增 npm 脚本 `export:rust:baseline`; fixture 是 Rust 自洽基线, 仅当 Rust 输出有意变更时开发者本地重生成并 commit, 平时 `compare:rust` 守卫 Rust 核心无静默回归(R1.2 后无 JS 真源)。
+- **`scripts/compareRustCore.js` 重构**: 恢复默认 baseline 路径(`tests/fixtures/rust-parity-baseline.json`), 移除"无 `--baseline` 即抛错"行为; 删除两个 historic reference 桩函数 `getJavaScriptNavigation`/`getJavaScriptEdit`(只是抛 `MODULE_NOT_FOUND`, 已无导出); module.exports 移除已删的 `getJavaScriptDiagnostics` 引用并补 `DEFAULT_RUST_CLI`。
+- **`package.json`**: 新增 `export:rust:baseline` 脚本; `test` 命令追加 `tests/exportRustBaseline.test.js`。
+- **`.github/workflows/rust-wasm.yml`**: `compare:rust` step 恢复为发布硬门禁(移除 `continue-on-error: true`), 因 fixture 已随仓库 commit, CI 无需重新生成。
+- **新增 `tests/exportRustBaseline.test.js` 6 项契约**: SCHEMA_VERSION / DEFAULT_OUTPUT_PATH / resolveRustCli 环境变量优先 / 回退路径 / buildBaseline 无 CLI 报错 / committed fixture shape(三段用例 + expected 字段)。
+
+### Changed — R1.2 Stage B 后退役脚本/测试/依赖清理
+
+- 删除已退役的 JS 后端脚本: `scripts/auditJsBackend.js` / `benchmarkParser.js` / `checkJsBackendRetirement.js` / `exportRustParityBaseline.js` / `parserSpike.js` / `switchToRustWasmBackend.js` / `testTreeSitterSpike.js` + 整个 `scripts/treeSitterSpike/`。
+- 删除已退役测试: `tests/checkJsBackendRetirement.test.js` / `compareRustCore.test.js` / `switchToRustWasmBackend.test.js`。
+- `package.json` 移除脚本: `benchmark:parser` / `test:parser:tree-sitter` / `audit:js-backend` / `check:js-backend-retirement` / `switch:to-rust-wasm-backend`; 移除 `tree-sitter-cli` devDependency。
+- `.github/workflows/ci.yml` 移除 tree-sitter spike smoke step。
+- 净减 ~5412 行(主要是 tree-sitter parser.c 等)。
+
+### Changed — Phase 5.5 区间未关闭收尾 emit 复核(决策不实现)
+
+- 经 Confluence 一手规格页复核, 决定**不实现** STITCHON/WEAVEON/WAITSYNC/G192 区间未关闭的收尾 emit。依据: (1) STITCHON/STITCHOFF 页(64815646)明确「RESET/加工结束视为自动执行 STITCHOFF」→ 文件尾非错误状态; (2) WEAVEON/WEAVEOFF(64815586)、WAITSYNC/ENDSYNC(64815317)、G192.1/G192.2(64817515)三页仅登记区间内禁用指令的 RBT-322/RBT-257/RBT-123 与运行时警报, 无「忘记关闭区间」的静态语法诊断记载。新增无证据诊断违反「诊断规则科学化工作流」第 1 步「规范手册对齐」。详见 `docs/macro-knowledge/MACRO-LTP专项资料包.md §4.1.5`。
+
+### Added — 跨厂商宏程序兼容专题文档
+
+- 新增 `docs/macro-knowledge/跨厂商宏程序兼容专题.md`: 整合 Confluence 一手页(27355508 发那科→新代语法差异 / 837721919 三菱多通道变量共享 / 849614054 一线探头程序转换差异)。覆盖发那科→新代语法差异表(开头/分号/括号/赋值/比较符/WHILE/IF/注释/G码TYPE A)、三菱 No.1052/1303/1304 多通道变量共享机制、一线探头程序 G31→G231 转换问题(丢 Q 引数)、`#1361`/刀长补偿多通道轴群偏移(`#1508` 维度)、POPEN/DPRNT/PCLOSE 映射。标注插件 `SYNTEC_UNSUPPORTED_*` 系列诊断覆盖范围与不覆盖项(变量号映射属转换工具职责)。
+
+### Fixed — 系统变数 bit 级规格与 Confluence 一手页对齐
+
+- `src/data/systemVariables.json` 与 `docs/macro-handbook/02-variables.md §2.7.1` 中 `#1502`/`#1504`/`#1510` 的 bit 级定义与 Confluence 一手页 44106246(v221) 对齐修正:
+  - `#1502` bit0 语义原写反: 一手页为「0=执行单步(预设)/1=不执行」, 仅 `Pr3221=0` 时有效(原写「bit0=1 启用单步, Pr3221=1 强制」)。
+  - `#1504` 漏 bit1/3/5 与版本门控: 一手页 bit1=Feedhold+Override 总开关 / bit2=Feedhold / bit3=快动Override / bit4=切削Override / bit5=主轴Override; `#1504.2~.5` 于 `10.114.51` 之后始有效(原仅写 bit2/bit4)。
+  - `#1510` bit2 漏 0 态: 一手页 bit2「0=更新主+副程序信息 / 1=只更新主程序」(原仅写「1=仅更新主程序」)。
+- 验收: `tests/systemVariables.test.js` 7/7 PASS。
+
+### Validation (v4.2.0 提交前)
+
+- `npm test`: 273/273 PASS
+- `npm run lint`: clean
+- `npm run compare:rust` (`SYNTEC_RUST_CLI`): 139 cases + 10 nav + 17 format parity 全等价
+- `npm run check:vsix`: 39 files valid
+- `npm run check:release`: consistent for 4.2.0
+
 ## 4.1.0 - 2026-09-22
 
 ### Added — 27 个 SOFT governance 缺口 DIAGNOSTIC_HELP 用户文案补齐（2026-09-22）

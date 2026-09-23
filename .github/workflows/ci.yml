@@ -66,19 +66,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install C compiler for tree-sitter spike
-        # tree-sitter-cli 需 C 编译器才能生成并编译 parser。Ubuntu runner
-        # 默认带 gcc，安装 step 是 idempotent 保险。
-        run: sudo apt-get update && sudo apt-get install -y gcc
-
       - name: Run VS Code integration tests
         run: xvfb-run -a npm run test:integration
-
-      - name: Tree-sitter grammar spike smoke
-        # Phase 2.8: tree-sitter spike 長期决策为 B (接入 CI smoke)，防止 grammar 腐烂；
-        # 仍是开发态 spike，continue-on-error 不 fail PR。
-        run: node scripts/testTreeSitterSpike.js
-        continue-on-error: true
 
       - name: Upload VS Code integration logs
         if: failure()

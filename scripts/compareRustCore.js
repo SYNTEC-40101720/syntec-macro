@@ -1,14 +1,15 @@
-// M3 开发态差分检查：比较 Rust 控制流试点与当前 baseline.
+// M3 开发态差分检查：比较 Rust CLI 输出与 baseline fixture.
 //
-// R1.2 Stage B (2026-09-22): 默认 baseline 改为 `tests/fixtures/rust-parity-baseline.json`
-// (由 scripts/exportRustParityBaseline.js 生成的离线 fixture). JS analyzer (src/analysisCore.js)
-// 已 git rm; 运行时 JS 路径仍可用 `--runtime-js` flag 触发, 但 R1.2 后该路径无 JS 实体可调,
-// 仅保留作 historic reference (会在 lazy require 时抛 MODULE_NOT_FOUND).
+// R1.2 Stage B (2026-09-22) 起 JS analyzer 已 git rm; 原 v3.1.0 baseline fixture
+// 与 exportRustParityBaseline.js 在 v4.x 迭代清理时一并删除. v4.2.0 (2026-09-23)
+// 重建为 Rust 自洽 golden file: `scripts/exportRustBaseline.js` 跑 Rust CLI 生成
+// `tests/fixtures/rust-parity-baseline.json` 作 expected, 本脚本再跑 Rust CLI
+// 比对, 守卫 Rust 核心无静默回归 (R1.2 后无 JS 真源).
+// 默认指向上述 fixture; 也可 `--baseline <path>` 显式覆盖.
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { createRequest } = require('./benchmarkAnalysis');
 
 const DEFAULT_BASELINE = path.join(
   __dirname,
@@ -18,21 +19,9 @@ const DEFAULT_BASELINE = path.join(
   'rust-parity-baseline.json'
 );
 
-// 运行时 JS baseline 引用按需 lazy require (R1.2 后 analysisCore 已删, 该分支会 throw).
-// 保留函数定义作 historic reference; main() 默认不进入该分支.
-let _jsAnalyzer = null;
-function loadJavaScriptAnalyzer() {
-  if (!_jsAnalyzer) {
-    const { analyzeDocument, analyzeNavigationDocument, formatDocument } = require('../src/analysisCore');
-    _jsAnalyzer = { analyzeDocument, analyzeNavigationDocument, formatDocument };
-  }
-  return _jsAnalyzer;
-}
-
 const DEFAULT_RUST_CLI = path.join(
   __dirname,
   '..',
-  'crates',
   'syntec-core',
   'target',
   'debug',
@@ -641,18 +630,6 @@ function normalizeDiagnostic(item) {
   };
 }
 
-function getJavaScriptDiagnostics(text) {
-  const { analyzeDocument } = loadJavaScriptAnalyzer();
-  const result = analyzeDocument(createRequest(text, 'file:///rust-diff.nc'));
-  return result.diagnostics.map(diagnostic => normalizeDiagnostic({
-    line: diagnostic.range.start.line + 1,
-    col: diagnostic.range.start.character,
-    endCol: diagnostic.range.end.character,
-    severity: diagnostic.severity,
-    code: diagnostic.code
-  }));
-}
-
 function parseRustOutput(stdout) {
   const diagnostics = [];
   for (const line of stdout.split(/\r?\n/)) {
@@ -788,26 +765,10 @@ const NAVIGATION_CASES = [
   }
 ];
 
-function getJavaScriptNavigation(uri, text) {
-  const { analyzeNavigationDocument } = loadJavaScriptAnalyzer();
-  const fakePath = uri.replace(/^file:\/\/\//, '');
-  const request = createRequest(text, uri);
-  const result = analyzeNavigationDocument(request, fakePath);
-  if (result.navigation === null) return null;
-  // Strip `document`/`profile`/`backend` fields so the comparison stays
-  // scoped to the navigation payload itself.
-  return {
-    programEntryName: result.navigation.programEntryName,
-    macroProgramName: result.navigation.macroProgramName,
-    symbols: result.navigation.symbols,
-    calls: result.navigation.calls
-  };
-}
-
 /**
- * P0-B 第 2 项 edits/TextEdit 差分用例集. Each case asserts a JS formatter
- * output plus a Rust `--request` mode emits the same single whole-document
- * TextEdit (or `edits: []` when the output equals the input).
+ * P0-B 第 2 项 edits/TextEdit 差分用例集. Each case asserts a Rust `--request`
+ * mode emits a single whole-document TextEdit (or `edits: []` when the
+ * output equals the input).
  */
 const FORMAT_CASES = [
   { name: 'blank', text: '' },
@@ -828,17 +789,6 @@ const FORMAT_CASES = [
   { name: 'if-with-inline-body', text: 'IF #1 = 1 THEN #6 := 1; END_IF;\n' },
   { name: 'crlf-eol', text: 'IF #1 = 1 THEN\r\n#1 := 1;\r\nEND_IF;\r\n' }
 ];
-
-function getJavaScriptEdit(text) {
-  const { formatDocument } = loadJavaScriptAnalyzer();
-  const request = createRequest(text, 'file:///formatter.nc');
-  const result = formatDocument(request);
-  if (result.edits.length === 0) {
-    return { editsLength: 0, newText: null };
-  }
-  // Only one whole-document edit is expected per JS contract.
-  return { editsLength: 1, newText: result.edits[0].newText };
-}
 
 function getRustEdit(rustCli, text) {
   const request = JSON.stringify({
@@ -910,77 +860,36 @@ function getRustNavigation(rustCli, uri, text) {
 function main() {
   const argv = process.argv.slice(2);
   const baselineIndex = argv.indexOf('--baseline');
-  const runtimeJsIndex = argv.indexOf('--runtime-js');
-  // R1.2 Stage B: 默认走 fixture baseline; --runtime-js 显式 opt-in 时才走运行时 JS (R1.2 后 JS 已删, 该分支会抛).
-  let baselinePath = baselineIndex >= 0 ? argv[baselineIndex + 1] : null;
-  const useRuntimeJs = runtimeJsIndex >= 0;
-  if (!baselinePath && !useRuntimeJs) {
-    baselinePath = DEFAULT_BASELINE;
-  }
+  const baselinePath = baselineIndex >= 0 ? argv[baselineIndex + 1] : DEFAULT_BASELINE;
   const rustCli = process.env.SYNTEC_RUST_CLI || DEFAULT_RUST_CLI;
   if (!fs.existsSync(rustCli)) {
     throw new Error(`Rust core CLI not found: ${rustCli}; build it before running compare:rust`);
   }
 
-  // Baseline provider: by default the JS analyzer is run at runtime to produce
-  // the expected output (`getJavaScriptDiagnostics` / `getJavaScriptNavigation`
-  // / `getJavaScriptEdit`). When `--baseline <path>` is supplied the baseline is
-  // read from a fixture JSON written by `scripts/exportRustParityBaseline.js`,
-  // so `compare:rust` continues to gate Rust CLI output even after R1.2 Stage B
-  // removes the JS analyzer modules (`src/analysisCore.js` etc.).
-  let baselineProvider;
-  if (useRuntimeJs && !baselinePath) {
-    baselineProvider = {
-      mode: 'runtime-js',
-      source: 'src/analysisCore.js (live — R1.2 后已删, 会抛 MODULE_NOT_FOUND)',
-      getDiagnostics: text => getJavaScriptDiagnostics(text),
-      getNavigation: (uri, text) => getJavaScriptNavigation(uri, text),
-      getEdit: text => getJavaScriptEdit(text)
-    };
-  } else if (baselinePath) {
-    const resolved = path.resolve(baselinePath);
-    if (!fs.existsSync(resolved)) {
-      throw new Error(`Baseline fixture not found: ${resolved}`);
-    }
-    const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'));
-    if (parsed.schemaVersion !== 1) {
-      throw new Error(`Unsupported baseline schemaVersion: ${parsed.schemaVersion}`);
-    }
-    const casesByName = new Map(parsed.cases.map(c => [c.name, c.expected]));
-    const navByName = new Map(parsed.navigationCases.map(c => [c.name, c.expected]));
-    const formatByName = new Map(parsed.formatCases.map(c => [c.name, c.expected]));
-    baselineProvider = {
-      mode: 'fixture',
-      source: resolved,
-      getDiagnostics: (text, caseName) => {
-        if (!casesByName.has(caseName)) {
-          throw new Error(`Baseline fixture missing diagnostics case: ${caseName}`);
-        }
-        return casesByName.get(caseName);
-      },
-      getNavigation: (uri, text, caseName) => {
-        if (!navByName.has(caseName)) {
-          throw new Error(`Baseline fixture missing navigation case: ${caseName}`);
-        }
-        return navByName.get(caseName);
-      },
-      getEdit: (text, caseName) => {
-        if (!formatByName.has(caseName)) {
-          throw new Error(`Baseline fixture missing format case: ${caseName}`);
-        }
-        return formatByName.get(caseName);
-      }
-    };
-    console.info(`compare:rust --baseline ${resolved} (schemaVersion ${parsed.schemaVersion}, generatedAt ${parsed.generatedAt})`);
+  // Baseline provider: read expected output from a fixture JSON file (schemaVersion=1).
+  const resolved = path.resolve(baselinePath);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Baseline fixture not found: ${resolved}`);
   }
+  const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'));
+  if (parsed.schemaVersion !== 1) {
+    throw new Error(`Unsupported baseline schemaVersion: ${parsed.schemaVersion}`);
+  }
+  const casesByName = new Map(parsed.cases.map(c => [c.name, c.expected]));
+  const navByName = new Map(parsed.navigationCases.map(c => [c.name, c.expected]));
+  const formatByName = new Map(parsed.formatCases.map(c => [c.name, c.expected]));
+  console.info(`compare:rust --baseline ${resolved} (schemaVersion ${parsed.schemaVersion}, generatedAt ${parsed.generatedAt})`);
 
   for (const testCase of CASES) {
-    const expectedDiagnostics = baselineProvider.getDiagnostics(testCase.text, testCase.name);
+    if (!casesByName.has(testCase.name)) {
+      throw new Error(`Baseline fixture missing diagnostics case: ${testCase.name}`);
+    }
+    const expectedDiagnostics = casesByName.get(testCase.name);
     const rustDiagnostics = getRustDiagnostics(rustCli, testCase.text);
     if (JSON.stringify(expectedDiagnostics) !== JSON.stringify(rustDiagnostics)) {
       throw new Error(
         `${testCase.name} mismatch:\n` +
-        `${baselineProvider.mode}: ${JSON.stringify(expectedDiagnostics)}\n` +
+        `baseline: ${JSON.stringify(expectedDiagnostics)}\n` +
         `Rust: ${JSON.stringify(rustDiagnostics)}`
       );
     }
@@ -1017,12 +926,15 @@ function main() {
   // M198 调用 / 不同扩展名与裸 basename 等边界.
   let navigationCount = 0;
   for (const testCase of NAVIGATION_CASES) {
-    const expectedNavigation = baselineProvider.getNavigation(testCase.uri, testCase.text, testCase.name);
+    if (!navByName.has(testCase.name)) {
+      throw new Error(`Baseline fixture missing navigation case: ${testCase.name}`);
+    }
+    const expectedNavigation = navByName.get(testCase.name);
     const rustNavigation = getRustNavigation(rustCli, testCase.uri, testCase.text);
     if (JSON.stringify(expectedNavigation) !== JSON.stringify(rustNavigation)) {
       throw new Error(
         `${testCase.name} navigation mismatch:\n` +
-        `${baselineProvider.mode}: ${JSON.stringify(expectedNavigation)}\n` +
+        `baseline: ${JSON.stringify(expectedNavigation)}\n` +
         `Rust: ${JSON.stringify(rustNavigation)}`
       );
     }
@@ -1034,12 +946,15 @@ function main() {
   // 与 Rust `--request` 模式产出的整文档 TextEdit.newText.
   let formatCount = 0;
   for (const testCase of FORMAT_CASES) {
-    const expectedEdit = baselineProvider.getEdit(testCase.text, testCase.name);
+    if (!formatByName.has(testCase.name)) {
+      throw new Error(`Baseline fixture missing format case: ${testCase.name}`);
+    }
+    const expectedEdit = formatByName.get(testCase.name);
     const rustEdit = getRustEdit(rustCli, testCase.text);
     if (JSON.stringify(expectedEdit) !== JSON.stringify(rustEdit)) {
       throw new Error(
         `${testCase.name} edits mismatch:\n` +
-        `${baselineProvider.mode}: ${JSON.stringify(expectedEdit)}\n` +
+        `baseline: ${JSON.stringify(expectedEdit)}\n` +
         `Rust: ${JSON.stringify(rustEdit)}`
       );
     }
@@ -1054,13 +969,13 @@ module.exports = {
   CASES,
   NAVIGATION_CASES,
   FORMAT_CASES,
-  getJavaScriptDiagnostics,
-  getJavaScriptNavigation,
-  getJavaScriptEdit,
+  // R1.2 Stage B (2026-09-22): JS analyzer (src/analysisCore.js) 已 git rm,
+  // getJavaScript* 函数已删除 (调用会抛 MODULE_NOT_FOUND). 不再导出.
   getRustDiagnostics,
   getRustDiagnosticsByRequest,
   getRustNavigation,
   getRustEdit,
   normalizeDiagnostic,
-  parseRustOutput
+  parseRustOutput,
+  DEFAULT_RUST_CLI
 };

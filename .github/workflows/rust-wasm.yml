@@ -77,7 +77,12 @@ jobs:
       - name: AssetsInRustWasmAssetLoader telemetry contract tests
         run: node --test tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/rustWasmAdapter.test.js
 
-      - name: Run Rust/JS parity diff suite
+      - name: Run Rust parity diff suite
+        # v4.2.0 (2026-09-23) 重建为 Rust 自洽 golden file: baseline fixture
+        # (tests/fixtures/rust-parity-baseline.json) 由 export:rust:baseline
+        # 跑 Rust CLI 生成并 commit, compare:rust 再跑 Rust CLI 比对, 守卫
+        # Rust 核心无静默回归 (R1.2 后无 JS 真源). fixture 已随仓库 commit,
+        # CI 无需重新生成; 仅当 Rust 输出有意变更时开发者本地重生成并 commit.
         run: npm run compare:rust
 
       - name: Probe Rust Wasm ABI

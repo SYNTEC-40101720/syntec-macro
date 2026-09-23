@@ -68,6 +68,7 @@
 - [MACRO 单位与堆栈函数资料包](MACRO单位与堆栈函数资料包.md)：`STD/STDAX/PUSH/POP/STKTOP` 的转换、栈读取边界与回归状态。
 - [MACRO Cycle 资料库函数资料包](MACRO-Cycle资料库函数资料包.md)：`DBOPEN/DBNEW/DBLOAD/DBSAVE/DBINSERT/DBDELETE` 的档案状态与回归状态。
 - [MACRO 图形模拟函数资料包](MACRO图形模拟函数资料包.md)：`SETDRAW/DRAWHOLE` 的绘图状态、模拟范围与回归状态。
+- [跨厂商宏程序兼容专题](跨厂商宏程序兼容专题.md)：发那科/三菱 → 新代语法差异、三菱多通道变量共享、一线探头程序转换差异。
 
 ## 相邻规范
 
