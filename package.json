@@ -10,7 +10,7 @@
     "url": "https://github.com/SYNTEC-40101720/syntec-macro"
   },
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages"
@@ -129,6 +129,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "3.0.0",
     "@vscode/vsce": "3.9.2",
     "eslint": "^10.4.0",
