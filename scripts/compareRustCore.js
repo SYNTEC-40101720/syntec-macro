@@ -19,18 +19,41 @@ const DEFAULT_BASELINE = path.join(
   'rust-parity-baseline.json'
 );
 
-// 本机 CARGO_HOME config.toml 固定 build.target = x86_64-pc-windows-gnu，
-// 因此 cargo 产物落在 target-triple 子目录而非 target/ 直下。
-const DEFAULT_RUST_CLI = path.join(
-  __dirname,
-  '..',
-  'crates',
-  'syntec-core',
-  'target',
-  'x86_64-pc-windows-gnu',
+// CLI 产物位置随 toolchain 配置而异：CI 默认 host target 落在
+// target/debug/，本机 CARGO_HOME config.toml 固定 build.target =
+// x86_64-pc-windows-gnu 则落在 target-triple 子目录。按候选顺序探测。
+const RUST_CLI_CANDIDATE_DIRS = [
   'debug',
-  process.platform === 'win32' ? 'syntec-core-cli.exe' : 'syntec-core-cli'
-);
+  path.join('x86_64-pc-windows-gnu', 'debug')
+];
+
+function resolveDefaultRustCli() {
+  const bin = process.platform === 'win32' ? 'syntec-core-cli.exe' : 'syntec-core-cli';
+  for (const dir of RUST_CLI_CANDIDATE_DIRS) {
+    const candidate = path.join(
+      __dirname,
+      '..',
+      'crates',
+      'syntec-core',
+      'target',
+      dir,
+      bin
+    );
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  // 都不存在时返回首选（CI host target），让报错信息指向标准构建位置。
+  return path.join(
+    __dirname,
+    '..',
+    'crates',
+    'syntec-core',
+    'target',
+    RUST_CLI_CANDIDATE_DIRS[0],
+    bin
+  );
+}
+
+const DEFAULT_RUST_CLI = resolveDefaultRustCli();
 
 const CASES = [
   {
@@ -981,5 +1004,6 @@ module.exports = {
   getRustEdit,
   normalizeDiagnostic,
   parseRustOutput,
+  resolveDefaultRustCli,
   DEFAULT_RUST_CLI
 };
