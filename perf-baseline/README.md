@@ -37,7 +37,10 @@
   `<os>.json` 提交到 `perf-baseline/ci/`，并在文件内补 `tag` 字段标注采集 commit。
 - `benchmarkCompare.js --json` 自 2026-09-26 起自带 `collectedAt`/`platform`/
   `nodeVersion` 元数据，artifact 文件可直接作基线，无需补平台字段。
-- 首份 `windows-dev-machine.json` 为本机 Windows 采集的代理基线（10 iterations，
-  fixture p50 10.9ms / large-20k 287.8ms / nav 60.9ms）；待 CI windows-latest
-  artifact 落地后替换为 runner 实测值。
-- `ubuntu-latest.json` 待首个 CI run artifact 提交后门禁即生效。
+- 首批基线（2026-09-26，Rust/Wasm run #100 artifact `ac18496` 采集，各 5 iterations）：
+  - `ubuntu-latest.json` — linux-x64，fixture p50 24.64ms / large-20k 418.59ms / nav 92.70ms
+  - `windows-latest.json` — win32-x64，fixture p50 25.22ms / large-20k 431.48ms / nav 97.67ms
+  - （早期本机 Windows 代理基线 `windows-dev-machine.json` 已被 runner 实测值替换删除；
+    注意 CI runner 普遍慢于本机 dev machine ~2x，per-platform 基线正是为此。）
+- 后续若基准回升/恶化需更新基线：从最新 run 的 `p1-perf-<os>` artifact 下载并替换
+  `<os>.json`（更新 `tag` 注明采集 commit），在 commit message 说明原因。
