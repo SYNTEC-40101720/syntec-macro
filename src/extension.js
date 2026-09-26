@@ -78,9 +78,31 @@ function activate(context) {
   context.subscriptions.push(diagnosticCollection);
   diagnostics.setDiagnosticCollection(diagnosticCollection);
 
+  // 语言状态项（1.65+）：仅在打开宏文件时出现在编辑器右下语言模式区，
+  // 不再占用全局状态栏；详细文本显示当前版本，command 打开 worker 输出通道。
+  const languageStatus = vscode.languages.createLanguageStatusItem('syntecMacro.status', selector);
+  languageStatus.name = 'Syntec Macro';
+  languageStatus.text = `v${packageJson.version}`;
+  languageStatus.detail = `新代宏程序扩展 v${packageJson.version}`;
+  languageStatus.command = { title: '查看 Worker 日志', command: 'syntecMacro.showWorkerLog' };
+  context.subscriptions.push(languageStatus);
+
+  // 诊断帮助：弹出说明并附「查看诊断文档」按钮，直达 docs/诊断规则与修复动作.md
+  // 对应 code 详情（Quick Fix 灯泡里说明型 action 的终点）。
   context.subscriptions.push(
     vscode.commands.registerCommand('syntecMacro.showDiagnosticHelp', message => {
-      vscode.window.showInformationMessage(message);
+      vscode.window.showInformationMessage(message, '查看诊断文档').then(choice => {
+        if (choice !== '查看诊断文档') return;
+        vscode.commands.executeCommand('markdown.showPreview',
+          vscode.Uri.joinPath(context.extensionUri, 'docs', '诊断规则与修复动作.md'));
+      });
+    })
+  );
+
+  // 打开 Worker 控制日志输出通道（语言状态项 command 入口）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('syntecMacro.showWorkerLog', () => {
+      workerOutputChannel.show();
     })
   );
 
@@ -116,15 +138,7 @@ function activate(context) {
     })
   );
 
-  // 状态栏提示
-  const statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.right, 100
-  );
-  statusBar.text = ' Syntec Macro v' + packageJson.version;
-  statusBar.tooltip = '新代宏程序扩展已激活';
-  statusBar.show();
-  context.subscriptions.push(statusBar);
-
+  // 激活日志（原全局状态栏已改为 LanguageStatusItem，只在宏文件上下文显示）
   console.info('[syntec-macro] 扩展已激活 v' + packageJson.version);
 }
 

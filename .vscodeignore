@@ -1,5 +1,6 @@
-# Documentation (not needed in VSIX)
-docs/
+# Documentation (not needed in VSIX; 诊断规则与修复动作.md 例外：诊断帮助按钮离线直达)
+docs/**
+!docs/诊断规则与修复动作.md
 release-notes-*.md
 项目审查报告.md
 

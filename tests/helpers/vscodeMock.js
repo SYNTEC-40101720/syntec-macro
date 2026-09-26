@@ -83,6 +83,15 @@ class Uri {
     if (!match) return new Uri('file', value);
     return new Uri(match[1], match[2]);
   }
+
+  // joinPath (1.31+)：extension.js 定位 VSIX 内诊断文档用
+  static joinPath(base, ...segments) {
+    let p = base._path.replace(/\/+$/, '');
+    for (const seg of segments) {
+      p = p.replace(/\/+$/, '') + '/' + seg.replace(/^\/+/, '');
+    }
+    return new Uri(base.scheme, p);
+  }
 }
 
 /**
@@ -224,6 +233,19 @@ const languages = {
   registerDocumentFormattingEditProvider(selector, provider) {
     languages._calls.push({ kind: 'registerDocumentFormattingEditProvider', selector, provider });
     return new Disposable(() => {});
+  },
+  // LanguageStatusItem (1.65+)：extension.js 语言状态项入口
+  createLanguageStatusItem(id, selector) {
+    languages._calls.push({ kind: 'createLanguageStatusItem', id, selector });
+    return {
+      id,
+      selector,
+      name: '',
+      text: '',
+      detail: '',
+      command: undefined,
+      dispose() {}
+    };
   },
   createDiagnosticCollection(name) {
     languages._calls.push({ kind: 'createDiagnosticCollection', name });

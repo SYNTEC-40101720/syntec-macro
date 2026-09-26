@@ -49,7 +49,8 @@ function activateExtension() {
   const context = {
     subscriptions: {
       push(item) { subscriptions.push(item); }
-    }
+    },
+    extensionUri: { scheme: 'file', fsPath: '/ext', _path: '/ext', toString: () => 'file:///ext' }
   };
   activate(context);
   return { subscriptions, context };
@@ -86,17 +87,25 @@ test('activate registers syntecMacro.showDiagnosticHelp command', withVscodeMock
   assert.strictEqual(typeof matching[0].handler, 'function');
 }));
 
-test('activate creates status bar item with package version text', withVscodeMock(() => {
-  activateExtension();
-  // vscodeMock 的 createStatusBarItem 返回 StatusBarItem；extension.js 把它推
-  // 到 context.subscriptions。我们间接验证：show() 调用 + text 含版本。
-  // window._calls 不含 StatusBar 创建（createStatusBarItem 同步返回对象不记 calls），
-  // 走遍 activate 返回 subscriptions 检查。
+test('activate creates language status item scoped to syntec-macro', withVscodeMock(() => {
   const { subscriptions } = activateExtension();
-  const statusBar = subscriptions.find(item => item && typeof item.show === 'function' && typeof item.dispose === 'function' && 'text' in item);
-  assert.ok(statusBar, 'status bar item should be pushed into context.subscriptions');
-  assert.ok(statusBar.text.includes(packageJson.version), `statusBar.text should include version ${packageJson.version}, got: ${statusBar.text}`);
-  assert.ok(statusBar._shown, 'statusBar.show() should be called');
+  const statusCalls = languages._calls.filter(c => c.kind === 'createLanguageStatusItem');
+  assert.strictEqual(statusCalls.length, 1, 'exactly one language status item');
+  const status = statusCalls[0];
+  assert.strictEqual(status.id, 'syntecMacro.status');
+  assert.strictEqual(status.selector.language, 'syntec-macro');
+  // 项对象应已写入版本文本并进入 subscriptions
+  const item = subscriptions.find(s => s && s.id === 'syntecMacro.status');
+  assert.ok(item, 'language status item should be pushed into context.subscriptions');
+  assert.ok(item.text.includes(packageJson.version), `status.text should include version, got: ${item.text}`);
+  assert.ok(item.command && item.command.command === 'syntecMacro.showWorkerLog');
+}));
+
+test('activate registers syntecMacro.showWorkerLog command', withVscodeMock(() => {
+  activateExtension();
+  const matching = commands._calls.filter(c => c.commandId === 'syntecMacro.showWorkerLog');
+  assert.strictEqual(matching.length, 1);
+  assert.strictEqual(typeof matching[0].handler, 'function');
 }));
 
 test('activate subscribes to workspace events and pushes disposables into context', withVscodeMock(() => {

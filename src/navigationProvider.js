@@ -105,7 +105,11 @@ function getReferenceTargetName(document, position) {
 
 async function getWorkspaceMacroFiles(token) {
   ensureNavigationFileWatcher();
-  const files = await vscode.workspace.findFiles('**/*', '**/{node_modules,.git,dist}/**');
+  // 导航扫描排除项：默认排除常见构建/依赖目录，可经 syntecMacro.navigationExclude
+  // 配置覆盖（glob，findFiles exclude 语义）
+  const { getConfig } = require('./providerShared');
+  const exclude = getConfig().get('navigationExclude', '**/{node_modules,.git,dist}/**');
+  const files = await vscode.workspace.findFiles('**/*', exclude);
   const openDocuments = new Map(vscode.workspace.textDocuments.map(document => [document.uri.toString(), document]));
   const currentUris = new Set(files.map(uri => uri.toString()));
   for (const uriKey of navigationIndexCache.keys()) {

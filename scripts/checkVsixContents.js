@@ -23,7 +23,9 @@ const REQUIRED_STATIC_FILES = [
   'src/data/systemVariables.json',
   'src/data/functions.json',
   'src/data/hoverDocs.json',
-  'src/data/keywords.json'
+  'src/data/keywords.json',
+  // 诊断帮助按钮（syntecMacro.showDiagnosticHelp）离线直达的生成文档
+  'docs/诊断规则与修复动作.md'
 ];
 
 function normalizeFiles(files) {

@@ -96,6 +96,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "syntecMacro.navigationExclude": {
+          "type": "string",
+          "default": "**/{node_modules,.git,dist}/**",
+          "description": "工作区导航扫描（跳转/符号搜索）排除的 glob；工作区含大型无关目录时自定义以加速扫描"
         }
       }
     }
