@@ -1,12 +1,14 @@
-const { performance } = require('perf_hooks');
-// R1.2 Stage B: ../src/navigationSymbols removed; buildNavigationIndexEntry now throws on call.
-const _r1_2_retired____src_navigationSymbols = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/navigationSymbols removed)'); };
-const buildNavigationIndexEntry = _r1_2_retired____src_navigationSymbols('buildNavigationIndexEntry');
+// @ts-check
+// 导航基准 fixture 生成器：构造 500 文件 × 40 行的宏程序集合。
+//
+// R1.2 Stage B (2026-09-22): buildNavigationIndexEntry JS 路径已退役
+// (navigationSymbols.js git rm)。本脚本不再有独立 CLI 入口，只作为
+// tests/integration/runTest.js --navigation-benchmark 生成 VS Code
+// workspace 文件的 fixture 库；真实基准由 benchmarkSuite 在 VS Code
+// 内经 Rust/Wasm 后端执行（npm.cmd run test:integration:navigation）。
 
 const FILE_COUNT = 500;
 const LINES_PER_FILE = 40;
-const FIRST_RUN_LIMIT_MS = 2000;
-const REPEAT_RUN_LIMIT_MS = 500;
 
 function createMacroText(fileIndex) {
   const lines = ['%@MACRO'];
@@ -29,30 +31,4 @@ function buildFixture() {
   }));
 }
 
-function measureIndexBuild(files) {
-  const start = performance.now();
-  const entries = files.map(file => buildNavigationIndexEntry(file.filePath, file.text));
-  return { durationMs: performance.now() - start, entries };
-}
-
-function main() {
-  const files = buildFixture();
-  const first = measureIndexBuild(files);
-  const repeat = measureIndexBuild(files);
-
-  if (first.entries.some(entry => !entry) || repeat.entries.some(entry => !entry)) {
-    throw new Error('Navigation benchmark produced an incomplete index.');
-  }
-
-  console.info(`Navigation parser benchmark: ${FILE_COUNT} files, ${FILE_COUNT * LINES_PER_FILE} lines`);
-  console.info(`First run: ${first.durationMs.toFixed(2)} ms (limit ${FIRST_RUN_LIMIT_MS} ms)`);
-  console.info(`Repeat run: ${repeat.durationMs.toFixed(2)} ms (limit ${REPEAT_RUN_LIMIT_MS} ms)`);
-
-  if (first.durationMs > FIRST_RUN_LIMIT_MS || repeat.durationMs > REPEAT_RUN_LIMIT_MS) {
-    process.exitCode = 1;
-  }
-}
-
-if (require.main === module) main();
-
-module.exports = { buildFixture, measureIndexBuild };
+module.exports = { FILE_COUNT, LINES_PER_FILE, buildFixture };

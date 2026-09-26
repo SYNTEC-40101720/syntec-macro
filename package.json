@@ -111,8 +111,6 @@
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
-    "benchmark:navigation": "node scripts/benchmarkNavigation.js",
-    "benchmark:analysis": "node scripts/benchmarkAnalysis.js",
     "compare:rust": "node scripts/compareRustCore.js",
     "export:rust:baseline": "node scripts/exportRustBaseline.js",
     "probe:rust:wasm": "node scripts/probeRustWasm.js",
