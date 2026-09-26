@@ -1,6 +1,10 @@
 // P1 第 3 项 跨平台性能数据对比工具：读取 CI 上传的 perf-data
-// `benchmark-<os>.json` 文件，对每个场景 + nav 批次输出 JS/Rust 指标表，
-// 并对任一平台的 parity 失败 / fallback 比例 > 0 发出告警。
+// `benchmark-<os>.json` 文件，对每个场景 + nav 批次输出 Rust 指标表，
+// 并对任一平台的 fallback 比例 > 0 / 阈值回归发出告警。
+//
+// R1.2 Stage B (2026-09-22): JS 对照路径已退役；perf-data 中不再有
+// `js.*` 字段，parity 概念也随之移除（语义 parity 由 compare:rust
+// golden file 守卫）。
 //
 // 用法：
 //   node scripts/comparePerfData.js perf-data/benchmark-ubuntu-latest.json \
@@ -50,21 +54,13 @@ function loadPerfFile(filePath) {
 }
 
 /**
- * Compute parity / fallback warning state for one platform.
+ * Compute fallback / regression warning state for one platform.
  *
  * @param {ReturnType<typeof loadPerfFile>} perf
- * @returns {{parityMismatch: number, fallbackCount: number, regressionsCount: number}}
+ * @returns {{fallbackCount: number, regressionsCount: number}}
  */
 function flagAnomalies(perf) {
-  let parityMismatch = 0;
-  for (const r of perf.results) {
-    if (r.parity !== 'equal') parityMismatch++;
-  }
-  if (perf.nav && typeof perf.nav.parity === 'string' && !perf.nav.parity.startsWith('equal')) {
-    parityMismatch++;
-  }
   return {
-    parityMismatch,
     fallbackCount: Number(perf.fallback.total || 0),
     regressionsCount: perf.regressions.length
   };
@@ -87,18 +83,17 @@ function formatRow(scenario, metric, platform, value) {
 }
 
 /**
- * 把当前采集与 baseline 按场景比对，输出 Rust p50 回归 + parity/fallback 警告。
- * 已发布版本节点的 baseline 不可改写；任一场景 Rust p50 回归 > 10% 写 ::warning::
- * 但不设 process.exitCode （reviewer 看 CI log）。
+ * 把当前采集与 baseline 按场景比对，输出 Rust p50/batch 回归 + fallback 警告。
+ * 已发布版本节点的 baseline 不可改写；任一场景 Rust 指标回归 > 10% 写
+ * ::warning:: 但不设 process.exitCode（reviewer 看 CI log）。
  *
  * @param {ReturnType<typeof loadPerfFile>} baseline
  * @param {ReturnType<typeof loadPerfFile>} current
- * @returns {{regressions: object[], parityMismatches: number, fallback: number}}
+ * @returns {{regressions: object[], fallback: number}}
  */
 function compareWithBaseline(baseline, current) {
   const REGRESSION_THRESHOLD_PCT = 0.10;
   const regressions = [];
-  let parityMismatches = 0;
   let fallback = 0;
 
   for (const baselineResult of baseline.results || []) {
@@ -119,9 +114,6 @@ function compareWithBaseline(baseline, current) {
         });
       }
     }
-    if (currentResult.parity && !String(currentResult.parity).startsWith('equal')) {
-      parityMismatches++;
-    }
   }
   // nav batch comparison
   if (baseline.nav && current.nav) {
@@ -139,12 +131,9 @@ function compareWithBaseline(baseline, current) {
         });
       }
     }
-    if (current.nav.parity && !String(current.nav.parity).startsWith('equal')) {
-      parityMismatches++;
-    }
   }
   fallback = Number(current.fallback && current.fallback.total) || 0;
-  return { regressions, parityMismatches, fallback };
+  return { regressions, fallback };
 }
 
 /**
@@ -171,8 +160,8 @@ function main(args = process.argv.slice(2)) {
     const baselineTag = baseline.tag || baselinePath;
     console.info(`baseline comparison: ${baselineTag} → current (${platform})`);
     const result = compareWithBaseline(baseline, current);
-    if (result.regressions.length === 0 && result.parityMismatches === 0 && result.fallback === 0) {
-      console.info('  no regressions / parity mismatches / fallback detected.');
+    if (result.regressions.length === 0 && result.fallback === 0) {
+      console.info('  no regressions / fallback detected.');
     } else {
       if (result.regressions.length > 0) {
         console.info(`  [regression] ${result.regressions.length} metric(s) regressed > 10%:`);
@@ -182,9 +171,6 @@ function main(args = process.argv.slice(2)) {
           const curStr = r.currentMs.toFixed(2);
           console.info(`    ::warning::${r.scenario} ${r.metric} ${baseStr}ms → ${curStr}ms (+${pctStr}%)`);
         }
-      }
-      if (result.parityMismatches > 0) {
-        console.info(`  [anomaly] ${result.parityMismatches} scenario(s) with parity mismatch against baseline`);
       }
       if (result.fallback > 0) {
         console.info(`  [anomaly] current run had ${result.fallback} fallback events`);
@@ -201,17 +187,14 @@ function main(args = process.argv.slice(2)) {
   console.info(`P1 perf-data comparison: ${perfs.length} platform(s)`);
   const scenarios = [...new Set(perfs.flatMap(p => p.results.map(r => r.scenario)))];
   for (const scenario of scenarios) {
-    for (const metric of ['js.p50', 'rust.p50', 'js.p95', 'rust.p95', 'rust.startup']) {
+    for (const metric of ['rust.p50', 'rust.p95', 'rust.startup']) {
       const rows = [];
       for (const perf of perfs) {
         const r = perf.results.find(x => x.scenario === scenario);
         if (!r) continue;
-        const js = r.js || {};
         const rust = r.rust || {};
         let value;
-        if (metric === 'js.p50') value = js.p50Ms;
-        else if (metric === 'js.p95') value = js.p95Ms;
-        else if (metric === 'rust.p50') value = rust.p50Ms;
+        if (metric === 'rust.p50') value = rust.p50Ms;
         else if (metric === 'rust.p95') value = rust.p95Ms;
         else if (metric === 'rust.startup') value = r.rustStartupMs;
         else value = 0;
@@ -223,7 +206,6 @@ function main(args = process.argv.slice(2)) {
   // nav batch row
   for (const perf of perfs) {
     if (!perf.nav) continue;
-    console.info(`  nav-500-files  js.batch   ${perf.platform.padEnd(16)} ${Number(perf.nav.jsBatchMs || 0).toFixed(2).padStart(10)} ms`);
     console.info(`  nav-500-files  rust.batch ${perf.platform.padEnd(16)} ${Number(perf.nav.rustBatchMs || 0).toFixed(2).padStart(10)} ms`);
   }
 
@@ -231,15 +213,15 @@ function main(args = process.argv.slice(2)) {
   let anomalies = 0;
   for (const perf of perfs) {
     const flags = flagAnomalies(perf);
-    if (flags.parityMismatch > 0 || flags.fallbackCount > 0 || flags.regressionsCount > 0) {
+    if (flags.fallbackCount > 0 || flags.regressionsCount > 0) {
       anomalies++;
-      console.info(`  [anomaly] ${perf.platform}: parity mismatch=${flags.parityMismatch}, fallback=${flags.fallbackCount}, regressions=${flags.regressionsCount}`);
+      console.info(`  [anomaly] ${perf.platform}: fallback=${flags.fallbackCount}, regressions=${flags.regressionsCount}`);
     }
   }
   if (anomalies === 0) {
-    console.info('  no parity / fallback / regression anomalies detected.');
+    console.info('  no fallback / regression anomalies detected.');
   } else {
-    console.info(`  ${anomalies} platform(s) with anomalies — review before flipping default backend.`);
+    console.info(`  ${anomalies} platform(s) with anomalies — review perf guard rails.`);
   }
 }
 

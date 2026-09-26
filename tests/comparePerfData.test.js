@@ -2,7 +2,7 @@
 //
 // 覆盖：
 //   - `loadPerfFile`：文件缺失/非法 JSON/缺 results 数组 三类错误路径 + 成功路径
-//   - `flagAnomalies`：parity mismatch / fallback>0 / regressions 检测
+//   - `flagAnomalies`：fallback>0 / regressions 检测
 //   - `formatRow`：行格式契约（场景 14 字宽 / metric 10 字宽）
 //   - `main`：无参 safety + 单一文件解析路径不抛错
 //   - 跨平台告警：多平台里至少一个有 anomaly 时仍不抛错（CI cross-platform
@@ -28,38 +28,27 @@ const VALID_PERF = {
       lineCount: 394,
       iterations: 3,
       rustWasmBytes: 312000,
-      jsStartupMs: 0.001,
       rustStartupMs: 7.2,
-      jsResultBytes: 11528,
       rustResultBytes: 21906,
-      js: { firstMs: 30, p50Ms: 12, p95Ms: 14, maxMs: 14 },
-      rust: { firstMs: 35, p50Ms: 14, p95Ms: 16, maxMs: 16 },
-      parity: 'equal'
+      rust: { firstMs: 35, p50Ms: 14, p95Ms: 16, maxMs: 16 }
     },
     {
       scenario: 'large-20k',
       lineCount: 20000,
       iterations: 3,
       rustWasmBytes: 312000,
-      jsStartupMs: 0.001,
       rustStartupMs: 7.2,
-      jsResultBytes: 375425,
       rustResultBytes: 717838,
-      js: { firstMs: 440, p50Ms: 422, p95Ms: 453, maxMs: 453 },
-      rust: { firstMs: 464, p50Ms: 457, p95Ms: 495, maxMs: 495 },
-      parity: 'equal'
+      rust: { firstMs: 464, p50Ms: 457, p95Ms: 495, maxMs: 495 }
     }
   ],
   nav: {
     scenario: 'nav-500-files',
     fileCount: 500,
     linesPerFile: 40,
-    jsBatchMs: 645.85,
     rustBatchMs: 602.68,
-    jsResultBytes: 2119,
     rustResultBytes: 2118,
     rustFallbackCount: 0,
-    parity: 'equal',
     representativeFingerprint: { diagnostics: [], symbols: [], hasNavigation: true }
   },
   regressions: [],
@@ -105,52 +94,23 @@ test('loadPerfFile parses a well-formed perf JSON', () => {
   assert.strictEqual(perf.fallback.total, 0);
 });
 
-test('flagAnomalies returns zeros on parity-equal / no-fallback / no-regressions', () => {
+test('flagAnomalies returns zeros on no-fallback / no-regressions', () => {
   const perf = {
     platform: 'ubuntu-latest',
-    results: [{ parity: 'equal' }],
-    nav: { parity: 'equal' },
+    results: [],
+    nav: null,
     regressions: [],
     fallback: { total: 0, ratio: 0 }
   };
   const flags = flagAnomalies(perf);
-  assert.deepStrictEqual(flags, { parityMismatch: 0, fallbackCount: 0, regressionsCount: 0 });
-});
-
-test('flagAnomalies counts parity mismatch in results', () => {
-  const perf = {
-    platform: 'ubuntu-latest',
-    results: [
-      { parity: 'equal' },
-      { parity: 'mismatch' },
-      { parity: 'equal' },
-      { parity: 'mismatch' }
-    ],
-    nav: { parity: 'equal' },
-    regressions: [],
-    fallback: { total: 0, ratio: 0 }
-  };
-  const flags = flagAnomalies(perf);
-  assert.strictEqual(flags.parityMismatch, 2);
-});
-
-test('flagAnomalies counts nav parity mismatch separately', () => {
-  const perf = {
-    platform: 'ubuntu-latest',
-    results: [{ parity: 'equal' }],
-    nav: { parity: 'mismatch(5/500)' },
-    regressions: [],
-    fallback: { total: 0, ratio: 0 }
-  };
-  const flags = flagAnomalies(perf);
-  assert.strictEqual(flags.parityMismatch, 1);
+  assert.deepStrictEqual(flags, { fallbackCount: 0, regressionsCount: 0 });
 });
 
 test('flagAnomalies reports fallback count', () => {
   const perf = {
     platform: 'ubuntu-latest',
-    results: [{ parity: 'equal' }],
-    nav: { parity: 'equal' },
+    results: [],
+    nav: null,
     regressions: [],
     fallback: { total: 3, ratio: 0.005 }
   };
@@ -161,8 +121,8 @@ test('flagAnomalies reports fallback count', () => {
 test('flagAnomalies reports regressions count', () => {
   const perf = {
     platform: 'ubuntu-latest',
-    results: [{ parity: 'equal' }],
-    nav: { parity: 'equal' },
+    results: [],
+    nav: null,
     regressions: [{ scenario: 'fixture', metric: 'rust.p50', value: 100, limit: 50 }],
     fallback: { total: 0, ratio: 0 }
   };
@@ -171,10 +131,10 @@ test('flagAnomalies reports regressions count', () => {
 });
 
 test('formatRow pads scenario to 14 chars and metric to 10', () => {
-  const row = formatRow('fixture', 'js.p50', 'ubuntu-latest', 12.3456);
+  const row = formatRow('fixture', 'rust.p50', 'ubuntu-latest', 12.3456);
   // Quick invariant: contains both tokens and ends with ' ms'.
   assert.ok(row.includes('fixture'));
-  assert.ok(row.includes('js.p50'));
+  assert.ok(row.includes('rust.p50'));
   assert.ok(row.includes('ubuntu-latest'));
   assert.ok(row.endsWith(' ms'));
 });
@@ -208,13 +168,13 @@ test('main with one valid file produces a report', () => {
   assert.ok(out.includes('fixture'), 'report must mention fixture scenario');
   assert.ok(out.includes('large-20k'), 'report must mention large-20k scenario');
   assert.ok(out.includes('nav-500-files'), 'report must mention nav batch');
-  assert.ok(out.includes('no parity'), 'report must mention no anomalies');
+  assert.ok(out.includes('no fallback'), 'report must mention no anomalies');
 });
 
 test('main with anomaly does not throw (CI alert step only logs)', () => {
   const bad = {
-    results: [{ parity: 'mismatch' }],
-    nav: { parity: 'equal' },
+    results: [],
+    nav: null,
     regressions: [{ scenario: 'fixture', metric: 'rust.p50', value: 999, limit: 50 }],
     fallback: { total: 4, ratio: 0.01 }
   };
@@ -283,7 +243,6 @@ test('compareWithBaseline returns no regressions when current matches baseline',
   };
   const result = compareWithBaseline(baseline, current);
   assert.deepStrictEqual(result.regressions, []);
-  assert.strictEqual(result.parityMismatches, 0);
   assert.strictEqual(result.fallback, 0);
 });
 
@@ -329,7 +288,9 @@ test('compareWithBaseline flags nav batch regression > 10%', () => {
   assert.strictEqual(result.regressions[0].metric, 'rust.batch');
 });
 
-test('compareWithBaseline counts parity mismatches and fallback', () => {
+test('compareWithBaseline counts fallback events and ignores legacy parity fields', () => {
+  // R1.2 Stage B: parity 字段已从契约移除（语义 parity 由 compare:rust
+  // golden file 守卫）；即使历史 JSON 里残留 parity 字段也不构成告警。
   const baseline = {
     results: [
       { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'equal' }
@@ -339,14 +300,14 @@ test('compareWithBaseline counts parity mismatches and fallback', () => {
   };
   const current = {
     results: [
-      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'mismatch' }
+      { scenario: 'fixture', rust: { p50Ms: 10 }, parity: 'rust-only' }
     ],
-    nav: { rustBatchMs: 380, parity: 'mismatch' },
+    nav: { rustBatchMs: 380, parity: 'rust-only' },
     fallback: { total: 2, ratio: 0.01 }
   };
   const result = compareWithBaseline(baseline, current);
-  // 2 parity mismatches: results + nav
-  assert.strictEqual(result.parityMismatches, 2);
+  assert.strictEqual(result.regressions.length, 0, 'legacy parity strings are not regressions');
+  assert.strictEqual(result.parityMismatches, undefined, 'parityMismatches removed from contract');
   assert.strictEqual(result.fallback, 2);
 });
 

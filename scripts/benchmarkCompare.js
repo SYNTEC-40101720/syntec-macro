@@ -1,21 +1,19 @@
-// P1 真实性能对照基准：fixture / 20,000 行档案 / 500 文件 navigation 三场景，
-// 同步测量 JavaScript 与 Rust/Wasm 的 p50/p95/max/resultBytes/startupMs，
-// 并对每个场景产出 parity 校验（diagnostics/symbols 序列必须等价）。
+// P1 性能基准（R1.2 Stage B 后纯 Rust/Wasm）：fixture / 20,000 行档案 /
+// 500 文件 navigation 三场景，测量 Rust/Wasm 的 p50/p95/max/resultBytes/
+// startupMs/batchMs 与 fallback 比例。
 //
 // 设计目标（来自 docs/Rust-Wasm切换验收门禁.md §P1）：
-//   - 真实 fixture、20,000 行档案、500 文件 navigation 分别记录
-//     JS/Rust/Wasm 的启动时间、p50/p95 分析延迟、JSON/内存占用、首次与重复查询、
-//     fallback 比例。
-//   - "没有稳定收益或出现回归时，保持 JavaScript 默认后端，不强行切换。"
+//   - 真实 fixture、20,000 行档案、500 文件 navigation 分别记录启动时间、
+//     p50/p95 分析延迟、JSON 占用、首次与重复查询、fallback 比例。
+//   - 历史 JS 对照路径已随 R1.2 Stage B (2026-09-22) JS 后端退役移除；
+//     JS↔Rust 语义 parity 由 `npm.cmd run compare:rust` 走
+//     `tests/fixtures/rust-parity-baseline.json` golden file 守卫。
 //
 // 本脚本：
-//   - JS 走 `analyzeDocument`（production 后端路径，含 `backend:'javascript'` 契约）；
-//   - Rust/Wasm 走 `createRustWasmAdapter(instance.exports)` 真实 request ABI；
-//   - navigation 场景 JS 走 `analyzeNavigationDocument`，Rust 走 `--request` 模式
-//     自带的 `extract_navigation` 路径（adapter 与 JS navigationFilePath 透传一致）。
-//   - 每个场景必须通过 parity 校验（diagnostics/symbols 序列等价），否则
-//     `process.exitCode = 1` 并打印失败字段；这是 P1 "不得用未经基准证明的
-//     Rust 性能假设写入发布门禁" 的硬门禁。
+//   - Rust/Wasm 走 `createRustWasmAdapter(instance.exports)` 真实 request ABI
+//     （生产 asset 加载器 + 生产 adapter 路径）；
+//   - navigation 场景走 adapter 的 `extract_navigation` 路径（batch 测量 +
+//     代表性 fingerprint 采样）。
 
 const fs = require('fs');
 const path = require('path');
@@ -25,10 +23,6 @@ const {
   createLargeMacroText,
   createRequest
 } = require('./benchmarkAnalysis');
-// R1.2 Stage B: ../src/analysisCore removed; analyzeDocument, analyzeNavigationDocument now throws on call.
-const _r1_2_retired____src_analysisCore = (name) => () => { throw new Error('R1.2 Stage B: ' + name + ' retired (../src/analysisCore removed)'); };
-const analyzeDocument = _r1_2_retired____src_analysisCore('analyzeDocument');
-const analyzeNavigationDocument = _r1_2_retired____src_analysisCore('analyzeNavigationDocument');
 const { createRustWasmAdapter } = require('./rustWasmAdapter');
 const { loadRustWasmAsset } = require('../src/rustWasmAsset');
 
@@ -100,68 +94,23 @@ function measure(fn, iterations) {
   };
 }
 
-/**
- * Run the JavaScript analysis path equivalent to the Rust adapter's combined
- * diagnostics + navigation output. JS `analyzeDocument` only emits diagnostics;
- * `analyzeNavigationDocument` produces navigation+symbols. We merge both into
- * one shape so the parity fingerprint matches the Rust `analyze_request` output
- * (which always folds navigation into `AnalysisResult`).
- *
- * @param {import('../src/analysisProtocol').AnalysisRequest} request
- * @param {string} [filePath]
- * @returns {import('../src/analysisProtocol').AnalysisResult}
- */
-function runJavaScriptEquivalent(request, filePath) {
-  const diagnostics = analyzeDocument(request);
-  if (filePath === undefined) {
-    // Non-macro files yield navigation=null on the Rust side; emit an empty
-    // `symbols: []` / `navigation: null` shell so the fingerprint matches.
-    return {
-      protocolVersion: diagnostics.protocolVersion,
-      document: diagnostics.document,
-      profile: diagnostics.profile,
-      backend: 'javascript',
-      diagnostics: diagnostics.diagnostics,
-      symbols: [],
-      edits: diagnostics.edits,
-      navigation: null
-    };
-  }
-  const nav = analyzeNavigationDocument(request, filePath);
-  return {
-    protocolVersion: nav.protocolVersion,
-    document: nav.document,
-    profile: nav.profile,
-    backend: 'javascript',
-    diagnostics: nav.diagnostics,
-    symbols: nav.symbols,
-    edits: nav.edits,
-    navigation: nav.navigation
-  };
-}
-
-// P1 第 2 项: regression threshold table for JS vs Rust/Wasm perf guard rails.
+// P1 第 2 项: regression threshold table for perf guard rails.
 // Each entry caps the Rust/Wasm backend's p50/p95/max/startup/batch ms for
 // the scenario so a silent regression flips the script exit code to 1.
 //
-// Phase 1.4 收紧（2026-09-20, dev machine, 5 runs）
-// 5 次稳定采集 (dev machine Windows) 的最坏值收敛：
-//   - fixture: JS p50 [9.57..10.34] ms; Rust p50 [9.67..10.72] ms
-//     → dev 阈值 Rust p50 ≤ 15ms 严于 JS p50 ≤ 12ms 上限；p95 ≤ 20ms；
-//       startup ≤ 50ms。
-//   - large-20k: JS p50 [371..500] ms; Rust p50 [265..340] ms
-//     → dev 阈值 Rust p50 ≤ 400ms (Rust 已稳定优于 JS ×0.95)；
-//       JS p50 ≤ 600ms 保留作输入功率字段；rustStartup ≤ 50ms。
-//   - nav-500-files: JS batch [400..450] ms 区间; Rust batch [330..360] ms 区间
-//     → dev 阈值 Rust batch ≤ 600ms 严于 JS 5000ms 上限；rustStartup ≤ 50ms。
+// 阈值来源（2026-09-20, dev machine, 5 runs 收敛）+ R1.2 后沿用：
+//   - fixture: Rust p50 ≤ 15ms；p95 ≤ 20ms；startup ≤ 50ms。
+//   - large-20k: Rust p50 ≤ 400ms (Rust 稳定优于旧 JS ×0.95)；
+//     p95 ≤ 500ms；startup ≤ 50ms。
+//   - nav-500-files: Rust batch ≤ 600ms；startup ≤ 50ms。
 //
 // CI 路径仍 `--no-threshold` 跑（Linux runner ≠ dev machine 速度基线）；
-// 本机 dev 跑 `npm.cmd run benchmark:compare --iterations 10` 不带 --no-threshold
-// 即可触发本表硬门禁任一 FAIL → exitCode=1。
+// 本机 dev 跑 `npm.cmd run benchmark:compare --iterations 10` 不带
+// --no-threshold 即可触发本表硬门禁任一 FAIL → exitCode=1。
 const REGRESSION_THRESHOLDS = {
-  fixture: { jsP50Ms: 20, rustP50Ms: 15, jsP95Ms: 30, rustP95Ms: 20, rustStartupMs: 50 },
-  'large-20k': { jsP50Ms: 600, rustP50Ms: 400, jsP95Ms: 800, rustP95Ms: 500, rustStartupMs: 50 },
-  'nav-500-files': { jsBatchMs: 5000, rustBatchMs: 600, rustStartupMs: 50 }
+  fixture: { rustP50Ms: 15, rustP95Ms: 20, rustStartupMs: 50 },
+  'large-20k': { rustP50Ms: 400, rustP95Ms: 500, rustStartupMs: 50 },
+  'nav-500-files': { rustBatchMs: 600, rustStartupMs: 50 }
 };
 
 /**
@@ -173,16 +122,13 @@ function computeResultJsonBytes(result) {
 }
 
 /**
- * Flatten a result diagnostics/symbols sequence into a stable comparability
- * shape for parity check (does not include `backend` or `bytes`).
+ * Flatten a result diagnostics/symbols sequence into a stable shape for the
+ * nav representative-fingerprint sample (does not include `backend`/`bytes`).
  *
  * @param {import('../src/analysisProtocol').AnalysisResult} result
  * @returns {object}
  */
 function stableFingerprint(result) {
-  // R1.2 Stage B: JS backend 已退役; null 或 undefined 表示 JS 侧未运行。
-  // 返回 null 以便 runScenarios 比对时正确识别 'rust-only' 场景, 不再
-  // 对 null 解引用导致 TypeError。
   if (result === null || result === undefined || !result.diagnostics) return null;
   return {
     diagnostics: result.diagnostics.map(d => ({
@@ -223,7 +169,6 @@ async function loadRustAdapter(manifestPath = DEFAULT_MANIFEST_PATH, adapterOpti
  * @property {string} name
  * @property {import('../src/analysisProtocol').AnalysisRequest} request
  * @property {number} lineCount
- * @property {string} [navigationFilePath]
  */
 
 /**
@@ -232,31 +177,13 @@ async function loadRustAdapter(manifestPath = DEFAULT_MANIFEST_PATH, adapterOpti
  * @returns {Promise<object[]>}
  */
 async function runScenarios(scenarios, iterations) {
-  const jsStartupStart = performance.now();
-  // JS 后端无独立加载阶段，但分析核心模块已被 require；记录一次性 cost。
-  void analyzeDocument;
-  const jsStartupMs = performance.now() - jsStartupStart;
   const { adapter, bytes, startupMs: rustStartupMs } = await loadRustAdapter();
 
   const results = [];
   let fallbackCount = 0;
   for (const scenario of scenarios) {
-    let jsMeasure = null, rustMeasure = null;
-    let jsResultBytes = 0, rustResultBytes = 0;
-    let jsRetired = false;
-    try {
-      jsMeasure = measure(() => {
-        const filePath = scenario.request.document.uri.replace(/^file:\/\/\//, '');
-        const result = runJavaScriptEquivalent(scenario.request, filePath);
-        if (jsResultBytes === 0) jsResultBytes = computeResultJsonBytes(result);
-        return result;
-      }, iterations);
-    } catch {
-      // R1.2 Stage B: JS 后端已退役 (../src/analysisCore 删除).
-      // 不再计入 fallbackCount —— JS 退役是预期状态, 不是回退故障。
-      jsRetired = true;
-      jsMeasure = { firstMs: 0, p50Ms: 0, p95Ms: 0, maxMs: 0, lastResult: null };
-    }
+    let rustMeasure = null;
+    let rustResultBytes = 0;
     try {
       rustMeasure = measure(() => {
         const result = adapter(scenario.request);
@@ -268,32 +195,19 @@ async function runScenarios(scenarios, iterations) {
       rustMeasure = { firstMs: 0, p50Ms: 0, p95Ms: 0, maxMs: 0, lastResult: null };
     }
 
-    const jsFingerprint = jsRetired ? null : stableFingerprint(jsMeasure.lastResult);
-    const rustFingerprint = stableFingerprint(rustMeasure.lastResult);
-    const parityEqual = !jsRetired && JSON.stringify(jsFingerprint) === JSON.stringify(rustFingerprint);
-
     results.push({
       scenario: scenario.name,
       lineCount: scenario.lineCount,
       iterations,
       rustWasmBytes: bytes.length,
-      jsStartupMs,
       rustStartupMs,
-      jsResultBytes,
       rustResultBytes,
-      js: {
-        firstMs: jsMeasure.firstMs,
-        p50Ms: jsMeasure.p50Ms,
-        p95Ms: jsMeasure.p95Ms,
-        maxMs: jsMeasure.maxMs
-      },
       rust: {
         firstMs: rustMeasure.firstMs,
         p50Ms: rustMeasure.p50Ms,
         p95Ms: rustMeasure.p95Ms,
         maxMs: rustMeasure.maxMs
-      },
-      parity: jsRetired ? 'rust-only' : (parityEqual ? 'equal' : 'mismatch')
+      }
     });
   }
   return { results, fallbackCount };
@@ -330,29 +244,9 @@ async function main(args = process.argv.slice(2)) {
   // 500-file navigation 场景：累加所有文件的 request 分析与 navigation 构建，
   // 与 scripts/benchmarkNavigation.js 同一 fixture。
   const navFiles = buildNavigationFixture();
-  // 本场景只测 navigation parity 的代表性文件，避免 500 次 wasm
-  // alloc/dealloc 缓慢污染 p50，但报告整个 500 文件 batch 总耗时。
   const { results, fallbackCount: scenarioFallbackCount } = await runScenarios(scenarios, iterations);
 
   // Navigation 500-file batch 耗时（不参与 p50，单独报告）。
-  // R1.2 Stage B: JS navigation 已退役, 不再执行 JS 批次, jsNavBatchMs 记 0
-  // 仅保留占位与字段形状。
-  const jsStartupStartBatch = performance.now();
-  let jsNav = [];
-  let jsNavRetired = false;
-  try {
-    jsNav = navFiles.map(f =>
-      runJavaScriptEquivalent(
-        createRequest(f.text, 'file://' + f.filePath.slice(1)),
-        f.filePath
-      )
-    );
-  } catch {
-    jsNavRetired = true;
-    jsNav = [];
-  }
-  const jsNavBatchMs = jsNavRetired ? 0 : (performance.now() - jsStartupStartBatch);
-
   const { adapter } = await loadRustAdapter(DEFAULT_MANIFEST_PATH, { navigationFilePath: 'nav-batch' });
   let rustNavFallbackCount = 0;
   const rustNavStart = performance.now();
@@ -366,39 +260,21 @@ async function main(args = process.argv.slice(2)) {
   });
   const rustNavBatchMs = performance.now() - rustNavStart;
 
-  // parity 抽样：JS 已退役时跳过比对, 直接记录 'rust-only'。
-  let navMismatchCount = 0;
-  let navParity = 'rust-only';
-  if (!jsNavRetired) {
-    for (let i = 0; i < navFiles.length; i++) {
-      const jsF = stableFingerprint(jsNav[i]);
-      const rustF = stableFingerprint(rustNav[i]);
-      if (JSON.stringify(jsF) !== JSON.stringify(rustF)) navMismatchCount++;
-    }
-    navParity = navMismatchCount === 0 ? 'equal' : `mismatch(${navMismatchCount}/${navFiles.length})`;
-  }
-
   // JSON 输出体量抽样（取第一个文件作为代表性样本）。
-  const jsNavResultBytes = jsNav[0] ? computeResultJsonBytes(jsNav[0]) : 0;
   const rustNavResultBytes = rustNav[0] ? computeResultJsonBytes(rustNav[0]) : 0;
 
   const navResult = {
     scenario: 'nav-500-files',
     fileCount: navFiles.length,
     linesPerFile: NAV_LINES_PER_FILE,
-    jsBatchMs: jsNavBatchMs,
     rustBatchMs: rustNavBatchMs,
-    jsResultBytes: jsNavResultBytes,
     rustResultBytes: rustNavResultBytes,
     rustFallbackCount: rustNavFallbackCount,
-    parity: navParity,
-    representativeFingerprint: stableFingerprint(jsNav[0])
+    representativeFingerprint: stableFingerprint(rustNav[0])
   };
 
-  // P1 第 2 项: regression threshold guard. Exit with code 1 if any backend
-  // exceeds the recorded baseline, so a silent regression never flips the
-  // default-backend decision in §P1 "没有稳定收益或出现回归时，保持 JavaScript
-  // 默认后端，不强行切换". Missing threshold entries are skipped (not enforced).
+  // P1 第 2 项: regression threshold guard. Exit with code 1 if any metric
+  // exceeds the recorded baseline. Missing threshold entries are skipped.
   // `--no-threshold` disables the guard (used by CI smoke runs where the
   // slower Linux runner isn't expected to beat the Windows dev baseline).
   /** @type {{scenario: string, metric: string, value: number, limit: number}[]} */
@@ -407,14 +283,8 @@ async function main(args = process.argv.slice(2)) {
     for (const r of results) {
       const caps = REGRESSION_THRESHOLDS[r.scenario];
       if (!caps) continue;
-      if (caps.jsP50Ms !== undefined && r.js.p50Ms > caps.jsP50Ms) {
-        regressions.push({ scenario: r.scenario, metric: 'js.p50', value: r.js.p50Ms, limit: caps.jsP50Ms });
-      }
       if (caps.rustP50Ms !== undefined && r.rust.p50Ms > caps.rustP50Ms) {
         regressions.push({ scenario: r.scenario, metric: 'rust.p50', value: r.rust.p50Ms, limit: caps.rustP50Ms });
-      }
-      if (caps.jsP95Ms !== undefined && r.js.p95Ms > caps.jsP95Ms) {
-        regressions.push({ scenario: r.scenario, metric: 'js.p95', value: r.js.p95Ms, limit: caps.jsP95Ms });
       }
       if (caps.rustP95Ms !== undefined && r.rust.p95Ms > caps.rustP95Ms) {
         regressions.push({ scenario: r.scenario, metric: 'rust.p95', value: r.rust.p95Ms, limit: caps.rustP95Ms });
@@ -425,9 +295,6 @@ async function main(args = process.argv.slice(2)) {
     }
     const navCaps = REGRESSION_THRESHOLDS['nav-500-files'];
     if (navCaps) {
-      if (navCaps.jsBatchMs !== undefined && navResult.jsBatchMs > navCaps.jsBatchMs) {
-        regressions.push({ scenario: 'nav-500-files', metric: 'js.batch', value: navResult.jsBatchMs, limit: navCaps.jsBatchMs });
-      }
       if (navCaps.rustBatchMs !== undefined && navResult.rustBatchMs > navCaps.rustBatchMs) {
         regressions.push({ scenario: 'nav-500-files', metric: 'rust.batch', value: navResult.rustBatchMs, limit: navCaps.rustBatchMs });
       }
@@ -437,8 +304,7 @@ async function main(args = process.argv.slice(2)) {
     }
   }
 
-  // R1.2 Stage B: JS 后端已退役, 不再计入 fallbackRatio 分母 (JS 路径不产生
-  // fallback)。Rust 回退的合理分母 = scenarios × 1 (Rust) + navFiles × 1 (Rust nav)。
+  // fallback 分母 = scenarios × 1 (Rust) + navFiles × 1 (Rust nav)。
   const totalFallback = scenarioFallbackCount + rustNavFallbackCount;
   const fallbackRatio = scenarios.length + navFiles.length > 0
     ? totalFallback / (scenarios.length + navFiles.length)
@@ -453,24 +319,19 @@ async function main(args = process.argv.slice(2)) {
     return;
   }
 
-  console.info(`P1 JS/Rust/Wasm benchmark: ${iterations} measured runs per scenario`);
+  console.info(`P1 Rust/Wasm benchmark: ${iterations} measured runs per scenario`);
   for (const r of results) {
     console.info(
       `  ${r.scenario} (${r.lineCount} lines): ` +
-      `JS p50 ${r.js.p50Ms.toFixed(2)} ms / p95 ${r.js.p95Ms.toFixed(2)} ms / max ${r.js.maxMs.toFixed(2)} ms / first ${r.js.firstMs.toFixed(2)} ms / JSON ${r.jsResultBytes} bytes; ` +
-      `Rust p50 ${r.rust.p50Ms.toFixed(2)} ms / p95 ${r.rust.p95Ms.toFixed(2)} ms / max ${r.rust.maxMs.toFixed(2)} ms / first ${r.rust.firstMs.toFixed(2)} ms / JSON ${r.rustResultBytes} bytes; ` +
-      `parity=${r.parity}`
+      `Rust p50 ${r.rust.p50Ms.toFixed(2)} ms / p95 ${r.rust.p95Ms.toFixed(2)} ms / max ${r.rust.maxMs.toFixed(2)} ms / first ${r.rust.firstMs.toFixed(2)} ms / JSON ${r.rustResultBytes} bytes`
     );
   }
   console.info(
     `  ${navResult.scenario} (${navResult.fileCount} files × ${navResult.linesPerFile} lines): ` +
-    `JS batch ${navResult.jsBatchMs.toFixed(2)} ms / JSON ${navResult.jsResultBytes} bytes; ` +
-    `Rust batch ${navResult.rustBatchMs.toFixed(2)} ms / JSON ${navResult.rustResultBytes} bytes / fallback ${navResult.rustFallbackCount}; ` +
-    `parity=${navResult.parity}`
+    `Rust batch ${navResult.rustBatchMs.toFixed(2)} ms / JSON ${navResult.rustResultBytes} bytes / fallback ${navResult.rustFallbackCount}`
   );
   console.info(
-    `  startup: JS ${results[0].jsStartupMs.toFixed(3)} ms; ` +
-    `Rust wasm ${results[0].rustStartupMs.toFixed(2)} ms (artifact ${results[0].rustWasmBytes} bytes)`
+    `  startup: Rust wasm ${results[0].rustStartupMs.toFixed(2)} ms (artifact ${results[0].rustWasmBytes} bytes)`
   );
   console.info(
     `  fallback: ${totalFallback} / ${scenarios.length + navFiles.length} runs ` +
@@ -482,13 +343,8 @@ async function main(args = process.argv.slice(2)) {
     for (const { scenario, metric, value, limit } of regressions) {
       console.info(`    ${scenario}.${metric} = ${value.toFixed(2)} ms > limit ${limit} ms`);
     }
+    process.exitCode = 1;
   }
-
-  // R1.2 Stage B: parity='rust-only' 表示 JS 已退役 (未被当作 mismatch);
-  // 只有真正的 'mismatch' 才触发 exitCode=1. JS 退役不再阻塞 benchmark CI.
-  const anyMismatch = results.some(r => r.parity === 'mismatch') ||
-    /^mismatch/.test(String(navResult.parity));
-  if (anyMismatch || regressions.length > 0) process.exitCode = 1;
   return undefined;
 }
 
@@ -506,7 +362,6 @@ module.exports = {
   loadRustAdapter,
   measure,
   runScenarios,
-  runJavaScriptEquivalent,
   stableFingerprint,
   NAV_FILE_COUNT,
   NAV_LINES_PER_FILE

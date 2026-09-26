@@ -91,7 +91,7 @@ jobs:
       - name: Benchmark Rust Wasm (smoke, 5 iterations)
         run: npm run benchmark:rust:wasm -- --iterations 5
 
-      - name: P1 JS/Rust/Wasm parity + perf comparison (smoke, 3 iterations)
+      - name: P1 Rust/Wasm perf benchmark (smoke, 3 iterations)
         run: npm run benchmark:compare -- --iterations 3 --no-threshold
 
       - name: Capture P1 perf data as GitHub artifact
@@ -116,10 +116,10 @@ jobs:
 
   cross-platform-alert:
     # P1 第 3 项 跨平台告警：所有平台完成后下载两平台的 perf-data
-    # JSON 用 compare:perf 做交叉对比，把 parity mismatch / fallback>0 /
-    # regressions 列入 notice。本步不阻塞发布，只 reviewer review PR 时
-    # 在 actions log 看到跨平台差异。
-    name: Cross-platform parity alert
+    # JSON 用 compare:perf 做交叉对比，把 fallback>0 / regressions 列入
+    # notice。本步不阻塞发布，只 reviewer review PR 时在 actions log
+    # 看到跨平台差异。
+    name: Cross-platform perf alert
     runs-on: ubuntu-latest
     needs: build-and-verify
     if: always()
@@ -166,7 +166,7 @@ jobs:
 
       - name: Report matrix status
         run: |
-          echo "::notice::Rust/Wasm matrix completed; check build-and-verify jobs for per-platform parity."
+          echo "::notice::Rust/Wasm matrix completed; check build-and-verify jobs for per-platform status."
           if [ "${{ needs.build-and-verify.result }}" != "success" ]; then
-            echo "::warning::At least one platform matrix entry failed; investigate before flipping default backend."
+            echo "::warning::At least one platform matrix entry failed; investigate the build-and-verify job logs."
           fi

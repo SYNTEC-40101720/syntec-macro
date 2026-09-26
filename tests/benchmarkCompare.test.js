@@ -1,19 +1,16 @@
-// P1 第 1 项 JS/Rust/Wasm 三方对照基准的契约测试。
+// P1 性能基准（R1.2 Stage B 后纯 Rust/Wasm）的契约测试。
 //
 // 覆盖：
-//   - `stableFingerprint`：诊断/符号/navigation 形状的等价比对器
+//   - `stableFingerprint`：诊断/符号/navigation 形状的稳定采样器
 //   - `buildNavigationFixture`：500 文件 fixture 形状与可重复性
 //   - `measure`：warming up + percentile 维度的基本契约
-//   - `runJavaScriptEquivalent`：合并 analyzeDocument + analyzeNavigationDocument
-//     的结果形状（macro 文件产出 navigation；非 macro 文件返回 navigation: null）
-//   - `parity`：在固定片段上 JS 与 Rust 三场景的 fingerprint 等价断言
-//   - `process.exitCode` 仅在 mismatch 时置 1（不污染 CI 状态）
+//   - `runScenarios`：Rust adapter 正常路径 fallbackCount=0、结果形状
 //   - P1 第 2 项：`REGRESSION_THRESHOLDS` 形状、`computeResultJsonBytes`、
 //     `--no-threshold` 参数语义、定阈值均不低阈值的单元门禁
 //
 // 这些都是 P1 §「真实 fixture / 20,000 行档案 / 500 文件 navigation 必须记录
-// JS/Rust/Wasm 的启动时间、p50/p95 延迟、JSON/内存占用与 fallback 比例」的
-// 硬门禁实现单元，确保脚本被未来重构时门禁不被静默绕过。
+// 启动时间、p50/p95 延迟、JSON 占用与 fallback 比例」的硬门禁实现单元，
+// 确保脚本被未来重构时门禁不被静默绕过。
 
 const assert = require('node:assert');
 const { test } = require('node:test');
@@ -49,7 +46,7 @@ test('stableFingerprint strips backend/bytes and rounds diagnostic fields', () =
   });
 });
 
-test('stableFingerprint detects parity mismatch between two results', () => {
+test('stableFingerprint distinguishes two different result shapes', () => {
   const a = stableFingerprint({
     diagnostics: [], symbols: [], navigation: null
   });
@@ -100,9 +97,9 @@ test('createLargeMacroText yields 20000 lines with IF block markers', () => {
   assert.ok(text.includes('END_IF;'));
 });
 
-test('process.exitCode remains 0 after a rust-only benchmark run', async () => {
-  // R1.2 Stage B: JS 后端退役, runScenarios 返回 parity='rust-only' 且不抛错,
-  // process.exitCode 不被污染。这是新契约 — 不再断言 JS↔Rust parity='equal'。
+test('runScenarios returns rust-only result shape without throwing', async () => {
+  // R1.2 Stage B: 纯 Rust 基准。runScenarios 不再有 JS 对照路径，
+  // 正常状态下 fallbackCount=0，结果只含 rust.* 指标（无 js 字段）。
   const previousExit = process.exitCode;
   process.exitCode = 0;
   const { runScenarios } = require('../scripts/benchmarkCompare');
@@ -110,9 +107,12 @@ test('process.exitCode remains 0 after a rust-only benchmark run', async () => {
   const scenarios = [
     { name: 'snippet', request, lineCount: 3 }
   ];
-  const { results } = await runScenarios(scenarios, 1);
+  const { results, fallbackCount } = await runScenarios(scenarios, 1);
+  assert.strictEqual(fallbackCount, 0, 'fallbackCount must be 0 when Rust adapter succeeds');
   for (const r of results) {
-    assert.strictEqual(r.parity, 'rust-only', `${r.scenario} should be 'rust-only' under Stage B`);
+    assert.strictEqual(typeof r.rust.p50Ms, 'number');
+    assert.strictEqual(r.js, undefined, 'js.* fields removed with JS backend retirement');
+    assert.strictEqual(r.parity, undefined, 'parity field removed (golden-file compare:rust owns it)');
   }
   process.exitCode = previousExit || 0;
 });
@@ -141,24 +141,10 @@ test('computeResultJsonBytes counts UTF-8 bytes of the JSON serialization', () =
   assert.ok(expected > 30); // UTF-8 中文多字节确保不是 string.length.
 });
 
-test('runScenarios metadata fallbackCount is 0 when adapter succeeds (R1.2 Stage B)', async () => {
-  // R1.2 Stage B: JS 后端已退役, runScenarios 不再统计 JS 抛错为 fallback。
-  // fallbackCount 仅统计 Rust adapter 的失败; 正常状态下应为 0。
-  // parity 字段现在是 'rust-only' (JS 不存在, 无 JS↔Rust 对比)。
-  const mod = require('../scripts/benchmarkCompare');
-  const request = createRequest(MACRO_TEXT, 'file:///workspace/G1000.nc');
-  const scenarios = [{ name: 'snippet', request, lineCount: 3 }];
-  const { results, fallbackCount } = await mod.runScenarios(scenarios, 1);
-  assert.strictEqual(fallbackCount, 0, 'fallbackCount must be 0 when Rust adapter succeeds');
-  for (const r of results) {
-    assert.strictEqual(r.parity, 'rust-only');
-  }
-});
-
 test('stableFingerprint on empty result shape equals no nav fingerprint', () => {
   // Adapter failure path returns lastResult: null → bridge treats it as an
-  // empty normalized shape so equal comparison is deterministic and never
-  // crashes the run. Test that the empty shape is well-defined.
+  // empty normalized shape so the sample is deterministic and never crashes
+  // the run. Test that the empty shape is well-defined.
   const fp = stableFingerprint({ diagnostics: [], symbols: [], navigation: null });
   assert.deepStrictEqual(fp, {
     diagnostics: [],
