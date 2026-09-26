@@ -48,5 +48,7 @@ Thumbs.db
 .gitattributes
 
 # VSIX artifacts
+# Build Output (not needed in VSIX)
+latest.json
 *.vsix
 *.vsix.orig

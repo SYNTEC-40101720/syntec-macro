@@ -147,5 +147,9 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}
           body_path: release-notes.md
-          files: syntec-macro-*.vsix
+          # latest.json：升级检查清单（npm run package 生成），与 VSIX 一并上传，
+          # 插件经 releases/latest/download/latest.json 发现新版本（src/updateCheck.js）
+          files: |
+            syntec-macro-*.vsix
+            latest.json
           fail_on_unmatched_files: true
