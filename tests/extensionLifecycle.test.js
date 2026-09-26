@@ -56,15 +56,16 @@ function activateExtension() {
   return { subscriptions, context };
 }
 
-test('activate registers 7 language providers and 1 diagnostic collection', withVscodeMock(() => {
+test('activate registers 8 language providers and 1 diagnostic collection', withVscodeMock(() => {
   activateExtension();
   const registerCalls = languages._calls.filter(c => c.kind.startsWith('register'));
-  // 8 个 register：Completion/Hover/Definition/DocumentSymbol/WorkspaceSymbol/
-  // References/Formatting/CodeActions
-  assert.strictEqual(registerCalls.length, 8, `expected 8 register calls, got ${registerCalls.length}: ${registerCalls.map(c => c.kind)}`);
+  // 9 个 register：Completion/InlineCompletion/Hover/Definition/DocumentSymbol/
+  // WorkspaceSymbol/References/Formatting/CodeActions
+  assert.strictEqual(registerCalls.length, 9, `expected 9 register calls, got ${registerCalls.length}: ${registerCalls.map(c => c.kind)}`);
   const registeredKinds = new Set(registerCalls.map(c => c.kind));
   for (const expectedKind of [
     'registerCompletionItemProvider',
+    'registerInlineCompletionItemProvider',
     'registerHoverProvider',
     'registerDefinitionProvider',
     'registerDocumentSymbolProvider',

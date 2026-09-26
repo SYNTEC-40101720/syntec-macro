@@ -157,6 +157,16 @@ class Hover {
 }
 
 /**
+ * InlineCompletionItem mock (1.67+)：insertText + command/range。
+ */
+class InlineCompletionItem {
+  constructor(insertText, command) {
+    this.insertText = insertText;
+    this.command = command;
+  }
+}
+
+/**
  * TextEdit mock：range + newText，支持 TextEdit.replace 静态构造。
  */
 class TextEdit {
@@ -246,6 +256,11 @@ const languages = {
       command: undefined,
       dispose() {}
     };
+  },
+  // InlineCompletionItemProvider (1.67+)：关键字 ghost text 注册入口
+  registerInlineCompletionItemProvider(selector, provider) {
+    languages._calls.push({ kind: 'registerInlineCompletionItemProvider', selector, provider });
+    return new Disposable(() => {});
   },
   createDiagnosticCollection(name) {
     languages._calls.push({ kind: 'createDiagnosticCollection', name });
@@ -510,6 +525,7 @@ const vscodeMock = {
   MarkdownString,
   SnippetString,
   Hover,
+  InlineCompletionItem,
   TextEdit,
   CompletionItemKind,
   Disposable,

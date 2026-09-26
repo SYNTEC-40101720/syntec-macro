@@ -5,6 +5,7 @@ const vscode = require('vscode');
 const packageJson = require('../package.json');
 const { LANG_ID } = require('./providerShared');
 const { provideCompletionItems } = require('./completionProvider');
+const { provideInlineCompletionItems } = require('./inlineCompletionProvider');
 const { provideHover } = require('./hoverProvider');
 const { provideDefinition } = require('./definitionProvider');
 const diagnostics = require('./diagnosticsProvider');
@@ -41,6 +42,13 @@ function activate(context) {
     vscode.languages.registerCompletionItemProvider(selector, {
       provideCompletionItems
     }, '.', '#')
+  );
+
+  // Inline Completion（1.67+）：关键字唯一前缀匹配的 ghost text（Tab 采纳）
+  context.subscriptions.push(
+    vscode.languages.registerInlineCompletionItemProvider(selector, {
+      provideInlineCompletionItems
+    })
   );
 
   // Hover
