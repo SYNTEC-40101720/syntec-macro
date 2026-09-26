@@ -47,8 +47,9 @@ const DEFAULT_OUTPUT_PATH = path.join(
 
 /**
  * Resolve the Rust CLI path. compareRustCore.js reads `SYNTEC_RUST_CLI` and
- * falls back to `crates/syntec-core/target/debug/syntec-core-cli[.exe]`; we
- * mirror that here so a single env var drives both export and compare.
+ * falls back to
+ * `crates/syntec-core/target/x86_64-pc-windows-gnu/debug/syntec-core-cli[.exe]`;
+ * we mirror that here so a single env var drives both export and compare.
  */
 function resolveRustCli() {
   const fromEnv = process.env.SYNTEC_RUST_CLI;
@@ -60,6 +61,7 @@ function resolveRustCli() {
     'crates',
     'syntec-core',
     'target',
+    'x86_64-pc-windows-gnu',
     'debug',
     process.platform === 'win32' ? 'syntec-core-cli.exe' : 'syntec-core-cli'
   );

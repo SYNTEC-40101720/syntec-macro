@@ -19,11 +19,15 @@ const DEFAULT_BASELINE = path.join(
   'rust-parity-baseline.json'
 );
 
+// 本机 CARGO_HOME config.toml 固定 build.target = x86_64-pc-windows-gnu，
+// 因此 cargo 产物落在 target-triple 子目录而非 target/ 直下。
 const DEFAULT_RUST_CLI = path.join(
   __dirname,
   '..',
+  'crates',
   'syntec-core',
   'target',
+  'x86_64-pc-windows-gnu',
   'debug',
   process.platform === 'win32' ? 'syntec-core-cli.exe' : 'syntec-core-cli'
 );
