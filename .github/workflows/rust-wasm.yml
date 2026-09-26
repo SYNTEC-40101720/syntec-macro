@@ -109,6 +109,7 @@ jobs:
           fi
           # 10 iterations: 基线与门禁采集都用 10 次降方差。首轮 5-iter 小样本
           # 的 run-to-run 方差实测超 10%（2026-09-26 ubuntu nav +14.7% 误报）。
+          mkdir -p perf-data
           node scripts/benchmarkCompare.js --iterations 10 --no-threshold --json > perf-data/benchmark-${{ matrix.os }}.json
           node scripts/comparePerfData.js --baseline "$BASELINE" perf-data/benchmark-${{ matrix.os }}.json --strict
         shell: bash
