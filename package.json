@@ -69,6 +69,11 @@
     "configuration": {
       "title": "Syntec 宏程序设置",
       "properties": {
+        "syntecMacro.updateManifestUrl": {
+          "type": "string",
+          "default": "https://github.com/SYNTEC-40101720/syntec-macro/releases/latest/download/latest.json",
+          "description": "升级检查清单地址（latest.json）；置空则关闭升级检查"
+        },
         "syntecMacro.enableDiagnostics": {
           "type": "boolean",
           "default": true,
@@ -96,7 +101,7 @@
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/pathResolver.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/systemVariables.test.js tests/functions.test.js tests/hoverDocs.test.js tests/keywords.test.js tests/checkDiagnosticGovernance.test.js tests/exportRustBaseline.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/pathResolver.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/systemVariables.test.js tests/functions.test.js tests/hoverDocs.test.js tests/keywords.test.js tests/checkDiagnosticGovernance.test.js tests/exportRustBaseline.test.js tests/updateCheck.test.js tests/releaseManifest.test.js",
     "check:all": "npm test && npm run lint",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",

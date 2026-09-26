@@ -14,6 +14,7 @@ const { provideDocumentFormattingEdits } = require('./formattingProvider');
 // formattingProvider/navigationProvider 同步路径调用; 加载未完成或失败时
 // 返空 edits/symbols, 不回退 JS. 不阻塞 activate (异步加载), 失败仅日志.
 const { initHostRustAnalyzer } = require('./hostRustAnalyzer');
+const { checkForUpdate, notifyUpdate } = require('./updateCheck');
 
 function activate(context) {
   const selector = { language: LANG_ID };
@@ -21,6 +22,13 @@ function activate(context) {
   initHostRustAnalyzer().catch(error => {
     console.warn('[hostRustAnalyzer] 初始化失败, host provider 将返空:', error instanceof Error ? error.message : error);
   });
+
+  // 升级检查（方案 A）：拉 latest.json 对比版本，仅提示不自动安装；
+  // 网络失败静默，绝不影响激活。
+  const { getConfig } = require('./providerShared');
+  checkForUpdate({ getConfig }).then(manifest => {
+    if (manifest) return notifyUpdate(vscode, manifest);
+  }).catch(() => { /* 升级检查失败不影响主流程 */ });
 
   // Worker 控制日志输出通道：诊断 worker 的控制消息（wasm 资产加载失败
   // 原因等）转发到这里，便于排障。

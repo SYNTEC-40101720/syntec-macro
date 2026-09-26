@@ -121,7 +121,8 @@ npm.cmd run release:create -- v3.0.0
 3. `git credential fill` 取 github.com token
 4. 用 curl.exe 在 `https://api.github.com/repos/SYNTEC-40101720/syntec-macro/releases` 中创建 release
 5. 通过 `https://uploads.github.com/...` 上传 VSIX 资产
-6. 输出 release HTML URL 与 VSIX 下载 URL
+6. 上传 `latest.json` 升级清单（`npm run package` 时由 `scripts/reportVsixArtifact.js` 生成；插件激活后经 `releases/latest/download/latest.json` 发现新版本并提示用户下载，见 `src/updateCheck.js`）
+7. 输出 release HTML URL 与 VSIX 下载 URL
 
 ## 6. 发布后核对（对照规划 §「3.x 发布收口」第 6 项）
 
@@ -129,8 +130,9 @@ npm.cmd run release:create -- v3.0.0
 | ------ | ---------- | ---------- |
 | git tag `v3.0.0` 已推送 | `git ls-remote --tags origin v3.0.0` | 列出 `v3.0.0` |
 | GitHub Release URL 可访问 | 在浏览器访问 release HTML URL | 可见 Release 页面与 CHANGELOG body |
-| VSIX 资产已上传 | `gh release view v3.0.0 --repo ...`（如可用）或浏览器 asset section | `syntec-macro-3.0.0.vsix` 已列出 |
+| VSIX 资产已上传 | `gh release view v3.0.0 --repo ...`（如可用）或浏览器 asset section | `syntec-macro-3.0.0.vsix` 与 `latest.json` 均已列出 |
 | VSIX SHA-256 | 本地 vs `assets/rust-wasm/syntec_core.wasm` SHA-256（如进 VSIX） | GitHub UI 上 asset 的 sha 应与本机 `Get-FileHash` 一致 |
+| 升级清单可达 | `curl.exe -sL https://github.com/SYNTEC-40101720/syntec-macro/releases/latest/download/latest.json` | 返回 JSON 且 `version` 为本次发布版本 |
 | VSIX 安装版本 | `code --install-extension ./syntec-macro-3.0.0.vsix` 后看 Extensions panel 显示版本号 | 显示 3.0.0 |
 | 分析后端标识 | 安装后打开宏程序文件，看诊断/格式化工作 + `Syntec Macro Worker` 输出通道 | `rust-wasm` 唯一后端（v4.0.0 起无配置项；加载失败在输出通道可见原因） |
 

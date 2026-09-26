@@ -144,6 +144,32 @@ function main() {
     console.info(`✓ Asset uploaded: ${assetData.browser_download_url}`);
   } else {
     console.warn(`⚠ 上传失败: ${JSON.stringify(assetData).slice(0, 500)}`);
+    return;
+  }
+
+  // 4. 上传 latest.json 升级清单（方案 A：插件经 releases/latest/download/latest.json 发现新版）
+  const manifestPath = path.join(ROOT, 'latest.json');
+  if (!fs.existsSync(manifestPath)) {
+    console.warn('⚠ latest.json 不存在，跳过上传（先运行 npm.cmd run package）');
+    return;
+  }
+  console.info('Uploading latest.json ...');
+  const manifestOut = curl(`-sS -X POST "${UPLOAD_BASE}/${REPO}/releases/${releaseData.id}/assets?name=latest.json" ` +
+    `-H "Authorization: token ${token}" ` +
+    '-H "Content-Type: application/octet-stream" ' +
+    '-H "User-Agent: syntec-macro-release-script" ' +
+    `--data-binary "@${manifestPath}"`);
+  let manifestData;
+  try {
+    manifestData = JSON.parse(manifestOut);
+  } catch {
+    console.warn(`⚠ latest.json 上传返回非 JSON: ${manifestOut.slice(0, 500)}`);
+    return;
+  }
+  if (manifestData.browser_download_url) {
+    console.info(`✓ latest.json uploaded: ${manifestData.browser_download_url}`);
+  } else {
+    console.warn(`⚠ latest.json 上传失败: ${JSON.stringify(manifestData).slice(0, 500)}`);
   }
 }
 
