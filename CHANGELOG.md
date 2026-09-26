@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 4.2.1 - 2026-09-27
+
+### Added
+
+- 升级检查与提示（方案 A）：激活后拉 GitHub Release 的 `latest.json` 清单对比版本，发现新版提示「前往下载」；`syntecMacro.updateManifestUrl` 可改清单地址（置空关闭）；网络失败静默、24h 节流。发布链路 `npm run package` 生成 `latest.json`、`release:create` 上传到 Release 资产。
+- 工作区导航扫描排除项可配置：`syntecMacro.navigationExclude`（默认 `**/{node_modules,.git,dist}/**`）。
+- 诊断帮助直达文档：Quick Fix 说明型 action 弹窗附「查看诊断文档」按钮，打开 VSIX 内置 `docs/诊断规则与修复动作.md`（离线可用）。
+- 「查看 Worker 日志」命令（`syntecMacro.showWorkerLog`）。
+
+### Changed
+
+- **`engines.vscode` 最低版本 1.60 → 1.90**（2024-06）：1.90 之前的 VS Code 无法安装本版本。
+- 全局状态栏项改为 LanguageStatusItem：仅在打开宏文件时显示版本，不再常驻全局状态栏。
+
+
 ## 4.2.0 - 2026-09-23
 
 ### Changed
