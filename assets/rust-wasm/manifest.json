@@ -11,6 +11,7 @@
     "syntec_core_dealloc",
     "syntec_core_free_output",
     "syntec_core_analyze_request_json",
+    "syntec_core_analyze_navigation_json",
     "syntec_core_analyze_json"
   ],
   "abiFlags": {

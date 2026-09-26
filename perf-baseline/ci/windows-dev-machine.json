@@ -1,0 +1,75 @@
+{
+  "collectedAt": "2026-09-26T11:35:01.139Z",
+  "platform": "win32-x64",
+  "nodeVersion": "v24.15.0",
+  "results": [
+    {
+      "scenario": "fixture",
+      "lineCount": 394,
+      "iterations": 10,
+      "rustWasmBytes": 322575,
+      "rustStartupMs": 7.023900000000005,
+      "rustResultBytes": 21906,
+      "rust": {
+        "firstMs": 31.782700000000006,
+        "p50Ms": 10.939600000000013,
+        "p95Ms": 18.182599999999994,
+        "maxMs": 18.182599999999994
+      }
+    },
+    {
+      "scenario": "large-20k",
+      "lineCount": 20000,
+      "iterations": 10,
+      "rustWasmBytes": 322575,
+      "rustStartupMs": 7.023900000000005,
+      "rustResultBytes": 717838,
+      "rust": {
+        "firstMs": 339.6984,
+        "p50Ms": 287.75549999999987,
+        "p95Ms": 294.759,
+        "maxMs": 294.759
+      }
+    }
+  ],
+  "nav": {
+    "scenario": "nav-500-files",
+    "fileCount": 500,
+    "linesPerFile": 40,
+    "rustBatchMs": 60.86610000000019,
+    "rustResultBytes": 2119,
+    "rustFallbackCount": 0,
+    "representativeFingerprint": {
+      "diagnostics": [],
+      "symbols": [
+        {
+          "name": "%@MACRO",
+          "kind": "macroHeader",
+          "line": 0
+        },
+        {
+          "name": "N10",
+          "kind": "label",
+          "line": 10
+        },
+        {
+          "name": "N20",
+          "kind": "label",
+          "line": 20
+        },
+        {
+          "name": "N30",
+          "kind": "label",
+          "line": 30
+        }
+      ],
+      "hasNavigation": true
+    }
+  },
+  "regressions": [],
+  "fallback": {
+    "total": 0,
+    "ratio": 0
+  },
+  "tag": "ci-windows-dev-proxy"
+}

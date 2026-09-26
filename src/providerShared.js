@@ -17,32 +17,9 @@ function isFeatureEnabled(resource, key) {
   return getConfig(resource).get(key, true);
 }
 
-// R1.2 Stage B (2026-09-22): backend 仅剩 rust-wasm; javascript / rust-wasm-shadow 已退役.
-const WORKER_BACKEND_DEFAULT = 'rust-wasm';
-const WORKER_BACKEND_OPTIONS = Object.freeze([
-  'rust-wasm'
-]);
-
-/**
- * 读 `syntecMacro.analysisBackend` 配置；非法值回退到 default。
- * 后端切换的行为由 createAnalysisBackend 兜底；这里只做配置校验。
- *
- * @returns {string}
- */
-function getAnalysisBackendSetting() {
-  const configured = getConfig().get('analysisBackend', WORKER_BACKEND_DEFAULT);
-  if (!WORKER_BACKEND_OPTIONS.includes(configured)) {
-    return WORKER_BACKEND_DEFAULT;
-  }
-  return configured;
-}
-
 module.exports = {
   LANG_ID,
   functionIndex,
   getConfig,
-  isFeatureEnabled,
-  WORKER_BACKEND_DEFAULT,
-  WORKER_BACKEND_OPTIONS,
-  getAnalysisBackendSetting
+  isFeatureEnabled
 };

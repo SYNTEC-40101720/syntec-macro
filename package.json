@@ -91,23 +91,13 @@
           "items": {
             "type": "string"
           }
-        },
-        "syntecMacro.analysisBackend": {
-          "type": "string",
-          "enum": [
-            "rust-wasm"
-          ],
-          "default": "rust-wasm",
-          "enumDescriptions": [
-            "Rust/Wasm analyzer（默认；v4.0.0 起唯一后端，加载/运行失败抛错并提示重装/扩展损坏）"
-          ],
-          "description": "分析后端选择（v4.0.0 R1.2 Stage B 后唯一后端为 rust-wasm；javascript/rust-wasm-shadow 已退役）"
         }
       }
     }
   },
   "scripts": {
-    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/systemVariables.test.js tests/functions.test.js tests/hoverDocs.test.js tests/keywords.test.js tests/checkDiagnosticGovernance.test.js tests/exportRustBaseline.test.js",
+    "test": "npm run docs:diagnostics:check && npm run check:release && npm run check:vsix && npm run check:data && npm run check:rust:wasm:asset && npm run typecheck:analysis && node --test tests/analysisProtocol.test.js tests/rustWasmAdapter.test.js tests/rustWasmAsset.test.js tests/rustWasmWorkerAdapter.test.js tests/workerLifecycle.test.js tests/benchmarkCompare.test.js tests/comparePerfData.test.js tests/checkReleaseReadiness.test.js tests/releaseConsistency.test.js tests/vsixContents.test.js tests/extension.test.js tests/languageDataConsistency.test.js tests/vscodeMockSmoke.test.js tests/completionProvider.test.js tests/hoverProvider.test.js tests/definitionProvider.test.js tests/formattingProvider.test.js tests/hostRustAnalyzer.test.js tests/pathResolver.test.js tests/extensionLifecycle.test.js tests/diagnosticsProvider.test.js tests/systemVariables.test.js tests/functions.test.js tests/hoverDocs.test.js tests/keywords.test.js tests/checkDiagnosticGovernance.test.js tests/exportRustBaseline.test.js",
+    "check:all": "npm test && npm run lint",
     "test:integration": "node tests/integration/runTest.js",
     "test:integration:navigation": "node tests/integration/runTest.js --navigation-benchmark",
     "smoke:installed": "node scripts/runInstalledSmoke.js",
@@ -128,6 +118,7 @@
     "check:vsix": "node scripts/checkVsixContents.js",
     "check:data": "node scripts/checkLanguageDataConsistency.js",
     "package": "npm run check:rust:wasm:asset && npm run check:vsix && vsce package --allow-star-activation --no-gitHubIssueLinking && node scripts/reportVsixArtifact.js",
+    "release:verify": "npm run check:release:readiness -- --strict && npm run check:diagnostic-governance -- --strict && npm run check:all && npm run typecheck:analysis && npm run test:integration && npm run test:integration:navigation && npm run check:vsix && npm run package && npm run smoke:installed",
     "release:create": "node scripts/createGitHubRelease.js",
     "lint": "npx eslint eslint.config.js src/ scripts/ tests/"
   },

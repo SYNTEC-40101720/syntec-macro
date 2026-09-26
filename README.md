@@ -120,10 +120,10 @@ END_IF;
 
 ## 架构现状（v4.0.0 起）
 
-v4.0.0 起插件分析后端已硬切为 **Rust/Wasm 唯一后端**：原 12 个 JS 分析器模块（`analysisCore.js` / `lexer.js` / `validator.js` / `robotValidator.js` / `controlFlowValidator.js` / `functionArgumentValidator.js` / `diagnosticRules.js` / `diagnosticFactory.js` / `formatter.js` / `navigationSymbols.js` / `navigationIndex.js` / `statementClassifier.js`）已从仓库删除（净减约 4218 行）。`syntecMacro.analysisBackend` 配置收敛为单值 `['rust-wasm']`。
+v4.0.0 起插件分析后端已硬切为 **Rust/Wasm 唯一后端**：原 12 个 JS 分析器模块（`analysisCore.js` / `lexer.js` / `validator.js` / `robotValidator.js` / `controlFlowValidator.js` / `functionArgumentValidator.js` / `diagnosticRules.js` / `diagnosticFactory.js` / `formatter.js` / `navigationSymbols.js` / `navigationIndex.js` / `statementClassifier.js`）已从仓库删除（净减约 4218 行）。后端无需配置。
 
 - **唯一后端**：`rust-wasm`（默认且唯一）。Rust wasm asset 经 `scripts/buildRustWasmAsset.js` bundle 进 VSIX (`assets/rust-wasm/manifest.json` + `syntec_core.wasm`)，加载/运行失败提示重装扩展，不再回退 JS。
-- **已退役**：`javascript` 与 `rust-wasm-shadow` 配置值在 v4.0.0 后不再可用。旧用户配置会被 VS Code 枚举校验拒绝并提示重设为 `rust-wasm`。
+- **已退役**：`javascript` 与 `rust-wasm-shadow` 配置值在 v4.0.0 后不再可用；`syntecMacro.analysisBackend` 配置项本身已随单后端化清理删除。
 - **Host 层**：补全、悬停、跳转、定义、格式化、诊断、code action 等 VS Code 提供器入口保留在 host-only JS 文件；它们只负责 VS Code API 对接与数据查询，分析逻辑全部走 Rust/Wasm。
 - **剩余依赖**：数据表（`keywords.js` / `codeDocs.js` / `functions.js` / `systemVariables.js` / `completionSnippets.js`）仍是 JS 源文件，是数据而不是分析逻辑，留给 Phase R2 迁移到 host 共享层。
 

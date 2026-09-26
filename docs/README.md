@@ -11,6 +11,7 @@
 | [诊断规则与修复动作](诊断规则与修复动作.md) | 诊断 code、严重度、Quick Fix 与说明（由 `npm.cmd run docs:diagnostics` 生成，不手改） | 查诊断 code 含义与修复方式 |
 | [Rust 诊断 parity 清单](Rust诊断parity清单.md) | 稳定诊断 code 的 Rust 覆盖状态与 code↔能力 ID 交叉引用 | 新增/迁移诊断 code 时登记 |
 | [Rust/Wasm 切换验收门禁](Rust-Wasm切换验收门禁.md) | 永久有效的验收门禁、不变约束与 readiness 7 项门禁 | 发布前后必读 |
+| [ARCHITECTURE](ARCHITECTURE.md) | 一页式架构图景：三条数据通路、Wasm ABI、资产链路、测试层次 | 定位问题在 JS host 层还是 Rust 核心时先读 |
 | [Release-Runbook](Release-Runbook.md) | 发布到 GitHub Release 的操作手册 | 发布时照单执行 |
 | [开发交接说明](开发交接说明.md) | 接续点、本机验证命令、架构入口、GitHub 同步与发布流程 | 每个新会话/新批次先读 |
 

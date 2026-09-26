@@ -12,8 +12,6 @@
   },
   "include": [
     "src/analysisProtocol.js",
-    "src/analysisCore.js",
-    "src/analysisHost.js",
     "scripts/benchmarkAnalysis.js"
   ],
   "exclude": ["node_modules"]

@@ -24,3 +24,20 @@
 - dev machine (Windows) ≥5 次稳定采集 → 整合到下一份 `v3.0.x-multi-run.json`
 - CI Linux + CI Windows `p1-perf-ubuntu-latest.json` / `p1-perf-windows-latest.json`，从 `actions/upload-artifact@v4` 下载
 - 切换默认 backend 前所有数据证明 Rust 全场景 ≥ JS（误差 ≤ 5%）才推进下一 minor release
+
+## CI 平台性能门禁基线（`perf-baseline/ci/`，2026-09-26 起）
+
+`rust-wasm.yml` 的「Performance regression gate」步骤把当前 run 的 perf-data 与
+`perf-baseline/ci/<os>.json`（`os` = matrix 值，如 `ubuntu-latest` / `windows-latest`）
+经 `compare:perf --baseline --strict` 比对：任一场景 Rust p50 或 nav batch 回归 > 10%、
+或 fallback > 0，CI 直接 fail。基线文件缺失时该步骤 notice 跳过。
+
+- 基线必须来自 **CI runner 采集**（与本机 dev 阈值混用会因平台速度差异误报）：
+  从 rust-wasm run 的 `p1-perf-<os>` artifact 下载 `benchmark-<os>.json`，重命名为
+  `<os>.json` 提交到 `perf-baseline/ci/`，并在文件内补 `tag` 字段标注采集 commit。
+- `benchmarkCompare.js --json` 自 2026-09-26 起自带 `collectedAt`/`platform`/
+  `nodeVersion` 元数据，artifact 文件可直接作基线，无需补平台字段。
+- 首份 `windows-dev-machine.json` 为本机 Windows 采集的代理基线（10 iterations，
+  fixture p50 10.9ms / large-20k 287.8ms / nav 60.9ms）；待 CI windows-latest
+  artifact 落地后替换为 runner 实测值。
+- `ubuntu-latest.json` 待首个 CI run artifact 提交后门禁即生效。

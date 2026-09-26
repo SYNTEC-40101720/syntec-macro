@@ -9,11 +9,15 @@
 // 用法：
 //   node scripts/comparePerfData.js perf-data/benchmark-ubuntu-latest.json \
 //                                    perf-data/benchmark-windows-latest.json
+//   node scripts/comparePerfData.js --baseline perf-baseline/<tag>.json current.json
+//   node scripts/comparePerfData.js --baseline ... current.json --strict
 //
-// 设计：本工具不在 CI 上阻塞构建——任何告警只写到 stdout；CI 的
-// cross-platform-alert 步骤负责把跨平台差异登记为 notice。本工具的
-// 契约是「能够把任意数量的 perf-data JSON 文件解析成统一报告」，
-// 便于人回归分析。
+// 设计：默认不阻塞构建——任何告警只写到 stdout；CI 的
+// cross-platform-alert 步骤负责把跨平台差异登记为 notice。`--baseline`
+// 模式对照已发布版本基线比对 Rust p50/batch 回归 > 10%；加 `--strict`
+// 时回归或 fallback 任一存在即 exitCode=1（CI 性能门禁用，本地默认
+// 只看报告）。本工具的契约是「能够把任意数量的 perf-data JSON 文件
+// 解析成统一报告」，便于人回归分析。
 
 const fs = require('fs');
 
@@ -142,6 +146,9 @@ function compareWithBaseline(baseline, current) {
  */
 function main(args = process.argv.slice(2)) {
   // Phase 1.1 / Phase 2.4: --baseline <path> <current-perf.json> 比对模式
+  // P1 第 4 项: 追加 --strict 时回归/fallback 任一存在即 exitCode=1
+  // (CI 硬门禁); 默认仅 ::warning:: 供人 review。
+  const strict = args.includes('--strict');
   const baselineIdx = args.indexOf('--baseline');
   if (baselineIdx >= 0) {
     const baselinePath = args[baselineIdx + 1];
@@ -149,7 +156,7 @@ function main(args = process.argv.slice(2)) {
       console.info('comparePerfData: --baseline requires a path argument');
       return;
     }
-    const currentArgs = args.filter((_, i) => i !== baselineIdx && i !== baselineIdx + 1);
+    const currentArgs = args.filter((_, i) => i !== baselineIdx && i !== baselineIdx + 1 && args[i] !== '--strict');
     if (currentArgs.length === 0) {
       console.info('comparePerfData: --baseline mode requires a current perf-data file');
       return;
@@ -162,6 +169,7 @@ function main(args = process.argv.slice(2)) {
     const result = compareWithBaseline(baseline, current);
     if (result.regressions.length === 0 && result.fallback === 0) {
       console.info('  no regressions / fallback detected.');
+      if (strict) console.info('  strict gate: PASS');
     } else {
       if (result.regressions.length > 0) {
         console.info(`  [regression] ${result.regressions.length} metric(s) regressed > 10%:`);
@@ -173,11 +181,17 @@ function main(args = process.argv.slice(2)) {
         }
       }
       if (result.fallback > 0) {
-        console.info(`  [anomaly] current run had ${result.fallback} fallback events`);
+        console.info(`    ::warning::current run had ${result.fallback} fallback events`);
+      }
+      if (strict) {
+        console.info('  strict gate: FAIL (see regressions / fallback above)');
+        process.exitCode = 1;
       }
     }
     return;
   }
+
+  args = args.filter(a => a !== '--strict');
 
   if (args.length === 0) {
     console.info('comparePerfData: no perf-data files provided; nothing to compare.');

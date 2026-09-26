@@ -1,16 +1,10 @@
 // @ts-check
-// Host 端同步 Rust/Wasm analyzer 注入层 (R1.2 Stage B 前置 PR, 2026-09-21).
+// Host 端同步 Rust/Wasm analyzer 注入层.
 //
-// 背景: v3.1.0 的 host 同步 provider (formattingProvider/navigationProvider 等)
-// 直调 `src/analysisCore.js` 的 `formatDocument`/`analyzeNavigationDocument`/等。
-// R1.2 Stage B 剔除 `analysisCore.js` 后这些同步路径会断。
-//
-// 本模块在 `extension.js::activate` 中 await 一次 wasm 实例加载并缓存同步
+// 在 `extension.js::activate` 中 await 一次 wasm 实例加载并缓存同步
 // analyzer 实例; provider 通过 `getHostRustAnalyzer()` 拿到同步入口。
-// 加载期间由 `policy` 控制:
-//   - 'defer-js' (v3.1.x 默认): 启动期间回退 JS analyzer (兼容现有 v3.1.x 行为,
-//     不引入用户可感知变化)
-//   - 'empty'      (R1.2 后): 启动期间返空 edits/symbols 而非真值, 不回退 JS
+// 加载未完成或失败时返回 `null`, caller 返回空 edits/symbols
+// (R1.2 起 JS 回退路径已删除, 无 fallback)。
 //
 // 单测见 tests/hostRustAnalyzer.test.js。
 
@@ -35,32 +29,10 @@ const DEFAULT_MANIFEST_PATH = DEFAULT_WORKER_MANIFEST_PATH;
 let cachedHostAnalyzer = null;
 let cachedHostInstance = null;  // wasm Instance，用于按 file 创建 nav-only adapter
 let initPromise = null;
-let policy = 'defer-js';
 
 /**
- * 设置启动期间 fallback 策略。
- * - 'defer-js' (v3.1.x 默认): Rust 未就绪时 caller 走 JS fallback 路径
- * - 'empty' (R1.2 后切换): Rust 未就绪时 caller 走"返回空 edits/symbols"路径
- * @param {'defer-js'|'empty'} newPolicy
- */
-function setHostAnalyzerPolicy(newPolicy) {
-  if (newPolicy !== 'defer-js' && newPolicy !== 'empty') {
-    throw new TypeError(`unsupported host analyzer policy: ${newPolicy}`);
-  }
-  policy = newPolicy;
-}
-
-/**
- * 当前 host analyzer fallback policy (供测试/observability 用)。
- * @returns {'defer-js'|'empty'}
- */
-function getHostAnalyzerPolicy() {
-  return policy;
-}
-
-/**
- * 同步获取 host 端 Rust analyzer。加载未完成时返回 `null`（caller 按当前
- * `policy` 走 fallback）。
+ * 同步获取 host 端 Rust analyzer。加载未完成时返回 `null`（caller 返回空
+ * edits/symbols，不回退 JS）。
  * @returns {((request: import('./analysisProtocol').AnalysisRequest) => import('./analysisProtocol').AnalysisResult) | null}
  */
 function getHostRustAnalyzer() {
@@ -83,7 +55,7 @@ function getHostWasmInstance() {
  * 注入 programEntryName/macroProgramName 元数据。每文件一个 adapter 是 OK
  * 的 — adapter closure 仅捕获 wasm exports + options，无额外内存开销。
  *
- * 加载未完成时返回 `null`（caller 按 policy 走 fallback）。
+ * 加载未完成时返回 `null`（caller 返回空结果）。
  *
  * @param {string} filePath 裸文件路径（不含 file:// scheme）
  * @param {{createAdapter?: (exports: object, options?: object) => Function}} [injectables]
@@ -99,27 +71,12 @@ function createNavOnlyAdapter(filePath, injectables = {}) {
 }
 
 /**
- * caller 同步 host provider 中决定走 Rust 还是 fallback。
- * 简化主体: caller 写法:
- *   const analyzer = getHostRustAnalyzer();
- *   if (analyzer) return analyzer(request);          // Rust 路径
- *   if (shouldDeferToJsFallback()) return jsFallback(); // policy='defer-js' 时回 JS
- *   return emptyResult();                              // policy='empty' 时返空
- *
- * @returns {boolean} Rust 未就绪时是否允许走 JS fallback (only if policy='defer-js')
- */
-function shouldDeferToJsFallback() {
-  return cachedHostAnalyzer === null && policy === 'defer-js';
-}
-
-/**
  * 重置 host analyzer 状态（测试用；生产环境一般不调用）。
  */
 function resetHostRustAnalyzer() {
   cachedHostAnalyzer = null;
   cachedHostInstance = null;
   initPromise = null;
-  policy = 'defer-js';
 }
 
 /**
@@ -163,9 +120,6 @@ module.exports = {
   getHostRustAnalyzer,
   getHostWasmInstance,
   createNavOnlyAdapter,
-  shouldDeferToJsFallback,
-  setHostAnalyzerPolicy,
-  getHostAnalyzerPolicy,
   resetHostRustAnalyzer,
   makeRequest
 };

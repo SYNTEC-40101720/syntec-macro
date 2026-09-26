@@ -1,6 +1,5 @@
 // tests/hostRustAnalyzer.test.js
-// 契约测试: src/hostRustAnalyzer.js 的 API 形状、policy 状态机、init 幂等性。
-// R1.2 Stage B 前置 PR (2026-09-21) 配套守卫。
+// 契约测试: src/hostRustAnalyzer.js 的 API 形状、init 幂等性、nav adapter。
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,9 +8,6 @@ const {
   getHostRustAnalyzer,
   getHostWasmInstance,
   createNavOnlyAdapter,
-  shouldDeferToJsFallback,
-  setHostAnalyzerPolicy,
-  getHostAnalyzerPolicy,
   resetHostRustAnalyzer,
   makeRequest
 } = require('../src/hostRustAnalyzer');
@@ -37,46 +33,13 @@ test('module exports the expected API surface', () => {
   assert.strictEqual(typeof getHostRustAnalyzer, 'function');
   assert.strictEqual(typeof getHostWasmInstance, 'function');
   assert.strictEqual(typeof createNavOnlyAdapter, 'function');
-  assert.strictEqual(typeof shouldDeferToJsFallback, 'function');
-  assert.strictEqual(typeof setHostAnalyzerPolicy, 'function');
-  assert.strictEqual(typeof getHostAnalyzerPolicy, 'function');
   assert.strictEqual(typeof resetHostRustAnalyzer, 'function');
   assert.strictEqual(typeof makeRequest, 'function');
-});
-
-test('default policy is "defer-js"', () => {
-  resetHostRustAnalyzer();
-  assert.strictEqual(getHostAnalyzerPolicy(), 'defer-js');
 });
 
 test('getHostRustAnalyzer returns null before init', () => {
   resetHostRustAnalyzer();
   assert.strictEqual(getHostRustAnalyzer(), null);
-});
-
-test('shouldDeferToJsFallback is true before init when policy=defer-js', () => {
-  resetHostRustAnalyzer();
-  assert.strictEqual(shouldDeferToJsFallback(), true);
-});
-
-test('setHostAnalyzerPolicy rejects unsupported policy values', () => {
-  resetHostRustAnalyzer();
-  assert.throws(() => setHostAnalyzerPolicy('rust-only'), /unsupported host analyzer policy/);
-  assert.throws(() => setHostAnalyzerPolicy(''), /unsupported host analyzer policy/);
-});
-
-test('setHostAnalyzerPolicy accepts "defer-js" and "empty"', () => {
-  resetHostRustAnalyzer();
-  setHostAnalyzerPolicy('empty');
-  assert.strictEqual(getHostAnalyzerPolicy(), 'empty');
-  setHostAnalyzerPolicy('defer-js');
-  assert.strictEqual(getHostAnalyzerPolicy(), 'defer-js');
-});
-
-test('policy=empty before init suppresses JS fallback (shouldDeferToJsFallback=false)', () => {
-  resetHostRustAnalyzer();
-  setHostAnalyzerPolicy('empty');
-  assert.strictEqual(shouldDeferToJsFallback(), false);
 });
 
 test('initHostRustAnalyzer uses injected loadAsset+createAdapter; resolves to the analyzer function', async () => {
@@ -88,8 +51,6 @@ test('initHostRustAnalyzer uses injected loadAsset+createAdapter; resolves to th
   });
   assert.strictEqual(init, fakeAnalyzer);
   assert.strictEqual(getHostRustAnalyzer(), fakeAnalyzer);
-  // After init, shouldDeferToJsFallback should be false (Rust ready).
-  assert.strictEqual(shouldDeferToJsFallback(), false);
   resetHostRustAnalyzer();
 });
 

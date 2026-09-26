@@ -10,22 +10,23 @@ const { provideDefinition } = require('./definitionProvider');
 const diagnostics = require('./diagnosticsProvider');
 const navigation = require('./navigationProvider');
 const { provideDocumentFormattingEdits } = require('./formattingProvider');
-// R1.2 Stage B (2026-09-22): host analyzer policy 切为 'empty' — Rust 未就绪时
-// host provider (formatting/navigation) 返空 edits/symbols 而非回退 JS; JS
-// fallback 路径即将随 §2.12 删除 analysisCore.js 一并失效.
-const { initHostRustAnalyzer, setHostAnalyzerPolicy } = require('./hostRustAnalyzer');
+// Host analyzer 初始化: await wasm 加载并缓存同步入口供
+// formattingProvider/navigationProvider 同步路径调用; 加载未完成或失败时
+// 返空 edits/symbols, 不回退 JS. 不阻塞 activate (异步加载), 失败仅日志.
+const { initHostRustAnalyzer } = require('./hostRustAnalyzer');
 
 function activate(context) {
   const selector = { language: LANG_ID };
 
-  // 初始化 host 端 Rust analyzer (R1.2 Stage B 前置 PR 2026-09-21; 2026-09-22
-  // Stage B 切 policy='empty'): await wasm 加载并缓存同步入口供
-  // formattingProvider/navigationProvider 同步路径调用; 加载期间不再回退 JS,
-  // 返空 edits/symbols. 不阻塞 activate (异步加载), 失败仅日志.
-  setHostAnalyzerPolicy('empty');
   initHostRustAnalyzer().catch(error => {
     console.warn('[hostRustAnalyzer] 初始化失败, host provider 将返空:', error instanceof Error ? error.message : error);
   });
+
+  // Worker 控制日志输出通道：诊断 worker 的控制消息（wasm 资产加载失败
+  // 原因等）转发到这里，便于排障。
+  const workerOutputChannel = vscode.window.createOutputChannel('Syntec Macro Worker');
+  context.subscriptions.push(workerOutputChannel);
+  diagnostics.setWorkerLogSink(message => workerOutputChannel.appendLine(message));
 
   // Completion
   context.subscriptions.push(

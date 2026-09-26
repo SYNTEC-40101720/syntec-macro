@@ -388,3 +388,116 @@ test('main --baseline mode prints ::warning:: when regression detected', () => {
   assert.ok(out.includes('::warning::'), `must emit GitHub ::warning:: annotation for CI log, got: ${out}`);
   assert.ok(out.includes('large-20k'));
 });
+
+// --- --strict 硬门禁模式 (CI 性能回归门禁) ---
+
+function runBaselineMain(baselinePath, currentPath, strict) {
+  const argv = process.argv;
+  const args = ['--baseline', baselinePath, currentPath];
+  if (strict) args.push('--strict');
+  process.argv = ['node', 'comparePerfData', ...args];
+  const origInfo = console.info;
+  const lines = [];
+  console.info = (msg) => { lines.push(String(msg)); };
+  const prevExitCode = process.exitCode;
+  process.exitCode = 0;
+  try {
+    main();
+  } finally {
+    console.info = origInfo;
+    process.argv = argv;
+    const exitCode = process.exitCode;
+    process.exitCode = prevExitCode || 0;
+    return { out: lines.join('\n'), exitCode };
+  }
+}
+
+test('main --baseline --strict exits 0 when current matches baseline', () => {
+  const baselineData = {
+    platform: 'baseline', tag: 'v4.0.0',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 10 } }],
+    nav: { rustBatchMs: 380 },
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'ci-ubuntu',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 11 } }],
+    nav: { rustBatchMs: 390 },
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const { out, exitCode } = runBaselineMain(
+    makeTempFile('v4.0.0.json', baselineData),
+    makeTempFile('current.json', currentData),
+    true
+  );
+  assert.strictEqual(exitCode, 0, `strict gate should pass, got: ${out}`);
+  assert.ok(out.includes('strict gate: PASS'));
+});
+
+test('main --baseline --strict exits 1 when Rust p50 regresses > 10%', () => {
+  const baselineData = {
+    platform: 'baseline', tag: 'v4.0.0',
+    results: [{ scenario: 'large-20k', rust: { p50Ms: 200 } }],
+    nav: null,
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'ci-ubuntu',
+    results: [{ scenario: 'large-20k', rust: { p50Ms: 300 } }], // +50%
+    nav: null,
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const { out, exitCode } = runBaselineMain(
+    makeTempFile('v4.0.0.json', baselineData),
+    makeTempFile('current.json', currentData),
+    true
+  );
+  assert.strictEqual(exitCode, 1, `strict gate should fail on regression, got: ${out}`);
+  assert.ok(out.includes('strict gate: FAIL'));
+  assert.ok(out.includes('::warning::'));
+});
+
+test('main --baseline --strict exits 1 when fallback events present', () => {
+  const baselineData = {
+    platform: 'baseline', tag: 'v4.0.0',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 10 } }],
+    nav: null,
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'ci-ubuntu',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 10 } }],
+    nav: null,
+    regressions: [], fallback: { total: 3, ratio: 0.01 }
+  };
+  const { out, exitCode } = runBaselineMain(
+    makeTempFile('v4.0.0.json', baselineData),
+    makeTempFile('current.json', currentData),
+    true
+  );
+  assert.strictEqual(exitCode, 1, `strict gate should fail on fallback, got: ${out}`);
+  assert.ok(out.includes('strict gate: FAIL'));
+});
+
+test('main --baseline without --strict stays advisory (exitCode unchanged)', () => {
+  const baselineData = {
+    platform: 'baseline', tag: 'v4.0.0',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 10 } }],
+    nav: null,
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const currentData = {
+    platform: 'ci-ubuntu',
+    results: [{ scenario: 'fixture', rust: { p50Ms: 30 } }], // +200%
+    nav: null,
+    regressions: [], fallback: { total: 0, ratio: 0 }
+  };
+  const { out, exitCode } = runBaselineMain(
+    makeTempFile('v4.0.0.json', baselineData),
+    makeTempFile('current.json', currentData),
+    false
+  );
+  assert.strictEqual(exitCode, 0, `advisory mode must not fail, got: ${out}`);
+  assert.ok(out.includes('[regression]'));
+  assert.ok(!out.includes('strict gate'), 'advisory mode must not print strict gate lines');
+});

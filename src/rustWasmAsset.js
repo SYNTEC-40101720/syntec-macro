@@ -6,12 +6,12 @@
 // - 生产链路必须经过 `assets/rust-wasm/manifest.json` + SHA-256 + 必需
 //   exports 的完整性校验，再交由 `createRustWasmAdapter` 实例化适配器。
 //
-// 失败必须显式抛出 `RustWasmAssetError`（带 `reason` 字段），上层
-// `createAnalysisBackend` 的 `onFallback` 据 reason 记录日志，并回退
-// JavaScript；不允许把加载失败转成成功形状。
+// 失败必须显式抛出 `RustWasmAssetError`（带 `reason` 字段），上层据此
+// 通过 `onFallback` 记录日志并向用户提示（JS 回退已随 R1.2 退役）；
+// 不允许把加载失败转成成功形状。
 //
 // 本模块不注册到 Worker 或 VS Code Provider，只是 P0-C 第 1 项「资产
-// 与加载器」边界；Worker 注入和默认 backend 切换由 P0-C 第 3 项完成。
+// 与加载器」边界；Worker 注入由 P0-C 第 3 项完成。
 
 const crypto = require('crypto');
 const fs = require('fs');

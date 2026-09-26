@@ -312,6 +312,11 @@ async function main(args = process.argv.slice(2)) {
 
   if (jsonOut) {
     console.info(JSON.stringify({
+      // P1 第 4 项: 元数据随 JSON 自描述, 供 compare:perf --baseline 门禁与
+      // perf-baseline 归档直接消费, 不再依赖文件名推断 platform。
+      collectedAt: new Date().toISOString(),
+      platform: `${process.platform}-${process.arch}`,
+      nodeVersion: process.version,
       results, nav: navResult, regressions, fallback: {
         total: totalFallback, ratio: Number(fallbackRatio.toFixed(4))
       }

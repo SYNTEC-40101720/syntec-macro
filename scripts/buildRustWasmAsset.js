@@ -39,6 +39,7 @@ const PROTOCOL_VERSION = 1;
 const REQUIRED_EXPORTS = [
   ...DEFAULT_REQUIRED_EXPORTS,
   'syntec_core_analyze_request_json',
+  'syntec_core_analyze_navigation_json',
   'syntec_core_analyze_json'
 ];
 

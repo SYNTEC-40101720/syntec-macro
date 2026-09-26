@@ -4,7 +4,7 @@
 
 ## 1. 当前架构 (v4.0.0 起)
 
-- **唯一分析后端**: `rust-wasm`. `syntecMacro.analysisBackend` enum = `['rust-wasm']`, `javascript`/`rust-wasm-shadow` 已退役.
+- **唯一分析后端**: `rust-wasm`. 后端选择配置项 `syntecMacro.analysisBackend` 已删除 (单后端无需选择), `javascript`/`rust-wasm-shadow` 已退役.
 - **Wasm asset**: `assets/rust-wasm/{manifest.json, syntec_core.wasm}` 经 `scripts/buildRustWasmAsset.js` 全链校验 (manifest 形状 + 字节长度 + SHA-256 + `WebAssembly.instantiate` + 必需 exports), bundle 进 VSIX.
 - **Host Provider** (completion/hover/definition/navigation/formatting/diagnostics/code-actions) 走 `src/hostRustAnalyzer.js` 同步路径; Worker (`src/validatorWorker.js`) 硬切 `rust-wasm` backend.
 - **数据真源** (Phase R2 已完成 2026-09-22): `src/systemVariables.js` / `src/functions.js` / `src/codeDocs.js` / `src/keywords.js` 四表数据已迁到 `src/data/*.json`, JS 模块改 thin JSON loader (mtime-aware 进程内只读缓存); `src/completionSnippets.js` 评估为纯函数无数据真源不迁. 详见 `docs/开发交接说明.md`.
@@ -14,12 +14,12 @@
 ```powershell
 Set-Location D:\FN\syntec-macro
 git --no-pager diff --check
-npm.cmd test
-npm.cmd run lint
+npm.cmd run check:all        # = npm test (含全部治理 check) + lint
 npm.cmd run typecheck:analysis
 npm.cmd run check:release -- --tag vX.Y.Z
 npm.cmd run check:release:readiness -- --strict
-npm.cmd run check:js-backend-retirement -- --strict
+# —— 或发布前一键全量（readiness + governance + check:all + integration + package + smoke）:
+npm.cmd run release:verify
 npm.cmd run check:rust:wasm:asset
 npm.cmd run check:vsix
 npm.cmd run compare:rust          # 需 $env:SYNTEC_RUST_CLI 指向 CLI 二进制, 否则 --baseline fixture

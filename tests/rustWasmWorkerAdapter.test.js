@@ -1,9 +1,9 @@
 // RustWasmWorkerAdapter (P0-C 第 2 项) 契约测试。
 //
 // 用模块暴露的 `loadAsset` 与 `createAdapter` 注入点构造 fake 资产加载
-// 与适配器，验证 shadow 与 primary 两种模式下的契约：
-// - shadow：始终返回 JS 结果；Rust 抛错或差分时调用 onShadowMismatch；
-// - primary：返回 Rust 结果，资产加载失败时抛错（上层回退 JS）。
+// 与适配器，验证契约：
+// - 返回 Rust 结果；资产加载失败时抛错并由 onFallback 上报
+//   （不回退 JS，JS 后端已随 R1.2 Stage B 退役）。
 //
 // 不依赖真实 wasm 资产。
 

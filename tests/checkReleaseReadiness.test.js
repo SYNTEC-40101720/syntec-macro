@@ -142,3 +142,32 @@ test('main catches exceptions inside check.run when --strict (counts as FAIL)', 
     process.exitCode = prevExit || 0;
   }
 });
+
+// --- parity 覆盖 marker 契约（2026-09-26 修复 73/73 不匹配旧正则后守卫） ---
+
+test('parity check passes on the real parity doc (N/N 自洽 + 未覆盖 0)', () => {
+  const check = CHECKS.find(c => c.id === '2-stable-diagnostic-nav-format-parity');
+  assert.ok(check, 'parity check must exist');
+  const result = check.run();
+  assert.strictEqual(result.status, 'PASS', `real parity doc must pass: ${result.detail}`);
+  // 覆盖数随批次扩展（67→68→73→...），detail 只需自洽不写死数字
+  assert.match(result.detail, /已收口/);
+});
+
+test('parity check regex accepts any equal N/N coverage, rejects mismatched or uncovered', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'docs', 'Rust诊断parity清单.md'), 'utf8');
+  const declared = src.match(/当前 Rust 覆盖：\s*(\d+)\s*\/\s*(\d+)/);
+  assert.ok(declared, 'parity doc must declare 当前 Rust 覆盖：N / N');
+  assert.strictEqual(declared[1], declared[2], 'declared coverage must be self-consistent');
+  // 清单为列表格式（- `SYNTEC_...`）；73 含 3 个 ABI 符号（SYNTEC_CORE_*，
+  // 文档自述「按 code 字符串去重后为 70 个稳定 code」），列表条目数应等于
+  // 去重后的稳定 code 数，即声明数或声明数-3。
+  const coveredSection = src.split('## 已覆盖')[1].split('##')[0];
+  const coveredItems = (coveredSection.match(/^- `SYNTEC_/gm) || []).length;
+  const declaredCount = Number(declared[1]);
+  assert.ok(coveredItems === declaredCount || coveredItems === declaredCount - 3,
+    `covered list items (${coveredItems}) should match declared ${declaredCount} (or -3 for ABI symbols)`);
+});

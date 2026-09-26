@@ -10,9 +10,7 @@
 // `getMacroProgramName` / `collectNavigationIndexEntries` / `isPotentialNavigationFile`
 // 全部在本文件 inline 实现, 仅依赖 `fileResolver.js` 的 path helper (host-only, 整体保留).
 //
-// 测试覆盖:
-//   - 4 元数据 helper: tests/extension.test.js (原 navigationSymbols 断言已改为 require pathResolver)
-//   - collectNavigationIndexEntries / isPotentialNavigationFile: tests/extension.test.js
+// 测试覆盖: tests/pathResolver.test.js (直接单测).
 
 const path = require('path');
 const {
@@ -50,7 +48,7 @@ function getProgramEntryName(filePath) {
   const fileName = getPortableFileName(filePath);
   const extension = path.posix.extname(fileName).toLowerCase();
   const baseName = MACRO_FILE_EXTENSIONS.includes(extension)
-    ? path.posix.basename(fileName, extension)
+    ? path.posix.basename(fileName.toLowerCase(), extension)
     : fileName;
   return /^[GO]\d+$/i.test(baseName) ? baseName.toUpperCase() : null;
 }

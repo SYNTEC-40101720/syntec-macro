@@ -37,14 +37,20 @@ const CHECKS = [
       const parityDoc = path.join(ROOT, 'docs', 'Rust诊断parity清单.md');
       if (!fs.existsSync(parityDoc)) return { status: 'FAIL', detail: 'parity doc missing' };
       const src = fs.readFileSync(parityDoc, 'utf8');
-      // P0-A.1 收口语义 marker 是「67/67」（历史首批稳定诊断）。
-      // 资料补章 → 程序匹配 Phase β.1/γ.2 已扩展集合到 68/68（新增
-      // `SYNTEC_ROBOT_G10_L1802_SILENT_VERSION_GATE`），后续 follow-up 也可能再
-      // 扩展。允许「6X/6X」（X>=7）数字形态或显式「parity 收口完成」字串。
-      const hasCompletion = /6[7-9]\s*\/\s*6[7-9]|[0-9]{3,}\s*\/\s*[0-9]{3,}|parity 收口完成/.test(src);
+      // P0-A.1 收口语义 marker：清单头部「当前 Rust 覆盖：N / N」自洽（两侧
+      // 相等）且「未覆盖：0 个 code」。历史上首批稳定诊断为 67/67，Phase
+      // β.1/γ.2 已扩展到 68/68，Phase 5.x 收口到 73/73，后续 follow-up 还会
+      // 再扩展——匹配任意 N/N 相等形态，避免每扩一次就漂移一次 marker。
+      const coverageMatch = src.match(/当前 Rust 覆盖：\s*(\d+)\s*\/\s*(\d+)/);
+      const hasZeroUncovered = /未覆盖：\s*0\s*个\s*code/.test(src);
+      const hasCompletion = Boolean(coverageMatch) &&
+        coverageMatch[1] === coverageMatch[2] &&
+        hasZeroUncovered;
       return {
         status: hasCompletion ? 'PASS' : 'FAIL',
-        detail: hasCompletion ? 'Rust 诊断 parity 已收口（marker >= 67/67）' : 'parity 67/67 marker missing'
+        detail: hasCompletion
+          ? `Rust 诊断 parity 已收口（${coverageMatch[1]}/${coverageMatch[2]}，未覆盖 0）`
+          : 'parity 覆盖 marker 不自洽或存在未覆盖 code'
       };
     }
   },

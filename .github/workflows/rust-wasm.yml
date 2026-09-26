@@ -94,6 +94,23 @@ jobs:
       - name: P1 Rust/Wasm perf benchmark (smoke, 3 iterations)
         run: npm run benchmark:compare -- --iterations 3 --no-threshold
 
+      - name: Performance regression gate (per-platform baseline)
+        # P1 第 4 项 CI 性能门禁：本平台 perf-data 与 perf-baseline/ci/<os>.json
+        # 比对，Rust p50/nav batch 回归 > 10% 或 fallback > 0 即 fail。
+        # 基线文件缺失时 notice 跳过（首次采集后由开发者把 CI artifact
+        # benchmark-<os>.json 提交到 perf-baseline/ci/，从下一个 run 起
+        # 门禁生效）。Linux runner ≠ dev machine 速度基线，因此基线按
+        # runner 平台分文件维护，不与本机 dev 阈值混用。
+        run: |
+          BASELINE="perf-baseline/ci/${{ matrix.os }}.json"
+          if [ ! -f "$BASELINE" ]; then
+            echo "::notice::No CI perf baseline at $BASELINE; skipping strict perf gate. Capture benchmark-<os>.json from the perf-data artifact of this run and commit it to enable the gate."
+            exit 0
+          fi
+          node scripts/benchmarkCompare.js --iterations 5 --no-threshold --json > perf-data/benchmark-${{ matrix.os }}.json
+          node scripts/comparePerfData.js --baseline "$BASELINE" perf-data/benchmark-${{ matrix.os }}.json --strict
+        shell: bash
+
       - name: Capture P1 perf data as GitHub artifact
         # P1 第 3 项 真实性能数据采集：把 benchmark 输出归档为 ${{ matrix.os }}
         # 资产，便于跨平台对比与未来回归阈值设定时回看历史数据。本步骤非

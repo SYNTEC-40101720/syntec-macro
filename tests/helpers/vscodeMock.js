@@ -347,12 +347,23 @@ class StatusBarItem {
 }
 
 const window = {
-  _calls: { showInformationMessage: [] },
+  _calls: { showInformationMessage: [], createOutputChannel: [] },
   _resetCalls() {
     window._calls.showInformationMessage = [];
+    window._calls.createOutputChannel = [];
   },
   createStatusBarItem(alignment, priority) {
     return new StatusBarItem(alignment, priority);
+  },
+  createOutputChannel(name) {
+    window._calls.createOutputChannel.push(name);
+    const lines = [];
+    return {
+      name,
+      appendLine(line) { lines.push(line); },
+      _lines: lines,
+      dispose() {}
+    };
   },
   showInformationMessage(message) {
     window._calls.showInformationMessage.push(message);

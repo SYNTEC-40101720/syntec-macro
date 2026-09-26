@@ -16,8 +16,6 @@ const {
   FANUC_COMPARISON_REPLACEMENTS
 } = require('./diagnosticActions');
 const { LANG_ID, isFeatureEnabled } = require('./providerShared');
-const { getAnalysisBackendSetting } = require('./providerShared');
-const { WORKER_BACKEND_DEFAULT } = require('./providerShared');
 
 const DIAGNOSTIC_DEBOUNCE_MS = 300;
 const VALIDATOR_TIMEOUT_MS = 5000;
@@ -35,42 +33,31 @@ const docRequestIds = new Map();
 // R1.2 Stage B: JS 同步回退后端已退役; worker 不可用时返回 null,
 // 由 refreshDiagnostics 跳过本轮诊断 (result == null → return)。
 
-// Shadow 模式日志 sink：Extension Host 通过 setShadowLogSink 注入
+// Worker 控制日志 sink：Extension Host 通过 setWorkerLogSink 注入
 // OutputChannel；未注入时丢弃日志（不影响用户诊断）。
-let shadowLogSink = null;
+let workerLogSink = null;
 
-function setShadowLogSink(sink) {
-  shadowLogSink = sink;
+function setWorkerLogSink(sink) {
+  workerLogSink = sink;
 }
 
-function endShadowLogSink() {
-  shadowLogSink = null;
+function endWorkerLogSink() {
+  workerLogSink = null;
 }
 
 function setDiagnosticCollection(collection) {
   diagnosticCollection = collection;
 }
 
-function getCurrentWorkerBackend() {
-  // 同步读取配置；改动时 worker 需要重启才能生效——这是 P0-C 第 2 项
-  // 设计上的边界：避免运行中切换造成内存竞态。
-  const configured = getAnalysisBackendSetting();
-  return configured || WORKER_BACKEND_DEFAULT;
-}
-
 function getValidatorWorker() {
   if (validatorWorker) return validatorWorker;
   try {
-    validatorWorker = new Worker(require.resolve('./validatorWorker.js'), {
-      workerData: {
-        backend: getCurrentWorkerBackend()
-      }
-    });
+    validatorWorker = new Worker(require.resolve('./validatorWorker.js'));
     validatorWorker.on('message', (message) => {
-      // Shadow 模式日志：从 worker 的 control 消息转发到 OutputChannel（生产）
+      // Worker 控制日志：从 worker 的 control 消息转发到 OutputChannel（生产）
       // 或 devtools console（开发）。这里只过滤日志，不阻断诊断消息。
       if (message && message.kind === 'log') {
-        if (shadowLogSink) shadowLogSink(message.message);
+        if (workerLogSink) workerLogSink(message.message);
         return;
       }
       const { id, result, error } = message || {};
@@ -344,13 +331,12 @@ function dispose() {
     validatorWorker.terminate();
     validatorWorker = null;
   }
-  endShadowLogSink();
+  endWorkerLogSink();
 }
 
 module.exports = {
   setDiagnosticCollection,
-  setShadowLogSink,
-  getCurrentWorkerBackend,
+  setWorkerLogSink,
   scheduleDiagnostics,
   provideCodeActions,
   dispose

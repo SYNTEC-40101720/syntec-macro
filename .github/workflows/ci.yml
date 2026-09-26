@@ -27,11 +27,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests and diagnostic docs check
-        run: npm test
-
-      - name: Run lint
-        run: npm run lint
+      - name: Run tests and lint (check:all)
+        # npm run check:all = npm test + lint，本地发布前验证与 CI 同一条命令。
+        # readiness / diagnostic-governance 保持独立 informational 步骤
+        # （见下），不入 check:all 硬链。
+        run: npm run check:all
 
       - name: 3.x release readiness gate (informational)
         # 对照 docs/Rust-Wasm切换验收门禁.md §5「完成定义」7 项门禁。

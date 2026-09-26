@@ -146,11 +146,10 @@ test('Rust diagnostics may omit the optional code field', () => {
 
 /**
  * Minimal fake Wasm module. Records the bytes written into its memory and
- * returns a packed JSON output produced by `encodeOutput`. Supports both the
- * P0-B request ABI (`syntec_core_analyze_request_json`) and the legacy
- * text-only ABI (`syntec_core_analyze_json`).
+ * returns a packed JSON output produced by `encodeOutput`. Supports the
+ * P0-B request ABI (`syntec_core_analyze_request_json`).
  */
-function createFakeWasm({ requestAbi, legacyAbi, output, requestSink = null, textSink = null }) {
+function createFakeWasm({ requestAbi, output, requestSink = null }) {
   const memory = new WebAssembly.Memory({ initial: 1 });
   const view = () => new Uint8Array(memory.buffer);
   return {
@@ -167,20 +166,6 @@ function createFakeWasm({ requestAbi, legacyAbi, output, requestSink = null, tex
       ? (pointer, length) => {
         const bytes = view().subarray(pointer, pointer + length);
         if (requestSink) requestSink.push(Buffer.from(bytes).toString('utf8'));
-        if (output === null) return 0n;
-        const encoded = new TextEncoder().encode(output);
-        const outPointer = 1024;
-        if (outPointer + encoded.length > view().length) {
-          memory.grow(Math.ceil((outPointer + encoded.length - view().length) / 65536));
-        }
-        view().set(encoded, outPointer);
-        return (BigInt(outPointer) << 32n) | BigInt(encoded.length);
-      }
-      : undefined,
-    syntec_core_analyze_json: legacyAbi
-      ? (pointer, length) => {
-        const bytes = view().subarray(pointer, pointer + length);
-        if (textSink) textSink.push(Buffer.from(bytes).toString('utf8'));
         if (output === null) return 0n;
         const encoded = new TextEncoder().encode(output);
         const outPointer = 1024;
@@ -208,20 +193,16 @@ function rawResultJson() {
 
 test('createRustWasmAdapter prefers the P0-B request ABI and forwards the full AnalysisRequest', () => {
   const receivedRequest = [];
-  const receivedText = [];
   const wasm = createFakeWasm({
     requestAbi: true,
-    legacyAbi: true,
     output: rawResultJson(),
-    requestSink: receivedRequest,
-    textSink: receivedText
+    requestSink: receivedRequest
   });
   const adapter = createRustWasmAdapter(wasm);
   const request = createRequest('N10;\n', 'file:///G1000');
   const result = adapter(request);
   assert.strictEqual(result.backend, 'rust-wasm');
   assert.strictEqual(receivedRequest.length, 1);
-  assert.deepStrictEqual(receivedText, []); // request path must not touch the legacy ABI
   const forwarded = JSON.parse(receivedRequest[0]);
   assert.strictEqual(forwarded.protocolVersion, 1);
   assert.strictEqual(forwarded.document.uri, 'file:///G1000');
@@ -232,7 +213,6 @@ test('createRustWasmAdapter prefers the P0-B request ABI and forwards the full A
 test('createRustWasmAdapter surfaces a fallback-worthy error when the request ABI rejects the payload', () => {
   const wasm = createFakeWasm({
     requestAbi: true,
-    legacyAbi: false,
     output: null,
     requestSink: []
   });
@@ -240,25 +220,11 @@ test('createRustWasmAdapter surfaces a fallback-worthy error when the request AB
   assert.throws(() => adapter(createRequest('N10;', 'file:///bad')), /rejected the analysis request/);
 });
 
-test('createRustWasmAdapter falls back to the legacy text ABI when the request ABI is missing', () => {
-  const receivedText = [];
-  const wasm = createFakeWasm({
-    requestAbi: false,
-    legacyAbi: true,
-    output: rawResultJson(),
-    textSink: receivedText
-  });
-  const adapter = createRustWasmAdapter(wasm);
-  const result = adapter(createRequest('N10;', 'file:///G1000'));
-  assert.strictEqual(result.backend, 'rust-wasm');
-  assert.deepStrictEqual(receivedText, ['N10;']);
-});
-
-test('createRustWasmAdapter requires at least one analyzer export', () => {
-  const wasm = createFakeWasm({ requestAbi: false, legacyAbi: false, output: null, requestSink: [] });
+test('createRustWasmAdapter requires the request ABI export', () => {
+  const wasm = createFakeWasm({ requestAbi: false, output: null, requestSink: [] });
   const adapter = createRustWasmAdapter(wasm);
   assert.throws(
     () => adapter(createRequest('N10;', 'file:///G1000')),
-    /missing Wasm export: syntec_core_analyze_request_json or syntec_core_analyze_json/
+    /missing Wasm export: syntec_core_analyze_request_json/
   );
 });

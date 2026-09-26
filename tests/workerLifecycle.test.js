@@ -1,10 +1,9 @@
 // workerLifecycle.test.js
-// Worker 生命周期与 fallback 集成测试.
+// Worker 生命周期集成测试.
 //
 // R1.2 Stage B (2026-09-22): JS backend / shadow mode 已退役, JS fallback 路径已删除.
 // 新契约:
-//   - backend 仅剩 `rust-wasm` (无论 workerData.backend 是什么, worker 都走 rust-wasm;
-//     未知 backend 退化并记录 control 日志, 仍尝试 rust-wasm).
+//   - 唯一 backend 为 `rust-wasm`, 无后端选择参数.
 //   - 资产加载失败 → worker 抛错 + 上报 control 日志, ctx.analyze reject (不返 JS 结果).
 //   - cache + lifecycle 行为 (concurrency / cache eviction / terminate) 不变,
 //     但需要真实 wasm 资产 (由本地 assets/rust-wasm/manifest.json 提供).
@@ -15,8 +14,7 @@
 //   3. 并发: 同时发 N 条请求, 全部得到唯一对应 id 的响应;
 //   4. 取消/dispose: pending 请求 resolve(null), worker 安全终止;
 //   5. 版本竞态: 同一 URI 不同 version+text 走独立缓存槽, 不互相覆盖;
-//   6. fallback: 资产缺失时 worker reject 并上报 control 日志 (不返 JS 结果);
-//   7. 未知 backend: worker 退化为 rust-wasm 并记录 unknown 日志.
+//   6. fallback: 资产缺失时 worker reject 并上报 control 日志 (不返 JS 结果).
 
 const { test } = require('node:test');
 const assert = require('node:assert');
@@ -94,7 +92,7 @@ function startWorker(workerData) {
 // ---------------------------------------------------------------------------
 
 test('启动 rust-wasm backend 正常返回 AnalysisResult', async () => {
-  const ctx = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx = startWorker({ manifestPath: DEFAULT_MANIFEST });
   try {
     const result = await ctx.analyze(makeRequest('file:///G1000', 1, 'IF #1 = 1 THEN\nEND_IF;'));
     assert.ok(result, 'worker 应返回非空结果');
@@ -112,12 +110,12 @@ test('启动 rust-wasm backend 正常返回 AnalysisResult', async () => {
 // ---------------------------------------------------------------------------
 
 test('重启 worker: terminate 后新 Worker 仍能分析', async () => {
-  const ctx1 = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx1 = startWorker({ manifestPath: DEFAULT_MANIFEST });
   const r1 = await ctx1.analyze(makeRequest('file:///A0001', 1, '#1 = 1;'));
   assert.strictEqual(r1.backend, 'rust-wasm');
   await ctx1.terminate();
 
-  const ctx2 = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx2 = startWorker({ manifestPath: DEFAULT_MANIFEST });
   try {
     const r2 = await ctx2.analyze(makeRequest('file:///A0002', 1, '#2 = 2;'));
     assert.strictEqual(r2.backend, 'rust-wasm');
@@ -132,7 +130,7 @@ test('重启 worker: terminate 后新 Worker 仍能分析', async () => {
 // ---------------------------------------------------------------------------
 
 test('并发请求: 同时发 8 条请求全部返回', async () => {
-  const ctx = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx = startWorker({ manifestPath: DEFAULT_MANIFEST });
   try {
     const requests = Array.from({ length: 8 }, (_, i) =>
       ctx.analyze(makeRequest(`file:///F${i}`, 1, `#${i + 1} = ${i + 1};`)));
@@ -155,7 +153,7 @@ test('并发请求: 同时发 8 条请求全部返回', async () => {
 // ---------------------------------------------------------------------------
 
 test('terminate 时 pending 请求被 resolve(null) 不会永挂', async () => {
-  const ctx = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx = startWorker({ manifestPath: DEFAULT_MANIFEST });
   const slowText = '#1 = 1;\n' + Array.from({ length: 500 }, () => '#100 = #100 + 1;').join('\n');
   const slow = ctx.analyze(makeRequest('file:///SLOW', 1, slowText));
   await ctx.terminate();
@@ -169,7 +167,7 @@ test('terminate 时 pending 请求被 resolve(null) 不会永挂', async () => {
 // ---------------------------------------------------------------------------
 
 test('版本竞态: 同 URI 不同 version 走独立缓存不互相覆盖', async () => {
-  const ctx = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx = startWorker({ manifestPath: DEFAULT_MANIFEST });
   try {
     const v1 = makeRequest('file:///V', 1, '#1 = 1;');
     const v2 = makeRequest('file:///V', 2, '#1 = 2;');
@@ -187,7 +185,7 @@ test('版本竞态: 同 URI 不同 version 走独立缓存不互相覆盖', asyn
 });
 
 test('缓存有界: 超过 MAX_ENTRIES(8) 后旧条目被淘汰', async () => {
-  const ctx = startWorker({ backend: 'rust-wasm', manifestPath: DEFAULT_MANIFEST });
+  const ctx = startWorker({ manifestPath: DEFAULT_MANIFEST });
   try {
     for (let i = 0; i < 10; i++) {
       const r = await ctx.analyze(makeRequest(`file:///C${i}`, 1, `#${i} = ${i};`));
@@ -207,7 +205,6 @@ test('缓存有界: 超过 MAX_ENTRIES(8) 后旧条目被淘汰', async () => {
 
 test('rust-wasm 资产缺失时 worker reject 并上报 control 日志', async () => {
   const ctx = startWorker({
-    backend: 'rust-wasm',
     manifestPath: '/definitely/not/exist/manifest.json'
   });
   try {
@@ -221,22 +218,6 @@ test('rust-wasm 资产缺失时 worker reject 并上报 control 日志', async (
     for (const entry of fallbackLogs) {
       assert.ok(!/require\(|import /.test(entry.message), '日志不应泄露 require/import 路径细节');
     }
-  } finally {
-    await ctx.terminate();
-  }
-});
-
-// ---------------------------------------------------------------------------
-// 7. 未知 backend: worker 退化为 rust-wasm 并记录 unknown 日志 (R1.2: 不再回退 javascript).
-// ---------------------------------------------------------------------------
-
-test('未知 backend 退化为 rust-wasm 并记录 unknown 日志', async () => {
-  const ctx = startWorker({ backend: 'totally-unknown-backend', manifestPath: DEFAULT_MANIFEST });
-  try {
-    const result = await ctx.analyze(makeRequest('file:///U', 1, '#1 = 1;'));
-    assert.strictEqual(result.backend, 'rust-wasm');
-    const unknownLogs = ctx.logs.filter(l => /unknown/i.test(l.message));
-    assert.ok(unknownLogs.length > 0, '未知 backend 应通过 control 消息记录 unknown 退化');
   } finally {
     await ctx.terminate();
   }
