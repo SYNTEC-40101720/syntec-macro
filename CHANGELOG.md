@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 4.3.0 - 2026-09-27
+
+### Added
+
+- 关键字行内补全 ghost text（1.67+ `InlineCompletionItemProvider`）：敲关键字前缀行内实时提示（Tab 采纳），唯一匹配单条直达、多匹配最多 3 条候选（行内 UI 切换）；61 个关键字全部可达（2 字母词结构性无可补内容不适用），可达性由审计测试守卫；遵守 `syntecMacro.enableCompletions` 开关。
+
+
 ## 4.2.1 - 2026-09-27
 
 ### Added
