@@ -58,4 +58,4 @@ npm.cmd run smoke:installed
 全部文档的角色与阅读顺序见 `docs/README.md`（文档地图，唯一维护点）。关键入口：
 - 主线索引 (每次新会话先读): `docs/开发交接说明.md`
 - 发布 Runbook: `docs/Release-Runbook.md`
-- 诊断治理四件套: `docs/MACRO能力矩阵.md` + `docs/新代MACRO语法规范手册.md`(分册) + `docs/Rust诊断parity清单.md` + `src/diagnosticActions.js`
+- 诊断治理四件套: `docs/MACRO能力矩阵.md` + `docs/handbook/`(分册) + `docs/Rust诊断parity清单.md` + `src/diagnosticActions.js`

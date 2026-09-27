@@ -1,7 +1,6 @@
-# 新代 MACRO 语法规范手册 · Confluence 参考索引
+# 手册 · Confluence 参考索引
 
-> 本文件为 [新代 MACRO 语法规范手册](../新代MACRO语法规范手册.md) 的拆分子主题（Confluence 参考索引）。
-> 状态标记规则与维护流程见 [原手册索引 §0](../新代MACRO语法规范手册.md#0-状态标记)。
+> 本文件为 [MACRO 语法手册](README.md) 的分册。CF 检索状态以 [能力矩阵](../MACRO能力矩阵.md) 为准。
 
 ## 附录 A. Confluence 参考索引
 

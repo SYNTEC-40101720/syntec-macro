@@ -1,6 +1,6 @@
 # 架构说明（ARCHITECTURE）
 
-> 面向新接手者的一页式架构图景：Rust core → Wasm → host/worker 双路径 → VS Code provider 的调用链路与数据流。规则沉淀看 [新代 MACRO 语法规范手册](新代MACRO语法规范手册.md)；接续工作与发布流程看 [开发交接说明](开发交接说明.md)。本文档状态基线：v4.2.x（2026-09-26，R1.2 单后端化清理后）。
+> 面向新接手者的一页式架构图景：Rust core → Wasm → host/worker 双路径 → VS Code provider 的调用链路与数据流。规则沉淀看 [MACRO 语法手册](handbook/README.md)；接续工作与发布流程看 [开发交接说明](开发交接说明.md)。本文档状态基线：v4.3.x（2026-09-27）。
 
 ## 总览
 

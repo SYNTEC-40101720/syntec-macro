@@ -1,8 +1,8 @@
 {
   "$schema": "systemVariables.json schema — 系统变数固定编号语义表 (hover-only, 不做静态诊断)",
   "source": [
-    "docs/macro-handbook/02-variables.md §2.7.1 (bit 级规格 + G92 系统变数补遗)",
-    "docs/macro-handbook/02-variables.md §2.10 (PLC↔系统变数映射)"
+    "docs/handbook/02-variables.md §2.7.1 (bit 级规格 + G92 系统变数补遗)",
+    "docs/handbook/02-variables.md §2.10 (PLC↔系统变数映射)"
   ],
   "maintenanceRule": "仅登记手册已明确编号的固定子集，不做整段 #1001~#5500 映射推断。",
   "docs": {

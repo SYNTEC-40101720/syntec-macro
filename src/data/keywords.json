@@ -1,6 +1,6 @@
 {
   "schema": "keywords.json — 关键字、常量、控制流、变量格式定义（2 张表: keywords[] + keywordDocs{}）",
-  "source": "docs/macro-handbook/03-syntax.md + 05-robot.md",
+  "source": "docs/handbook/03-syntax.md + 05-robot.md",
   "keywords": {
     "conditional": [
       "IF",
