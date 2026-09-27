@@ -19,5 +19,9 @@
     "#1933": "G92.1 座标系旋转中心轴 3\nr/w，对应 1~4 轴群；详见 #1931。",
     "#6001": "PLC C101 对应状态（PLC → CNC）\n区段 #6001~#6032 对应 C101~C132；Macro 可经 #6xxx 读到 PLC 请求状态。\n建议只读：写入覆盖会被 PLC 下一周期覆盖。",
     "#6032": "PLC C132 对应状态（PLC → CNC）\n区段 #6001~#6032 对应 C101~C132；详见 #6001。"
-  }
+  },
+  "sources": [
+    "docs/handbook/variables.md（bit 级规格 + G92 系统变数补遗）",
+    "docs/handbook/variables.md（PLC↔系统变数映射）"
+  ]
 }

@@ -10,9 +10,7 @@
 
 | 状态 | 含义 |
 | --- | --- |
-| 已覆盖 | Rust 在与 JavaScript 相同的输入下产出相同的 `line / col / endCol / severity / code` 序列，并由 `compare:rust` 差分样例覆盖。 |
-| 待迁移 | code 已在 JS 登记，Rust 尚未实现等价诊断。 |
-| 无 code warning | JS 当前产出无 `code` 的 warning；需逐项决定是否补登记 code，再决定 Rust 是否跟随。 |
+| 已覆盖 | Rust 在既有 fixture 与 `compare:rust` golden file 样例下产出稳定的 `line / col / endCol / severity / code` 序列。 |
 
 ## 已覆盖（73）
 
@@ -120,28 +118,29 @@
 
 ## Dead code（两端共同不 emit → 2026-09-21 Phase 5.3 路径 A 已共同剔除）
 
-下列三个 code 此前曾在 `src/diagnosticActions.js` 注册 code action，但 JS `src/robotValidator.js` 实际不 emit；Rust 同样保持无 emit。2026-09-21 Phase 5.3 路径 A 落地，JS+Rust 两端共同剔除 key 与 code action：
+下列三个 code 曾在 `src/diagnosticActions.js` 注册 code action 但两端均不 emit；2026-09-21 Phase 5.3 路径 A 落地，两端共同剔除 key 与 code action：
 
 - ~~`SYNTEC_ROBOT_SWAITSIG_Q_RANGE`~~
 - ~~`SYNTEC_ROBOT_SYNCOUT_Q_RANGE`~~
 - ~~`SYNTEC_ROBOT_SKIPCOND_Q_RANGE`~~
 
-JS DiagnosticCode 全集由 67 → 64 项，与 Rust lib.rs literal 集合完全等价。既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三 command 的 Q range 警报）。若未来 user 取得 CNC B 级证据需重新加回独立 code，可按本档 §Dead code 路径 B 重新落回 (三项 code 名称 + 版本门控记录已于 2026-09-21 Phase 5.3 路径 A 共同剔除)。
+稳定 DiagnosticCode 全集由 67 → 64 项，与 Rust lib.rs literal 集合完全等价。既有诊断行为不变（`SYNTEC_ROBOT_STATIC_ARG_RANGE` 覆盖 SKIPCOND/SWAITSIG/SYNCOUT 三 command 的 Q range 警报）。若未来 user 取得 CNC B 级证据需重新加回独立 code，可按本档 §Dead code 路径 B 重新落回 (三项 code 名称 + 版本门控记录已于 2026-09-21 Phase 5.3 路径 A 共同剔除)。
 
 ## 无 code warning（待逐项收口）
 
-JS 当前产出无 `code` 的 warning。Rust parity 要求：要么两端都附加同一 code，要么两端都保持无 code。当前清单：
+当前产出无 `code` 的 warning（有意设计：这些提示不宜用 Quick Fix 机械修复）。清单：
 
-- CASE 分支标签后同行陈述警告（`controlFlowValidator.js` `branchMatch` 分支）。
-- CASE ELSE 后同行陈述警告（同文件 `elseMatch` 分支）。
-- 中文标点/中文字符错误（`Rust` 已以 `push_diagnostic_without_code` 等价产出，已 parity）。
-- 「此文件缺少 %@MACRO 文件头」warning（`src/validator.js` `collectMetadata`），Rust 已在 `analyze_document` 中补齐等价产出（无 code），已 parity。
-- GOTO 目标不存在 warning（已 parity，`push_diagnostic_without_code`）。
-- 其他零散 hover/警告文本，按迁移批次复核。
+- CASE 分支标签后同行陈述警告。
+- CASE ELSE 后同行陈述警告。
+- 中文标点/中文字符错误。
+- 「此文件缺少 %@MACRO 文件头」warning。
+- GOTO 目标不存在 warning。
+
+如需给其中某项补登记 code，按四件套登记并同步更新本清单。
 
 ## 验证入口
 
-每次迁移批次完成后必须运行：
+新增/修改诊断 code 后必须运行：
 
 ```powershell
 git diff --check
